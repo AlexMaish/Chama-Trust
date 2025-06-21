@@ -1,0 +1,244 @@
+package com.example.chamabuddy.data.repository
+
+import com.example.chamabuddy.data.local.*
+import com.example.chamabuddy.domain.model.*
+import com.example.chamabuddy.domain.repository.*
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import java.util.*
+import java.util.UUID
+import javax.inject.Inject
+
+class MeetingRepositoryImpl @Inject constructor(
+    private val meetingDao: WeeklyMeetingDao,
+    private val contributionDao: MemberContributionDao,
+    private val beneficiaryDao: BeneficiaryDao,
+    private val memberDao: MemberDao,
+    private val cycleDao: CycleDao,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+) : MeetingRepository {
+
+    override suspend fun createWeeklyMeeting(
+        cycleId: String,
+        meetingDate: Date,
+        recordedBy: String?
+    ) = withContext(dispatcher) {
+        try {
+            val meeting = WeeklyMeeting(
+                meetingId = UUID.randomUUID().toString(),
+                cycleId = cycleId,
+                meetingDate = meetingDate,
+                totalCollected = 0,
+                recordedBy = recordedBy
+            )
+            meetingDao.insertMeeting(meeting)
+            Result.success(meeting)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    override suspend fun getMeetingWithDetails(meetingId: String): MeetingWithDetails? =
+        withContext(dispatcher) {
+            val meeting = meetingDao.getMeetingById(meetingId) ?: return@withContext null
+
+            val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meetingId)
+                .map { beneficiary ->
+                    val member = memberDao.getMemberById(beneficiary.memberId)
+                    BeneficiaryMember(
+                        memberId = beneficiary.memberId,
+                        memberName = member?.name ?: "Unknown",
+                        amountReceived = beneficiary.amountReceived
+                    )
+                }
+
+            val contributors = contributionDao.getContributorsForMeeting(meetingId)
+                .map { contribution ->
+                    val member = memberDao.getMemberById(contribution.memberId)
+                    ContributorMember(
+                        memberId = contribution.memberId,
+                        memberName = member?.name ?: "Unknown",
+                        amountContributed = contribution.amountContributed
+                    )
+                }
+
+            MeetingWithDetails(
+                meeting = meeting,
+                beneficiaries = beneficiaries,
+                contributors = contributors
+            )
+        }
+
+    override fun getMeetingsForCycle(cycleId: String): Flow<List<MeetingWithDetails>> =
+        meetingDao.getMeetingsForCycle(cycleId).map { meetings ->
+            meetings.map { meeting ->
+                val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meeting.meetingId)
+                    .map { beneficiary ->
+                        val member = memberDao.getMemberById(beneficiary.memberId)
+                        BeneficiaryMember(
+                            memberId = beneficiary.memberId,
+                            memberName = member?.name ?: "Unknown",
+                            amountReceived = beneficiary.amountReceived
+                        )
+                    }
+
+                val contributors = contributionDao.getContributorsForMeeting(meeting.meetingId)
+                    .map { contribution ->
+                        val member = memberDao.getMemberById(contribution.memberId)
+                        ContributorMember(
+                            memberId = contribution.memberId,
+                            memberName = member?.name ?: "Unknown",
+                            amountContributed = contribution.amountContributed
+                        )
+                    }
+
+                MeetingWithDetails(
+                    meeting = meeting,
+                    beneficiaries = beneficiaries,
+                    contributors = contributors
+                )
+            }
+        }
+
+    override suspend fun updateMeetingStatus(
+        meetingId: String,
+        hasContributions: Boolean,
+        hasBeneficiaries: Boolean
+    ) {
+        // In a real implementation, you might update flags in the meeting table
+        // For now, we'll just ensure beneficiaries are properly saved
+    }
+
+    override suspend fun recordContributions(
+        meetingId: String,
+        contributions: Map<String, Boolean>
+    ): Result<Unit> = withContext(dispatcher) {
+        try {
+            val meeting = meetingDao.getMeetingById(meetingId) ?: throw IllegalStateException("Meeting not found")
+            val cycle = cycleDao.getCycleById(meeting.cycleId) ?: throw IllegalStateException("Cycle not found")
+
+            // Clear existing contributions
+            contributionDao.deleteContributionsForMeeting(meetingId)
+
+            var totalCollected = 0
+            contributions.forEach { (memberId, hasContributed) ->
+                if (hasContributed) {
+                    contributionDao.insertContribution(
+                        MemberContribution(
+                            contributionId = UUID.randomUUID().toString(),
+                            meetingId = meetingId,
+                            memberId = memberId,
+                            amountContributed = cycle.weeklyAmount,
+                            contributionDate = Date().toString(),
+                            isLate = false
+                        )
+                    )
+                    totalCollected += cycle.weeklyAmount
+                }
+            }
+
+            // Update meeting with new total
+            meetingDao.updateMeeting(meeting.copy(totalCollected = totalCollected))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    override suspend fun selectBeneficiaries(
+        meetingId: String,
+        firstBeneficiaryId: String,
+        secondBeneficiaryId: String
+    ) = withContext(dispatcher) {
+        try {
+            val meeting = meetingDao.getMeetingById(meetingId) ?: throw IllegalStateException("Meeting not found")
+            val cycle = cycleDao.getCycleById(meeting.cycleId) ?: throw IllegalStateException("Cycle not found")
+
+            if (beneficiaryDao.hasReceivedInCycle(firstBeneficiaryId, meeting.cycleId) > 0) {
+                throw IllegalStateException("First beneficiary already received in this cycle")
+            }
+
+            if (beneficiaryDao.hasReceivedInCycle(secondBeneficiaryId, meeting.cycleId) > 0) {
+                throw IllegalStateException("Second beneficiary already received in this cycle")
+            }
+
+            beneficiaryDao.insertBeneficiary(
+                Beneficiary(
+                    beneficiaryId = UUID.randomUUID().toString(),
+                    meetingId = meetingId,
+                    memberId = firstBeneficiaryId,
+                    amountReceived = cycle.weeklyAmount,
+                    paymentOrder = 1,
+                    cycleId = cycle.cycleId,
+                    dateAwarded = Date()
+                )
+            )
+
+            beneficiaryDao.insertBeneficiary(
+                Beneficiary(
+                    beneficiaryId = UUID.randomUUID().toString(),
+                    meetingId = meetingId,
+                    memberId = secondBeneficiaryId,
+                    amountReceived = cycle.weeklyAmount,
+                    paymentOrder = 2,
+                    cycleId = cycle.cycleId,
+                    dateAwarded = Date()
+                )
+            )
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getMeetingById(meetingId: String): WeeklyMeeting? {
+        return meetingDao.getMeetingById(meetingId)
+    }
+
+    override suspend fun getLatestMeeting(cycleId: String): WeeklyMeeting? =
+        withContext(dispatcher) {
+            meetingDao.getLatestMeetingForCycle(cycleId)
+        }
+
+    override suspend fun getMeetingStatus(meetingId: String): MeetingStatus =
+        withContext(dispatcher) {
+            val meeting = meetingDao.getMeetingById(meetingId) ?: throw IllegalStateException("Meeting not found")
+            val cycle = cycleDao.getCycleById(meeting.cycleId) ?: throw IllegalStateException("Cycle not found")
+            val activeMembers = memberDao.getActiveMembers().first()
+
+            val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meetingId)
+            val contributors = contributionDao.getContributorsForMeeting(meetingId)
+
+            MeetingStatus(
+                totalExpected = cycle.weeklyAmount * activeMembers.size,
+                totalContributed = meeting.totalCollected,
+                beneficiariesSelected = beneficiaries.size == 2,
+                fullyRecorded = contributors.size == activeMembers.size
+            )
+        }
+
+    override suspend fun getCycleWeeklyAmount(cycleId: String): Int {
+        return cycleDao.getCycleById(cycleId)?.weeklyAmount ?: 0
+    }
+
+    override suspend fun hasContributed(meetingId: String, memberId: String): Boolean =
+        withContext(dispatcher) {
+            contributionDao.hasContributed(meetingId, memberId) > 0
+        }
+
+    override suspend fun getBeneficiariesForMeeting(meetingId: String): List<BeneficiaryAndAmount> =
+        withContext(dispatcher) {
+            beneficiaryDao.getBeneficiariesForMeeting(meetingId)
+                .map { beneficiary ->
+                    BeneficiaryAndAmount(
+                        memberId = beneficiary.memberId,
+                        amountReceived = beneficiary.amountReceived
+                    )
+                }
+        }
+}

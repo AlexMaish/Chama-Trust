@@ -1,0 +1,224 @@
+// File: com/example/chamabuddy/presentation/screens/CycleDetailScreen.kt
+package com.example.chamabuddy.presentation.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.example.chamabuddy.domain.model.MeetingWithDetails
+import com.example.chamabuddy.presentation.navigation.NavigationDestination
+import com.example.chamabuddy.presentation.viewmodel.MeetingEvent
+import com.example.chamabuddy.presentation.viewmodel.MeetingState
+import com.example.chamabuddy.presentation.viewmodel.MeetingViewModel
+import java.text.SimpleDateFormat
+import java.util.*
+
+object CycleDetailDestination : NavigationDestination {
+    override val route = "cycle_detail"
+    override val title = "Cycle Details"
+    const val cycleIdArg = "cycleId"
+    val routeWithArgs = "$route/{$cycleIdArg}"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CycleDetailScreenForMeetings(
+    cycleId: String,
+    navigateToMeetingDetail: (String) -> Unit,
+    navigateToContribution: (String) -> Unit, // Add this parameter
+    navigateBack: () -> Unit,
+    viewModel: MeetingViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                viewModel.handleEvent(MeetingEvent.GetMeetingsForCycle(cycleId))
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    LaunchedEffect(cycleId) {
+        viewModel.handleEvent(MeetingEvent.GetMeetingsForCycle(cycleId))
+    }
+
+    LaunchedEffect(state) {
+        if (state is MeetingState.MeetingCreated) {
+            val meeting = (state as MeetingState.MeetingCreated).meeting
+            navigateToContribution(meeting.meetingId)
+            viewModel.handleEvent(MeetingEvent.ResetMeetingState)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Cycle Details") },
+                navigationIcon = {
+                    IconButton(onClick = navigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    // Create new meeting
+                    viewModel.handleEvent(
+                        MeetingEvent.CreateMeeting(
+                            cycleId = cycleId,
+                            date = Date(),
+                            recordedBy = null // Replace with actual user
+                        )
+                    )
+                },
+                containerColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "New Meeting")
+            }
+        }
+    ) { innerPadding ->
+        when (state) {
+            is MeetingState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            is MeetingState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text((state as MeetingState.Error).message)
+                }
+            }
+            is MeetingState.MeetingsLoaded -> {
+                val meetings = (state as MeetingState.MeetingsLoaded).meetings
+                if (meetings.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No meetings recorded yet")
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(meetings) { meetingWithDetails ->
+                            MeetingCard(
+                                meeting = meetingWithDetails,
+                                onClick = {
+                                    navigateToContribution(meetingWithDetails.meeting.meetingId)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {}
+        }
+    }
+}
+// Update to MeetingCard in CycleDetailScreenForMeetings
+@Composable
+fun MeetingCard(meeting: MeetingWithDetails, onClick: () -> Unit) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Beneficiaries section - show first 2
+            if (meeting.beneficiaries.isNotEmpty()) {
+                Text(
+                    text = "Beneficiaries",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF388E3C)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                meeting.beneficiaries.take(2).forEach { beneficiary ->
+                    Text(
+                        text = "• ${beneficiary.memberName}",
+                        color = Color(0xFF388E3C)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            Divider()
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Meeting info
+            Text(
+                text = "Meeting on ${dateFormat.format(meeting.meeting.meetingDate)}",
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Contributors preview - show first 4
+            if (meeting.contributors.isNotEmpty()) {
+                Text(text = "Contributors:", fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                meeting.contributors.take(3).forEach { contributor ->
+                    Text(text = "• ${contributor.memberName}")
+                }
+                if (meeting.contributors.size > 4) {
+                    Text(text = "+ ${meeting.contributors.size - 3} more")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Recorded by
+            meeting.meeting.recordedBy?.let { recordedBy ->
+                Text(
+                    text = "Recorded by: $recordedBy",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+    }
+}

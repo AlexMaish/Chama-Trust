@@ -1,0 +1,54 @@
+package com.example.chamabuddy.data.local
+
+import kotlinx.coroutines.flow.Flow
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import com.example.chamabuddy.domain.model.Member
+import com.example.chamabuddy.domain.model.WeeklyMeeting
+
+
+@Dao
+interface MemberDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMember(member: Member)
+
+    @Update
+    suspend fun updateMember(member: Member)
+
+    @Delete
+    suspend fun deleteMember(member: Member)
+
+    @Query("SELECT * FROM Member WHERE member_id = :memberId")
+    suspend fun getMemberById(memberId: String): Member?
+
+    @Query("SELECT * FROM Member WHERE is_admin = 1")
+    fun getAllAdmins(): Flow<List<Member>>
+
+    @Query("SELECT  * FROM Member WHERE is_active = 1 ORDER BY name ASC")
+     fun getActiveMembers(): Flow<List<Member>>
+
+    @Query("SELECT * FROM Member ORDER BY name ASC")
+    fun getAllMembers(): Flow<List<Member>>
+
+    //added
+    @Query("SELECT * FROM Member WHERE name LIKE '%' || :query || '%'")
+    fun searchMembersByName(query: String): Flow<List<Member>>
+
+    @Query("SELECT * FROM member WHERE name LIKE '%' || :query || '%' OR nickname LIKE '%' || :query || '%' OR phone_number LIKE '%' || :query || '%'")
+    fun searchMembers(query: String): Flow<List<Member>>
+
+//
+//    @Query("SELECT * FROM member WHERE member_id = :memberId")
+//    suspend fun getMemberByName(memberId: String): Member?
+
+    @Query("SELECT * FROM Member WHERE name = :name LIMIT 1")
+    suspend fun getMemberByName(name: String): Member?
+
+    @Query("SELECT COUNT(*) FROM member WHERE is_active = 1")
+    suspend fun getActiveMembersCount(): Int
+}
+
