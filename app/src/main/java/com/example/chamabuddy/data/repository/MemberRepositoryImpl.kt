@@ -20,7 +20,15 @@ class MemberRepositoryImpl @Inject constructor(
     override suspend fun getMemberByName(name: String): Member? = withContext(dispatcher) {
         memberDao.getMemberByName(name)
     }
-
+    override suspend fun getMemberNameById(memberId: String): String? {
+        return withContext(dispatcher) {
+            try {
+                memberDao.getMemberById(memberId)?.name
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
 
     override suspend fun addMember(member: Member) = withContext(dispatcher) {
         memberDao.insertMember(member)

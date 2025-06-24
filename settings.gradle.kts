@@ -19,6 +19,7 @@ dependencyResolutionManagement {
     }
 }
 
+
 rootProject.name = "ChamaBuddy"
 include(":app")
  

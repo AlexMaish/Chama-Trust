@@ -104,8 +104,9 @@ fun MainNavHost(navController: NavHostController, innerPadding: PaddingValues) {
                 },
                 navigateToCreateCycle = {
                     navController.navigate(CreateCycleDestination.route)
-                },
-                navigateToMembers = {
+                }
+                ,
+                navigateToProfile = {
                     // Add navigation to members if needed
                     navController.navigate(MembersDestination.route)
                 }

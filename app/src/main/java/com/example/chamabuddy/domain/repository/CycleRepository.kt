@@ -13,7 +13,7 @@ interface CycleRepository {
     ): Result<Cycle>
 
     suspend fun endCurrentCycle(): Result<Unit>
-
+    suspend fun getActiveCycle(): Cycle?
     // Data access
     fun getCurrentCycle(): Flow<Cycle?>
     fun getAllCycles(): Flow<List<Cycle>>

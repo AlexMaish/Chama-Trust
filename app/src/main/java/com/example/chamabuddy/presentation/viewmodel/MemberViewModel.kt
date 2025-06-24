@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltViewModel
@@ -126,7 +127,15 @@ class MemberViewModel  @Inject constructor(
             }
         }
     }
-
+    fun getMemberNameById(memberId: String): String? {
+        return runBlocking {
+            try {
+                memberRepository.getMemberNameById(memberId)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
     fun changePhoneNumber(memberId: String, newNumber: String) {
         viewModelScope.launch {
             _state.value = MemberState.Loading

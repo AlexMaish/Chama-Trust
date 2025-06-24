@@ -25,7 +25,7 @@ import java.util.Date
         MonthlySaving::class,
         MonthlySavingEntry::class
     ],
-    version = 4
+    version = 7
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

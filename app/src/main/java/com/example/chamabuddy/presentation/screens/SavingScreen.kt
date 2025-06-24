@@ -38,6 +38,14 @@ fun SavingsScreen(
     val members by viewModel.members.collectAsState()
     val memberTotals by viewModel.memberTotals.collectAsState()
 
+    // Calculate total savings for each member
+    val memberSavingsList = remember(members, memberTotals) {
+        members.values.map { member ->
+            val total = memberTotals[member.memberId] ?: 0
+            MemberWithSavings(member, total)
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -65,8 +73,7 @@ fun SavingsScreen(
                         CircularProgressIndicator()
                     }
                 } else {
-                    // Show content while loading updates
-                    SavingsContent(innerPadding, members, memberTotals, navigateToProfile)
+                    SavingsContent(innerPadding, memberSavingsList, navigateToProfile)
                 }
             }
             is SavingsState.Error -> {
@@ -80,20 +87,22 @@ fun SavingsScreen(
                 }
             }
             else -> {
-                SavingsContent(innerPadding, members, memberTotals, navigateToProfile)
+                SavingsContent(innerPadding, memberSavingsList, navigateToProfile)
             }
         }
     }
 }
 
+// Data class to hold member with their savings
+data class MemberWithSavings(val member: Member, val totalSavings: Int)
+
 @Composable
 private fun SavingsContent(
     innerPadding: PaddingValues,
-    members: Map<String, Member>,
-    memberTotals: Map<String, Int>,
+    memberSavingsList: List<MemberWithSavings>,
     navigateToProfile: (String) -> Unit
 ) {
-    if (members.isEmpty()) {
+    if (memberSavingsList.isEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -103,8 +112,6 @@ private fun SavingsContent(
             Text("No members available")
         }
     } else {
-        val memberList = members.values.toList()
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -112,13 +119,11 @@ private fun SavingsContent(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(memberList) { member ->
-                val totalSavings = memberTotals[member.memberId] ?: 0
-
+            items(memberSavingsList) { item ->
                 MemberSavingsCard(
-                    member = member,
-                    totalSavings = totalSavings,
-                    onClick = { navigateToProfile(member.memberId) }
+                    member = item.member,
+                    totalSavings = item.totalSavings,
+                    onClick = { navigateToProfile(item.member.memberId) }
                 )
             }
         }

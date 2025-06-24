@@ -23,6 +23,7 @@ interface MemberRepository {
     suspend fun getActiveMembersCount(): Int
     // New function needed by ViewModel
     suspend fun getMemberByName(name: String): Member?
+    suspend fun getMemberNameById(memberId: String): String?
 
 
     suspend fun updateProfilePicture(memberId: String, imageUri: Uri)

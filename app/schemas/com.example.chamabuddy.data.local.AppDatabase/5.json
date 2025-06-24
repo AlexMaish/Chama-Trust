@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "a7ddab1544169a12f045de47ee41c0ff",
+    "identityHash": "273e3243ff341bbd6d194dca1229c107",
     "entities": [
       {
         "tableName": "Member",
@@ -489,17 +489,7 @@
             "saving_id"
           ]
         },
-        "indices": [
-          {
-            "name": "index_MonthlySaving_cycle_id",
-            "unique": false,
-            "columnNames": [
-              "cycle_id"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_MonthlySaving_cycle_id` ON `${TABLE_NAME}` (`cycle_id`)"
-          }
-        ],
+        "indices": [],
         "foreignKeys": [
           {
             "table": "Cycle",
@@ -630,7 +620,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a7ddab1544169a12f045de47ee41c0ff')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '273e3243ff341bbd6d194dca1229c107')"
     ]
   }
 }

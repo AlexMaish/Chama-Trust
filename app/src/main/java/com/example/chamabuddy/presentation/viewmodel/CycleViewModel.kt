@@ -49,7 +49,7 @@ class CycleViewModel  @Inject constructor(
         viewModelScope.launch {
             _state.value = CycleState.Loading
             try {
-                val cycle = cycleRepository.getCurrentCycle().first()
+                val cycle = cycleRepository.getActiveCycle()
                 _activeCycle.value = cycle
                 if (cycle != null) {
                     _state.value = CycleState.ActiveCycle(cycle)

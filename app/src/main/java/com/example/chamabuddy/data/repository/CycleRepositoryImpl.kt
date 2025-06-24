@@ -43,6 +43,7 @@ class CycleRepositoryImpl @Inject constructor(
 
 
             val newCycle = Cycle(
+                isActive = true,
                 cycleId = UUID.randomUUID().toString(),
                 startDate = startDateMillis, // 👈 now it's a Long
                 weeklyAmount = weeklyAmount,
@@ -95,6 +96,10 @@ class CycleRepositoryImpl @Inject constructor(
 //        }
 //    }
 //
+override suspend fun getActiveCycle(): Cycle? = withContext(dispatcher) {
+    cycleDao.getActiveCycle()
+}
+
     override suspend fun getCycleStats(cycleId: String): CycleStats = withContext(dispatcher) {
         val cycle = cycleDao.getCycleById(cycleId)
             ?: throw NoSuchElementException("Cycle not found")

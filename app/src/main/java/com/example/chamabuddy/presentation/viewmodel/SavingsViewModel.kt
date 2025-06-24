@@ -3,6 +3,7 @@ package com.example.chamabuddy.presentation.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.model.MonthlySaving
 import com.example.chamabuddy.domain.model.MonthlySavingEntry
@@ -15,14 +16,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class SavingsViewModel  @Inject constructor(
     private val savingsRepository: SavingsRepository,
     private val memberRepository: MemberRepository,
+    private val cycleRepository: CycleRepository,
     savedStateHandle: SavedStateHandle,
-    private val cycleRepository: CycleRepository // Add this
 
 ) : ViewModel() {
 
@@ -43,31 +47,19 @@ class SavingsViewModel  @Inject constructor(
     private val _memberTotals = MutableStateFlow<Map<String, Int>>(emptyMap())
     val memberTotals: StateFlow<Map<String, Int>> = _memberTotals.asStateFlow()
 
-    private val _recordedSavings = MutableStateFlow(false)
-    val recordedSavings: StateFlow<Boolean> = _recordedSavings.asStateFlow()
+
+    private val _activeCycle = MutableStateFlow<Cycle?>(null)
+    val activeCycle: StateFlow<Cycle?> = _activeCycle.asStateFlow()
 
 
-    // track the current cycle ID
-    private val _currentCycleId = MutableStateFlow<String?>(null)
-    val currentCycleId: StateFlow<String?> = _currentCycleId.asStateFlow()
+
 
 
     init {
         loadActiveMembers()
         loadAllMemberSavingsTotals() // Load savings totals
-        loadCurrentCycleId()
     }
 
-    private fun loadCurrentCycleId() {
-        viewModelScope.launch {
-            try {
-                val cycle = cycleRepository.getCurrentCycle().first()
-                _currentCycleId.value = cycle?.cycleId
-            } catch (e: Exception) {
-                // Handle error
-            }
-        }
-    }
     private fun loadAllMemberSavingsTotals() {
         viewModelScope.launch {
             try {
@@ -75,7 +67,26 @@ class SavingsViewModel  @Inject constructor(
                 val totals = mutableMapOf<String, Int>()
 
                 activeMembers.forEach { member ->
-                    val total = savingsRepository.getMemberSavingsTotal(cycleId, member.memberId)
+                    // Remove cycleId parameter
+                    val total = savingsRepository.getMemberSavingsTotal(member.memberId)
+                    totals[member.memberId] = total
+                }
+
+                _memberTotals.value = totals
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    private fun loadAllMemberSavingsTotalsByCycle() {
+        viewModelScope.launch {
+            try {
+                val activeMembers = memberRepository.getAllMembers().first()
+                val totals = mutableMapOf<String, Int>()
+
+                activeMembers.forEach { member ->
+                    val total = savingsRepository.getMemberSavingsTotalByCycle(cycleId, member.memberId)
                     totals[member.memberId] = total
                 }
 
@@ -98,11 +109,14 @@ class SavingsViewModel  @Inject constructor(
     }
     fun handleEvent(event: SavingsEvent) {
         when (event) {
+            is SavingsEvent.EnsureMonthExists -> ensureMonthExists(event)
             is SavingsEvent.RecordSavings -> recordSavings(event)
             is SavingsEvent.GetMemberSavings -> getMemberSavings(event)
             is SavingsEvent.GetCycleSavings -> getCycleSavings(event)
             is SavingsEvent.GetSavingsProgress -> getSavingsProgress(event)
+            is SavingsEvent.GetMemberSavingsTotalByCycle -> getMemberSavingsTotalByCle(event)
             is SavingsEvent.GetMemberSavingsTotal -> getMemberSavingsTotal(event)
+
             SavingsEvent.ResetSavingsState -> resetState()
         }
     }
@@ -111,6 +125,10 @@ class SavingsViewModel  @Inject constructor(
         viewModelScope.launch {
             _state.value = SavingsState.Loading
             try {
+                val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+                monthFormat.isLenient = false
+                monthFormat.parse(event.monthYear) // Will throw if invalid
+                // Use the provided cycleId directly
                 val result = savingsRepository.recordMonthlySavings(
                     cycleId = event.cycleId,
                     monthYear = event.monthYear,
@@ -118,19 +136,20 @@ class SavingsViewModel  @Inject constructor(
                     amount = event.amount,
                     recordedBy = event.recordedBy
                 )
+
                 if (result.isSuccess) {
-                    _recordedSavings.value = true
-                    // Refresh savings data
+                    // Refresh savings using the SAME cycle ID
                     getMemberSavings(SavingsEvent.GetMemberSavings(event.cycleId, event.memberId))
+                    _state.value = SavingsState.SavingsRecorded(true)
                 } else {
                     _state.value = SavingsState.Error(
                         result.exceptionOrNull()?.message ?: "Failed to record savings"
                     )
                 }
+            } catch (e: ParseException) {
+                _state.value = SavingsState.Error("Invalid month format. Use MM/YYYY")
             } catch (e: Exception) {
                 _state.value = SavingsState.Error(e.message ?: "Failed to record savings")
-            } finally {
-                _recordedSavings.value = false
             }
         }
     }
@@ -146,6 +165,21 @@ class SavingsViewModel  @Inject constructor(
                     }
             } catch (e: Exception) {
                 _state.value = SavingsState.Error(e.message ?: "Failed to load savings")
+            }
+        }
+    }
+
+    private fun getMemberSavingsTotal(event: SavingsEvent.GetMemberSavingsTotal) {
+        viewModelScope.launch {
+            _state.value = SavingsState.Loading
+            try {
+                val total = savingsRepository.getMemberSavingsTotal(
+
+                    event.memberId
+                )
+                _state.value = SavingsState.MemberSavingsTotal
+            } catch (e: Exception) {
+                _state.value = SavingsState.Error(e.message ?: "Failed to load savings total")
             }
         }
     }
@@ -179,11 +213,11 @@ class SavingsViewModel  @Inject constructor(
         }
     }
 
-    private fun getMemberSavingsTotal(event: SavingsEvent.GetMemberSavingsTotal) {
+    private fun getMemberSavingsTotalByCle(event: SavingsEvent.GetMemberSavingsTotalByCycle) {
         viewModelScope.launch {
             _state.value = SavingsState.Loading
             try {
-                val total = savingsRepository.getMemberSavingsTotal(
+                val total = savingsRepository.getMemberSavingsTotalByCycle(
                     event.cycleId,
                     event.memberId
                 )
@@ -193,7 +227,19 @@ class SavingsViewModel  @Inject constructor(
             }
         }
     }
-
+    private fun ensureMonthExists(event: SavingsEvent.EnsureMonthExists) {
+        viewModelScope.launch {
+            try {
+                savingsRepository.ensureMonthExists(
+                    event.cycleId,
+                    event.monthYear,
+                    event.targetAmount
+                )
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
     private fun resetState() {
         _state.value = SavingsState.Idle
     }
@@ -218,20 +264,22 @@ sealed class SavingsState {
 // Savings Events
 sealed class SavingsEvent {
     data class RecordSavings(
-        val cycleId: String,
         val monthYear: String,
         val memberId: String,
         val amount: Int,
-        val recordedBy : String
+        val recordedBy: String,
+        val cycleId: String
     ) : SavingsEvent()
+    data class GetMemberSavingsTotal(val memberId: String) : SavingsEvent()
+
     data class GetMemberSavings(val cycleId: String, val memberId: String) : SavingsEvent()
     data class GetCycleSavings(val cycleId: String) : SavingsEvent()
     data class GetSavingsProgress(val cycleId: String, val monthYear: String) : SavingsEvent()
-    data class GetMemberSavingsTotal(
+    data class GetMemberSavingsTotalByCycle(
         val cycleId: String,
         val memberId: String
     ) : SavingsEvent()
-
+    data class EnsureMonthExists(val cycleId: String, val monthYear: String, val targetAmount: Int) : SavingsEvent()
 
     object ResetSavingsState : SavingsEvent()
 }

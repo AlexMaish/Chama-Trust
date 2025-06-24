@@ -14,13 +14,15 @@ interface SavingsRepository {
         amount: Int,
         recordedBy: String
     ): Result<Unit>
-
+    suspend fun getTotalSavingsByCycle(cycleId: String): Int
+    suspend fun getMemberSavingsTotal(memberId: String): Int
     // Data access
     fun getMemberSavings(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>>
     fun getCycleSavings(cycleId: String): Flow<List<MonthlySaving>>
 
+    suspend fun ensureMonthExists(cycleId: String, monthYear: String, targetAmount: Int)
     // Stats
-    suspend fun getMemberSavingsTotal(cycleId: String, memberId: String): Int
+    suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String): Int
     suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String): SavingsProgress
 }
 

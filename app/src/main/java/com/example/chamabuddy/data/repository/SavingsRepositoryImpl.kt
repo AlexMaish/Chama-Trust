@@ -1,7 +1,5 @@
 package com.example.chamabuddy.data.repository
 
-
-
 import com.example.chamabuddy.data.local.CycleDao
 import com.example.chamabuddy.data.local.MemberDao
 import com.example.chamabuddy.data.local.MonthlySavingDao
@@ -16,10 +14,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.UUID
+import java.util.*
 import javax.inject.Inject
-import kotlin.collections.count
 
 class SavingsRepositoryImpl @Inject constructor(
     private val savingDao: MonthlySavingDao,
@@ -37,39 +33,59 @@ class SavingsRepositoryImpl @Inject constructor(
         recordedBy: String
     ) = withContext(dispatcher) {
         try {
-            // Parse month/year to find the correct cycle
-            val sdf = SimpleDateFormat("MM/yyyy", Locale.getDefault())
-            val targetDate = sdf.parse(monthYear) ?: throw IllegalArgumentException("Invalid month format")
-            // Find the cycle that was active during this month
-            val validCycleId = findCycleForDate(targetDate.time) ?: throw IllegalStateException("No active cycle for this month")
-
-            // Get or create the monthly saving record
-            var saving = savingDao.getSavingForMonth(validCycleId, monthYear)
+            val memberExists = memberDao.getMemberById(memberId) != null
+            if (!memberExists) {
+                throw IllegalStateException("Member $memberId does not exist")
+            }
+            // 1. Get or create MonthlySaving parent record
+            var saving = savingDao.getSavingForMonth(cycleId, monthYear)
             if (saving == null) {
-                val cycle = cycleDao.getCycleById(validCycleId) ?: throw IllegalStateException("Cycle not found")
+                val cycle = cycleDao.getCycleById(cycleId)
+                    ?: throw IllegalStateException("Cycle not found")
+
                 saving = MonthlySaving(
                     savingId = UUID.randomUUID().toString(),
-                    cycleId = validCycleId,
+                    cycleId = cycleId,
                     monthYear = monthYear,
                     targetAmount = cycle.monthlySavingsAmount
                 )
-                savingDao.insertMonthlySaving(saving)
+                savingDao.insert(saving)
+            }
+            // 2. Create saving entry with target month's timestamp
+            val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+            val targetDate = monthFormat.parse(monthYear)
+            val calendar = Calendar.getInstance().apply {
+                time = targetDate ?: Date() // Fallback to current date if parsing fails
+                set(Calendar.DAY_OF_MONTH, 1)
             }
 
-
-
-
-            // Record the entry
+            // 2. Create saving entry
             savingEntryDao.insertSavingEntry(
                 MonthlySavingEntry(
                     entryId = UUID.randomUUID().toString(),
                     savingId = saving.savingId,
                     memberId = memberId,
                     amount = amount,
-                    entryDate = System.currentTimeMillis().toString(),
+                    entryDate = calendar.timeInMillis.toString(),
                     recordedBy = recordedBy
                 )
             )
+
+
+            // 3. Update parent saving actual amount
+            val total = savingEntryDao.getEntriesForSaving(saving.savingId)
+                .first().sumOf { it.amount }
+
+            savingDao.update(saving.copy(actualAmount = total))
+
+            val monthlyTarget = saving.targetAmount
+            val currentTotal = savingEntryDao.getEntriesForSaving(saving.savingId)
+                .first().sumOf { it.amount } + amount
+
+            if (currentTotal >= monthlyTarget) {
+                val nextMonth = calculateNextMonth(monthYear)
+                ensureMonthExists(cycleId, nextMonth, monthlyTarget)
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -77,13 +93,31 @@ class SavingsRepositoryImpl @Inject constructor(
         }
     }
 
-    // Helper to find the correct cycle for a date
-    private suspend fun findCycleForDate(date: Long): String? {
-        val cycles = cycleDao.getAllCycles().first()
-        return cycles.firstOrNull { cycle ->
-            date >= cycle.startDate &&
-                    (cycle.endDate == null || date <= cycle.endDate)
-        }?.cycleId
+
+    private fun calculateNextMonth(currentMonth: String): String {
+        val format = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+        val date = format.parse(currentMonth) ?: return currentMonth
+        val calendar = Calendar.getInstance().apply { time = date }
+        calendar.add(Calendar.MONTH, 1)
+        return format.format(calendar.time)
+    }
+
+    override suspend fun ensureMonthExists(cycleId: String, monthYear: String, targetAmount: Int) {
+        val saving = savingDao.getSavingForMonth(cycleId, monthYear)
+        if (saving == null) {
+            savingDao.insert(
+                MonthlySaving(
+                    savingId = UUID.randomUUID().toString(),
+                    cycleId = cycleId,
+                    monthYear = monthYear,
+                    targetAmount = targetAmount,
+                    actualAmount = 0
+                )
+            )
+        }
+    }
+    override suspend fun getMemberSavingsTotal(memberId: String): Int {
+        return savingEntryDao.getMemberSavingsTotal(memberId) ?: 0
     }
 
     override fun getMemberSavings(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>> {
@@ -94,10 +128,12 @@ class SavingsRepositoryImpl @Inject constructor(
         return savingDao.getSavingsForCycle(cycleId)
     }
 
-    override suspend fun getMemberSavingsTotal(cycleId: String, memberId: String) = withContext(dispatcher) {
-        savingEntryDao.getMemberSavingsTotal(cycleId, memberId)
+    override suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String) = withContext(dispatcher) {
+        savingEntryDao.getMemberSavingsTotalByCycle(cycleId, memberId)
     }
-
+    override suspend fun getTotalSavingsByCycle(cycleId: String): Int {
+        return savingEntryDao.getTotalSavingsByCycle(cycleId) ?: 0
+    }
     override suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String) = withContext (dispatcher) {
         val saving = savingDao.getSavingForMonth(cycleId, monthYear) ?: throw IllegalStateException("Monthly saving not found")
         val activeMembers = memberDao.getActiveMembers().first()

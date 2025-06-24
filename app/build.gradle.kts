@@ -63,30 +63,33 @@ kapt {
 
 }
 
-
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose BOM - Use this to manage all Compose versions
+    // Compose BOM - Single declaration
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3) // Material 3 from BOM
+    implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
 
+    // Foundation Modules (BOM-managed)
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.foundation:foundation-layout") // NEW
+    implementation("androidx.compose.animation:animation")
 
-    // Navigation
-    implementation(libs.androidx.navigation.compose)
+    // Material Icons
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.protolite.well.known.types)
     kapt(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
-
 
     // Room
     implementation(libs.androidx.room.runtime)
@@ -103,13 +106,9 @@ dependencies {
     // Accompanist
     implementation(libs.accompanist.systemuicontroller)
 
-    // ViewModel & LiveData
+    // Lifecycle
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.livedata)
-
-
-    // Material Icons Extended - no version needed (managed by BOM)
-    implementation("androidx.compose.material:material-icons-extended")
 
     // Testing
     testImplementation(libs.junit)
