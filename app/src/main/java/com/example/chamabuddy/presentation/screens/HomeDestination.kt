@@ -1,18 +1,47 @@
 package com.example.chamabuddy.presentation.screens
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.core.Spring.DampingRatioLowBouncy
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.DrawerState
+import androidx.compose.material3.rememberDrawerState
+import kotlinx.coroutines.launch
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,14 +58,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.example.chamabuddy.R
 import com.example.chamabuddy.domain.model.Cycle
+import com.example.chamabuddy.presentation.BottomBar
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
 import com.example.chamabuddy.presentation.viewmodel.CycleEvent
 import com.example.chamabuddy.presentation.viewmodel.CycleState
 import com.example.chamabuddy.presentation.viewmodel.CycleViewModel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 object HomeDestination : NavigationDestination {
     override val route = "home"
@@ -56,9 +91,69 @@ val SearchBarGray = Color(0xFFF0F0F0)
 fun HomeScreen(
     navigateToCycleDetails: (String) -> Unit,
     navigateToCreateCycle: () -> Unit,
-    navigateToProfile: () -> Unit,
+    navController: NavHostController,
+    onBottomBarVisibilityChange: (Boolean) -> Unit,
     viewModel: CycleViewModel = hiltViewModel()
 ) {
+
+    val listState = rememberLazyListState()
+    var bottomBarVisible by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+
+    // Scroll direction tracking
+    var lastScrollPosition by remember { mutableStateOf(0) }
+    var isScrollingDown by remember { mutableStateOf(false) }
+
+    // Propagate visibility changes to parent
+    LaunchedEffect(bottomBarVisible) {
+        onBottomBarVisibilityChange(bottomBarVisible)
+    }
+
+    // Drawer state handling
+    LaunchedEffect(drawerState) {
+        snapshotFlow { drawerState.isOpen }
+            .collect { isOpen ->
+                bottomBarVisible = !isOpen
+            }
+    }
+
+    // Scroll detection logic
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemScrollOffset }
+            .collect { currentOffset ->
+                val currentIndex = listState.firstVisibleItemIndex
+
+                // Calculate scroll delta
+                val delta = currentOffset - lastScrollPosition
+                lastScrollPosition = currentOffset
+
+                // Determine scroll direction
+                when {
+                    // Scrolling down
+                    delta > 5 -> {
+                        isScrollingDown = true
+                        bottomBarVisible = false
+                    }
+                    // Scrolling up
+                    delta < -5 -> {
+                        isScrollingDown = false
+                        bottomBarVisible = true
+                    }
+                }
+
+                // Always show at top
+                if (currentIndex == 0 && currentOffset == 0) {
+                    bottomBarVisible = true
+                }
+
+                // Handle non-scrollable content
+                if (!listState.canScrollForward && !listState.canScrollBackward) {
+                    bottomBarVisible = true
+                }
+            }
+    }
+
     val state by viewModel.state.collectAsState()
     LaunchedEffect(Unit) {
         viewModel.handleEvent(CycleEvent.GetCycleHistory)
@@ -66,89 +161,98 @@ fun HomeScreen(
     val totalSavings by viewModel.totalSavings.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            LargeTopAppBar(
-                title = {
-                    Text(
-                        text = "ChamaTrust",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = navigateToProfile) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = "Profile",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    // Display total savings in top right
-                    Text(
-                        text = "KES $totalSavings",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
-                },
-
-                colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor = PremiumNavy,
-                    scrolledContainerColor = PremiumNavy,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                ),
-                scrollBehavior = scrollBehavior
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = navigateToCreateCycle,
-                containerColor = VibrantOrange
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "New Cycle", tint = Color.White)
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = true,
+        drawerContent = {
+            Box(modifier = Modifier.width(280.dp)) {
+                SideNavigationDrawerContent(
+                    onClose = { scope.launch { drawerState.close() } },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
-        },
-        containerColor = SoftOffWhite
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            // Background curve at the top - reduced height for closer content
+        }
+    ) {
+        Scaffold(
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                LargeTopAppBar(
+                    title = {
+                        Text(
+                            text = "ChamaTrust",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = "Navigation Menu",
+                                tint = Color.White
+                            )
+                        }
+                    },
+                    actions = {
+                        Text(
+                            text = "KES $totalSavings",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                    },
+                    colors = TopAppBarDefaults.largeTopAppBarColors(
+                        containerColor = PremiumNavy,
+                        scrolledContainerColor = PremiumNavy,
+                        titleContentColor = Color.White,
+                        navigationIconContentColor = Color.White
+                    ),
+                    scrollBehavior = scrollBehavior
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = navigateToCreateCycle,
+                    containerColor = VibrantOrange
+                ) {
+                    Icon(Icons.Default.Add, "New Cycle", tint = Color.White)
+                }
+            },
+            containerColor = SoftOffWhite
+        ) { innerPadding ->
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(PremiumNavy, PremiumNavy.copy(alpha = 0.8f)),
-                            startY = 0f,
-                            endY = 500f
-                        ),
-                        shape = RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp)
-                    ))
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                // Background curve at the top
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(PremiumNavy, PremiumNavy.copy(alpha = 0.8f)),
+                                startY = 0f,
+                                endY = 500f
+                            ),
+                            shape = RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp)
+                        )
+                )
 
-                        Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp)
-                        ) {
-                    // Reduced gap between "ChamaBuddy" and "Hi Alex"
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                ) {
                     Spacer(modifier = Modifier.height(1.dp))
 
-                    // Greeting section with animation
+                    // Greeting section
                     AnimatedVisibility(
                         visible = true,
                         enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow))
                     ) {
                         Column {
-                            // User greeting
                             Text(
                                 "Hi Alex",
                                 style = MaterialTheme.typography.headlineMedium,
@@ -157,39 +261,12 @@ fun HomeScreen(
                                 modifier = Modifier.padding(top = 8.dp)
                             )
 
-                            // Group welcome message
                             Text(
                                 "Welcome to ChamaTrust, Your Merry go round Assistant",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.White.copy(alpha = 0.8f),
                                 modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                             )
-
-//                            // Search bar
-//                            TextField(
-//                                value = "",
-//                                onValueChange = {},
-//                                modifier = Modifier
-//
-//                                    .fillMaxWidth()
-//                                    .background(SearchBarGray, RoundedCornerShape(16.dp)),
-//                                placeholder = {
-//                                    Text("Search cycles...", color = Color.Gray)
-//                                },
-//                                leadingIcon = {
-//                                    Icon(
-//                                        Icons.Default.Search,
-//                                        contentDescription = "Search",
-//                                        tint = PremiumNavy
-//                                    )
-//                                },
-//                                colors = TextFieldDefaults.textFieldColors(
-//                                    containerColor = Color.Transparent,
-//                                    focusedIndicatorColor = Color.Transparent,
-//                                    unfocusedIndicatorColor = Color.Transparent,
-//                                    disabledIndicatorColor = Color.Transparent
-//                                )
-//                            )
                         }
                     }
 
@@ -198,8 +275,7 @@ fun HomeScreen(
                     when (state) {
                         is CycleState.Loading -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize(),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(color = VibrantOrange)
@@ -207,8 +283,7 @@ fun HomeScreen(
                         }
                         is CycleState.Error -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize(),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -220,7 +295,6 @@ fun HomeScreen(
                         is CycleState.CycleHistory -> {
                             val cycles = (state as CycleState.CycleHistory).cycles
 
-                            // White curved container for the cycle list
                             Surface(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -233,25 +307,20 @@ fun HomeScreen(
                                         .fillMaxSize()
                                         .padding(horizontal = 16.dp)
                                 ) {
-                                    // "All Cycles" header
-                                    AnimatedVisibility(
-                                        visible = true,
-                                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow))
-                                    ) {
-                                        Text(
-                                            "All Cycles",
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = PremiumNavy,
-                                            modifier = Modifier.padding(vertical = 16.dp)
-                                        )
-                                    }
+                                    Text(
+                                        "All Cycles",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PremiumNavy,
+                                        modifier = Modifier.padding(vertical = 16.dp)
+                                    )
 
                                     if (cycles.isEmpty()) {
                                         EmptyDashboard(navigateToCreateCycle)
                                     } else {
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
+                                            state = listState,
                                             verticalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
                                             items(cycles) { cycle ->
@@ -268,6 +337,7 @@ fun HomeScreen(
                         else -> {}
                     }
                 }
+            }
         }
     }
 }
@@ -400,10 +470,130 @@ fun EmptyDashboard(onCreateClick: () -> Unit) {
         Button(
             onClick = onCreateClick,
             colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange),
-            modifier = Modifier
-                .height(50.dp)
+            modifier = Modifier.height(50.dp)
         ) {
             Text("Start New Cycle", fontWeight = FontWeight.Bold)
         }
     }
+}
+
+@Composable
+fun SideNavigationDrawerContent(
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(PremiumNavy)
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_chama_logo),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, Color.White, CircleShape)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, "Close", tint = Color.White)
+            }
+        }
+
+        Text(
+            "Your Groups",
+            style = MaterialTheme.typography.titleLarge,
+            color = Color.White,
+            modifier = Modifier.padding(vertical = 16.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0x44FFFFFF)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "Groups will appear here",
+                color = Color.White.copy(alpha = 0.7f)
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                "About Us",
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            ContactItem(
+                text = "0795301955",
+                icon = Icons.Default.Phone
+            )
+
+            ContactItem(
+                text = "alexdemaish@gmail.com",
+                icon = Icons.Default.Email
+            )
+
+            Row(
+                modifier = Modifier.padding(top = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                SocialIcon(R.drawable.ic_github, "GitHub")
+                SocialIcon(R.drawable.ic_facebook, "Facebook")
+                SocialIcon(R.drawable.ic_linkedin, "LinkedIn")
+            }
+        }
+    }
+}
+
+@Composable
+fun ContactItem(text: String, icon: ImageVector) {
+    Row(
+        modifier = Modifier.padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 16.sp
+        )
+    }
+}
+
+@Composable
+fun SocialIcon(iconRes: Int, description: String) {
+    Icon(
+        painter = painterResource(iconRes),
+        contentDescription = description,
+        tint = Color.White,
+        modifier = Modifier
+            .size(32.dp)
+            .clickable { /* Handle social link click */ }
+    )
 }

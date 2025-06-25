@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -36,7 +37,6 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun ChamaBuddyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -50,9 +50,12 @@ fun ChamaBuddyTheme(
         else -> LightColorScheme
     }
 
+    val appShapes = androidx.compose.material3.Shapes() // Or define custom shapes if needed
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = appShapes,
         content = content
     )
 }

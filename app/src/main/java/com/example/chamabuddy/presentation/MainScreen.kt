@@ -1,5 +1,16 @@
 package com.example.chamabuddy.presentation
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
+import kotlin.math.abs
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.flow.collectLatest
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -40,41 +51,39 @@ import com.example.chamabuddy.presentation.navigation.SavingsDestination
 import com.example.chamabuddy.presentation.screens.SavingsScreen
 @Composable
 fun MainScreen() {
+
+
+
     val navController = rememberNavController()
-    val items = listOf(
+    val bottomBarItems = listOf(
         TabItem(HomeDestination, Icons.Filled.Home, "Home"),
         TabItem(SavingsDestination, Icons.Filled.Savings, "Savings"),
         TabItem(BeneficiaryDestination, Icons.Filled.MonetizationOn, "Beneficiary"),
         TabItem(MembersDestination, Icons.Filled.People, "Members"),
         TabItem(ProfileDestination, Icons.Filled.Person, "Profile")
     )
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-
-                items.forEach { item ->
-                    NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title) },
-                        selected = currentDestination?.hierarchy?.any { it.route == item.destination.route } == true,
-                        onClick = {
-                            navController.navigate(item.destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    )
-                }
+            // Animate bottom bar visibility
+            AnimatedVisibility(
+                visible = isBottomBarVisible,
+                enter = fadeIn(animationSpec = tween(100)),
+                exit = fadeOut(animationSpec = tween(100))
+            ) {
+                BottomBar(navController = navController, items = bottomBarItems)
             }
         }
-    ) { innerPadding ->
-        MainNavHost(navController, innerPadding)
+    )  { innerPadding ->
+        MainNavHost(
+            navController = navController,
+            innerPadding = innerPadding,
+            onBottomBarVisibilityChange = { visible ->
+                isBottomBarVisible = visible
+            }
+        )
     }
 }
 
@@ -85,7 +94,12 @@ data class TabItem(
 )
 
 @Composable
-fun MainNavHost(navController: NavHostController, innerPadding: PaddingValues) {
+fun MainNavHost(
+    navController: NavHostController,
+    innerPadding: PaddingValues,
+    onBottomBarVisibilityChange: (Boolean) -> Unit // Add this parameter
+
+) {
     NavHost(
         navController = navController,
         startDestination = HomeDestination.route,
@@ -104,18 +118,13 @@ fun MainNavHost(navController: NavHostController, innerPadding: PaddingValues) {
                 },
                 navigateToCreateCycle = {
                     navController.navigate(CreateCycleDestination.route)
-                }
-                ,
-                navigateToProfile = {
-                    // Add navigation to members if needed
-                    navController.navigate(MembersDestination.route)
-                }
+                },
+                navController = navController,
+                onBottomBarVisibilityChange = onBottomBarVisibilityChange
             )
         }
 
-//        composable(route = SavingsDestination.route) {
-//            SavingsScreen(navigateBack = { navController.popBackStack() })
-//        }
+
 
         composable(route = BeneficiaryDestination.route) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -296,6 +305,33 @@ fun MainNavHost(navController: NavHostController, innerPadding: PaddingValues) {
         }
 
 
+    }
+}
+@Composable
+fun BottomBar(
+    navController: NavHostController,
+    items: List<TabItem>
+) {
+    NavigationBar {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentDestination = navBackStackEntry?.destination
+
+        items.forEach { item ->
+            NavigationBarItem(
+                icon = { Icon(item.icon, contentDescription = item.title) },
+                label = { Text(item.title) },
+                selected = currentDestination?.hierarchy?.any { it.route == item.destination.route } == true,
+                onClick = {
+                    navController.navigate(item.destination.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
+        }
     }
 }
 
