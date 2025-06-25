@@ -79,6 +79,7 @@ fun ProfileScreen(
         memberSavings.sumOf { it.amount }
     }
 
+    
 
     val totalSavingsByCycle = remember(memberSavings) {
         memberSavings.sumOf { it.amount }

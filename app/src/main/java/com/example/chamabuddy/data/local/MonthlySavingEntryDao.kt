@@ -50,6 +50,8 @@ interface MonthlySavingEntryDao {
 """)
     suspend fun getTotalSavingsByCycle(cycleId: String): Int?
 
+    @Query("SELECT SUM(amount) FROM MonthlySavingEntry")
+    suspend fun getTotalSavings(): Int?
 //    @Insert
 //    suspend fun insertSavingEntry(entry: MonthlySavingEntry)
 //

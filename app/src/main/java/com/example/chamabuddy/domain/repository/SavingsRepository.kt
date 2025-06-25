@@ -19,7 +19,7 @@ interface SavingsRepository {
     // Data access
     fun getMemberSavings(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>>
     fun getCycleSavings(cycleId: String): Flow<List<MonthlySaving>>
-
+    suspend fun getTotalSavings(): Int
     suspend fun ensureMonthExists(cycleId: String, monthYear: String, targetAmount: Int)
     // Stats
     suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String): Int

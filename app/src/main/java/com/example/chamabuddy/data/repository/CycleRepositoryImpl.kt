@@ -49,7 +49,7 @@ class CycleRepositoryImpl @Inject constructor(
                 weeklyAmount = weeklyAmount,
                 monthlySavingsAmount = monthlySavingsAmount,
                 totalMembers = totalMembers,
-                totalSavings = 50000
+                totalSavings = 0
             )
 
 

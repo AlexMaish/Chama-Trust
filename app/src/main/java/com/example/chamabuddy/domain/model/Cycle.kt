@@ -29,5 +29,5 @@ data class Cycle(
 
     @ColumnInfo(name = "total_members")
     val totalMembers: Int,
-    val totalSavings: Int
+    var totalSavings: Int
 )

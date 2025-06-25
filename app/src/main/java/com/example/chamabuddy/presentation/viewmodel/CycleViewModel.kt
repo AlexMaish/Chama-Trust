@@ -7,6 +7,7 @@ import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.repository.BeneficiaryRepository
 import com.example.chamabuddy.domain.repository.CycleRepository
 import com.example.chamabuddy.domain.repository.MeetingRepository
+import com.example.chamabuddy.domain.repository.SavingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,8 +22,37 @@ class CycleViewModel  @Inject constructor(
     private val cycleRepository: CycleRepository,
     private val meetingRepository: MeetingRepository,
     private val beneficiaryRepository: BeneficiaryRepository,
+    private val savingsRepository: SavingsRepository
 ) : ViewModel() {
 
+    private val _totalSavings = MutableStateFlow(0)
+    val totalSavings: StateFlow<Int> = _totalSavings.asStateFlow()
+
+    private fun getTotalSavings() {
+        viewModelScope.launch {
+            try {
+                _totalSavings.value = savingsRepository.getTotalSavings()
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+    private fun getCycleHistory() {
+        viewModelScope.launch {
+            _state.value = CycleState.Loading
+            try {
+                val cycles = cycleRepository.getAllCycles().first()
+                val cyclesWithSavings = cycles.map { cycle ->
+                    val totalSavings = savingsRepository.getTotalSavingsByCycle(cycle.cycleId)
+                    cycle.copy(totalSavings = totalSavings) // Update totalSavings
+                }
+                _state.value = CycleState.CycleHistory(cyclesWithSavings)
+            } catch (e: Exception) {
+                _state.value = CycleState.Error(e.message ?: "Failed to load cycle history")
+            }
+        }
+    }
 
 
     private val _state = MutableStateFlow<CycleState>(CycleState.Idle)
@@ -36,7 +66,12 @@ class CycleViewModel  @Inject constructor(
     fun handleEvent(event: CycleEvent) {
         when (event) {
             CycleEvent.GetActiveCycle -> getActiveCycle()
-            CycleEvent.GetCycleHistory -> getCycleHistory()
+            CycleEvent.GetCycleHistory -> {
+                getCycleHistory()
+                getTotalSavings() // Fetch total savings when getting cycle history
+            }
+//            CycleEvent.GetActiveCycle -> getActiveCycle()
+//            CycleEvent.GetCycleHistory -> getCycleHistory()
             is CycleEvent.StartNewCycle -> startNewCycle(event)
             CycleEvent.EndCurrentCycle -> endCurrentCycle()
             is CycleEvent.GetCycleStats -> getCycleStats(event.cycleId)
@@ -122,17 +157,17 @@ class CycleViewModel  @Inject constructor(
 //        }
 //    }
 
-    private fun getCycleHistory() {
-        viewModelScope.launch {
-            _state.value = CycleState.Loading
-            try {
-                val cycles = cycleRepository.getAllCycles().first()
-                _state.value = CycleState.CycleHistory(cycles)
-            } catch (e: Exception) {
-                _state.value = CycleState.Error(e.message ?: "Failed to load cycle history")
-            }
-        }
-    }
+//    private fun getCycleHistory() {
+//        viewModelScope.launch {
+//            _state.value = CycleState.Loading
+//            try {
+//                val cycles = cycleRepository.getAllCycles().first()
+//                _state.value = CycleState.CycleHistory(cycles)
+//            } catch (e: Exception) {
+//                _state.value = CycleState.Error(e.message ?: "Failed to load cycle history")
+//            }
+//        }
+//    }
 
     private fun getCycleStats(cycleId: String) {
         viewModelScope.launch {

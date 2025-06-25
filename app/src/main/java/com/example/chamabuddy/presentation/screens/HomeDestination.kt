@@ -63,7 +63,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         viewModel.handleEvent(CycleEvent.GetCycleHistory)
     }
-
+    val totalSavings by viewModel.totalSavings.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -86,6 +86,16 @@ fun HomeScreen(
                         )
                     }
                 },
+                actions = {
+                    // Display total savings in top right
+                    Text(
+                        text = "KES $totalSavings",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(end = 16.dp)
+                    )
+                },
+
                 colors = TopAppBarDefaults.largeTopAppBarColors(
                     containerColor = PremiumNavy,
                     scrolledContainerColor = PremiumNavy,

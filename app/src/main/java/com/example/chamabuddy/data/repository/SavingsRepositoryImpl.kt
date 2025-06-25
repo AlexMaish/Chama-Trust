@@ -127,7 +127,9 @@ class SavingsRepositoryImpl @Inject constructor(
     override fun getCycleSavings(cycleId: String): Flow<List<MonthlySaving>> {
         return savingDao.getSavingsForCycle(cycleId)
     }
-
+    override suspend fun getTotalSavings(): Int {
+        return savingEntryDao.getTotalSavings() ?: 0
+    }
     override suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String) = withContext(dispatcher) {
         savingEntryDao.getMemberSavingsTotalByCycle(cycleId, memberId)
     }
