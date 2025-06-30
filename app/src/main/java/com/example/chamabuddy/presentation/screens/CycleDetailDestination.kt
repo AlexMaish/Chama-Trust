@@ -1,4 +1,4 @@
-// File: com/example/chamabuddy/presentation/screens/CycleDetailScreen.kt
+
 package com.example.chamabuddy.presentation.screens
 
 import androidx.compose.foundation.layout.*
@@ -19,35 +19,31 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.navigation.NavHostController
 import com.example.chamabuddy.domain.model.MeetingWithDetails
-import com.example.chamabuddy.presentation.navigation.NavigationDestination
+import com.example.chamabuddy.presentation.navigation.CycleDetailDestination
 import com.example.chamabuddy.presentation.viewmodel.MeetingEvent
 import com.example.chamabuddy.presentation.viewmodel.MeetingState
 import com.example.chamabuddy.presentation.viewmodel.MeetingViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-object CycleDetailDestination : NavigationDestination {
-    override val route = "cycle_detail"
-    override val title = "Cycle Details"
-    const val cycleIdArg = "cycleId"
-    val routeWithArgs = "$route/{$cycleIdArg}"
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CycleDetailScreenForMeetings(
+    navController: NavHostController,
+    groupId: String,
     cycleId: String,
     navigateToMeetingDetail: (String) -> Unit,
-    navigateToContribution: (String) -> Unit, // Add this parameter
+    navigateToContribution: (String) -> Unit,
     navigateBack: () -> Unit,
     viewModel: MeetingViewModel = hiltViewModel()
 ) {
+    // Trigger load when lifecycle starts or cycleId changes
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, cycleId) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
                 viewModel.handleEvent(MeetingEvent.GetMeetingsForCycle(cycleId))
@@ -58,6 +54,7 @@ fun CycleDetailScreenForMeetings(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
     LaunchedEffect(cycleId) {
         viewModel.handleEvent(MeetingEvent.GetMeetingsForCycle(cycleId))
     }
@@ -84,12 +81,12 @@ fun CycleDetailScreenForMeetings(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    // Create new meeting
                     viewModel.handleEvent(
                         MeetingEvent.CreateMeeting(
                             cycleId = cycleId,
                             date = Date(),
-                            recordedBy = null // Replace with actual user
+                            recordedBy = null,
+                            groupId = groupId // pass groupId here
                         )
                     )
                 },
@@ -100,65 +97,67 @@ fun CycleDetailScreenForMeetings(
         }
     ) { innerPadding ->
         when (state) {
-            is MeetingState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            is MeetingState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text((state as MeetingState.Error).message)
-                }
-            }
-            is MeetingState.MeetingsLoaded -> {
-                val meetings = (state as MeetingState.MeetingsLoaded).meetings
-                if (meetings.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("No meetings recorded yet")
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(meetings) { meetingWithDetails ->
-                            MeetingCard(
-                                meeting = meetingWithDetails,
-                                onClick = {
-                                    navigateToContribution(meetingWithDetails.meeting.meetingId)
-                                }
-                            )
-                        }
-                    }
-                }
-            }
+            is MeetingState.Loading -> LoadingContent(innerPadding)
+            is MeetingState.Error -> ErrorContent(((state as MeetingState.Error).message), innerPadding)
+            is MeetingState.MeetingsLoaded -> MeetingsList(
+                meetings = (state as MeetingState.MeetingsLoaded).meetings,
+                innerPadding = innerPadding,
+                onClick = { meeting -> navigateToContribution(meeting.meeting.meetingId) }
+            )
             else -> {}
         }
     }
 }
-// Update to MeetingCard in CycleDetailScreenForMeetings
-@Composable
-fun MeetingCard(meeting: MeetingWithDetails, onClick: () -> Unit) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
+@Composable
+private fun LoadingContent(innerPadding: PaddingValues) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+@Composable
+private fun ErrorContent(message: String, innerPadding: PaddingValues) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(message)
+    }
+}
+
+@Composable
+private fun MeetingsList(
+    meetings: List<MeetingWithDetails>,
+    innerPadding: PaddingValues,
+    onClick: (MeetingWithDetails) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(meetings) { meetingWithDetails ->
+            MeetingCard(
+                meeting = meetingWithDetails,
+                onClick = { onClick(meetingWithDetails) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MeetingCard(meeting: MeetingWithDetails, onClick: () -> Unit) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -169,49 +168,36 @@ fun MeetingCard(meeting: MeetingWithDetails, onClick: () -> Unit) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Beneficiaries section - show first 2
             if (meeting.beneficiaries.isNotEmpty()) {
                 Text(
                     text = "Beneficiaries",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF388E3C)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(Modifier.height(4.dp))
                 meeting.beneficiaries.take(2).forEach { beneficiary ->
-                    Text(
-                        text = "• ${beneficiary.memberName}",
-                        color = Color(0xFF388E3C)
-                    )
+                    Text(text = "• ${beneficiary.memberName}", color = Color(0xFF388E3C))
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
+                Divider()
+                Spacer(Modifier.height(8.dp))
             }
-
-            Divider()
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Meeting info
             Text(
                 text = "Meeting on ${dateFormat.format(meeting.meeting.meetingDate)}",
                 fontWeight = FontWeight.Bold
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Contributors preview - show first 4
+            Spacer(Modifier.height(8.dp))
             if (meeting.contributors.isNotEmpty()) {
                 Text(text = "Contributors:", fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(Modifier.height(4.dp))
                 meeting.contributors.take(3).forEach { contributor ->
                     Text(text = "• ${contributor.memberName}")
                 }
                 if (meeting.contributors.size > 4) {
                     Text(text = "+ ${meeting.contributors.size - 3} more")
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
             }
-
-            // Recorded by
             meeting.meeting.recordedBy?.let { recordedBy ->
                 Text(
                     text = "Recorded by: $recordedBy",
@@ -222,3 +208,5 @@ fun MeetingCard(meeting: MeetingWithDetails, onClick: () -> Unit) {
         }
     }
 }
+
+

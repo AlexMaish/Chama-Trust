@@ -30,4 +30,17 @@ interface CycleDao {
 
     @Query("SELECT * FROM Cycle WHERE is_active = 1 LIMIT 1")
     suspend fun getCurrentCycle(): Cycle?
+
+
+    @Query("SELECT * FROM Cycle WHERE group_id = :groupId AND is_active = 1")
+    suspend fun getActiveCycleForGroup(groupId: String): Cycle?
+
+    @Query("SELECT * FROM Cycle WHERE group_id = :groupId")
+    suspend fun getCyclesForGroup(groupId: String): List<Cycle>
+
+    @Query("SELECT SUM(totalSavings) FROM Cycle")
+    suspend fun getTotalSavings(): Int?
+
+    @Query("SELECT * FROM Cycle ORDER BY start_date DESC")
+    suspend fun getCycleHistory(): List<Cycle>
 }

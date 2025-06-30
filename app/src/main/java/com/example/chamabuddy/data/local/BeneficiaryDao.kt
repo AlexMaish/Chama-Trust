@@ -55,16 +55,13 @@ interface BeneficiaryDao {
      * @return A list of eligible members.
      */
     @Query("""
-        SELECT m.* FROM member m
-        WHERE m.member_id NOT IN (
-            SELECT b.member_id FROM beneficiaries b
-            JOIN weeklymeeting w ON b.meeting_id = w.meeting_id
-            WHERE w.cycle_id = :cycleId
+        SELECT * FROM Member 
+        WHERE member_id NOT IN (
+            SELECT member_id FROM beneficiaries WHERE cycle_id = :cycleId
         )
-        AND m.current_status = 'active'
+        AND is_active = 1
     """)
     suspend fun getEligibleMembersForCycle(cycleId: String): List<Member>
-
     /**
      * Retrieves the direct beneficiaries for a specific meeting, ordered by payment order.
      *
@@ -98,12 +95,11 @@ interface BeneficiaryDao {
      * @return A list of eligible members.
      */
     @Query("""
-        SELECT m.* FROM member m
-        WHERE m.member_id NOT IN (
-            SELECT b.member_id FROM beneficiaries b
-            WHERE b.meeting_id = :meetingId
+        SELECT * FROM Member 
+        WHERE member_id NOT IN (
+            SELECT member_id FROM beneficiaries WHERE meeting_id = :meetingId
         )
-        AND m.current_status = 'active'
+        AND is_active = 1
     """)
     suspend fun getEligibleMembersForMeeting(meetingId: String): List<Member>
 

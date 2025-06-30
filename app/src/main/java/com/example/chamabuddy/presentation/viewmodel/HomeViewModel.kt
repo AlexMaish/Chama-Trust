@@ -1,32 +1,123 @@
 package com.example.chamabuddy.presentation.viewmodel
 
-import androidx.lifecycle.SavedStateHandle
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Cycle
+import com.example.chamabuddy.domain.model.Group
+import com.example.chamabuddy.domain.model.GroupWithMembers
 import com.example.chamabuddy.domain.repository.BeneficiaryRepository
 import com.example.chamabuddy.domain.repository.CycleRepository
+import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.MeetingRepository
 import com.example.chamabuddy.domain.repository.SavingsRepository
+import com.example.chamabuddy.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
-class CycleViewModel  @Inject constructor(
+class HomeViewModel @Inject constructor(
     private val cycleRepository: CycleRepository,
     private val meetingRepository: MeetingRepository,
     private val beneficiaryRepository: BeneficiaryRepository,
-    private val savingsRepository: SavingsRepository
+    private val savingsRepository: SavingsRepository,
+    private val userRepository: UserRepository,
+    private val groupRepository: GroupRepository
 ) : ViewModel() {
+
+    private val _groupData = MutableStateFlow<GroupWithMembers?>(null)
+    val groupData: StateFlow<GroupWithMembers?> = _groupData.asStateFlow()
 
     private val _totalSavings = MutableStateFlow(0)
     val totalSavings: StateFlow<Int> = _totalSavings.asStateFlow()
+
+    private val _state = MutableStateFlow<CycleState>(CycleState.Idle)
+    val state: StateFlow<CycleState> = _state.asStateFlow()
+
+    private val _activeCycle = MutableStateFlow<Cycle?>(null)
+    val activeCycle: StateFlow<Cycle?> = _activeCycle.asStateFlow()
+
+    private val _userGroups = MutableStateFlow<List<Group>>(emptyList())
+    val userGroups: StateFlow<List<Group>> = _userGroups.asStateFlow()
+
+
+    private val _showSnackbar = MutableStateFlow(false)
+    val showSnackbar: StateFlow<Boolean> = _showSnackbar.asStateFlow()
+
+    private val _snackbarMessage = MutableStateFlow("")
+    val snackbarMessage: StateFlow<String> = _snackbarMessage.asStateFlow()
+
+
+    private val _currentGroupId = MutableStateFlow<String?>(null)
+    val currentGroupId: StateFlow<String?> = _currentGroupId.asStateFlow()
+
+    fun setCurrentGroup(groupId: String) {
+        _currentGroupId.value = groupId
+    }
+
+
+
+    fun loadGroupData(groupId: String) {
+        viewModelScope.launch {
+            // Use getGroupWithMembers instead of getGroup
+            _groupData.value = groupRepository.getGroupWithMembers(groupId)
+        }
+    }
+
+    fun getCurrentGroupId(): String? {
+        return _currentGroupId.value
+    }
+
+
+    init {
+        loadCycles()
+        loadUserGroups()
+    }
+
+
+
+    fun loadCycles() {
+        viewModelScope.launch {
+            _state.value = CycleState.Loading
+            try {
+                val cycles = cycleRepository.getCycleHistory()
+                _state.value = CycleState.CycleHistory(cycles)
+                _totalSavings.value = cycleRepository.getTotalSavings() ?: 0
+            } catch (e: Exception) {
+                _state.value = CycleState.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    // Update state setters to use .value
+    fun loadUserGroups() {
+        viewModelScope.launch {
+            try {
+                val userId = "current_user_id_placeholder"
+                val groupIds = userRepository.getUserGroups(userId).getOrThrow()
+                _userGroups.value = groupRepository.getGroupsByIds(groupIds) // Update value
+            } catch (e: Exception) {
+                _showSnackbar.value = true // Update value
+                _snackbarMessage.value = "Failed to load groups: ${e.message}" // Update value
+            }
+        }
+    }
+
+    fun showGroupRequiredMessage() {
+        // Directly post the value
+        _snackbarMessage.value = "Create a group or join one first using the navigation menu"
+        _showSnackbar.value = true
+    }
+
+    fun resetSnackbar() {
+        _showSnackbar.value = false // Update value
+    }
 
     private fun getTotalSavings() {
         viewModelScope.launch {
@@ -38,6 +129,7 @@ class CycleViewModel  @Inject constructor(
         }
     }
 
+
     private fun getCycleHistory() {
         viewModelScope.launch {
             _state.value = CycleState.Loading
@@ -45,7 +137,7 @@ class CycleViewModel  @Inject constructor(
                 val cycles = cycleRepository.getAllCycles().first()
                 val cyclesWithSavings = cycles.map { cycle ->
                     val totalSavings = savingsRepository.getTotalSavingsByCycle(cycle.cycleId)
-                    cycle.copy(totalSavings = totalSavings) // Update totalSavings
+                    cycle.copy(totalSavings = totalSavings)
                 }
                 _state.value = CycleState.CycleHistory(cyclesWithSavings)
             } catch (e: Exception) {
@@ -54,28 +146,16 @@ class CycleViewModel  @Inject constructor(
         }
     }
 
-
-    private val _state = MutableStateFlow<CycleState>(CycleState.Idle)
-    val state: StateFlow<CycleState> = _state.asStateFlow()
-
-    private val _activeCycle = MutableStateFlow<Cycle?>(null)
-    val activeCycle: StateFlow<Cycle?> = _activeCycle.asStateFlow()
-
-
-
     fun handleEvent(event: CycleEvent) {
         when (event) {
             CycleEvent.GetActiveCycle -> getActiveCycle()
             CycleEvent.GetCycleHistory -> {
                 getCycleHistory()
-                getTotalSavings() // Fetch total savings when getting cycle history
+                getTotalSavings()
             }
-//            CycleEvent.GetActiveCycle -> getActiveCycle()
-//            CycleEvent.GetCycleHistory -> getCycleHistory()
             is CycleEvent.StartNewCycle -> startNewCycle(event)
             CycleEvent.EndCurrentCycle -> endCurrentCycle()
             is CycleEvent.GetCycleStats -> getCycleStats(event.cycleId)
-//            CycleEvent.HandleOddMemberTransition -> handleOddMemberTransition()
             CycleEvent.ResetCycleState -> resetState()
         }
     }
@@ -105,7 +185,8 @@ class CycleViewModel  @Inject constructor(
                     event.weeklyAmount,
                     event.monthlyAmount,
                     event.totalMembers,
-                    event.startDate
+                    event.startDate,
+                    event.groupId
                 )
                 if (result.isSuccess) {
                     _activeCycle.value = result.getOrNull()
@@ -139,36 +220,6 @@ class CycleViewModel  @Inject constructor(
         }
     }
 
-//    private fun handleOddMemberTransition() {
-//        viewModelScope.launch {
-//            _state.value = CycleState.Loading
-//            try {
-//                val result = cycleRepository.handleOddMemberTransition()
-//                if (result.isSuccess) {
-//                    getActiveCycle() // Refresh the current cycle
-//                } else {
-//                    _state.value = CycleState.Error(
-//                        result.exceptionOrNull()?.message ?: "Failed to handle transition"
-//                    )
-//                }
-//            } catch (e: Exception) {
-//                _state.value = CycleState.Error(e.message ?: "Failed to handle transition")
-//            }
-//        }
-//    }
-
-//    private fun getCycleHistory() {
-//        viewModelScope.launch {
-//            _state.value = CycleState.Loading
-//            try {
-//                val cycles = cycleRepository.getAllCycles().first()
-//                _state.value = CycleState.CycleHistory(cycles)
-//            } catch (e: Exception) {
-//                _state.value = CycleState.Error(e.message ?: "Failed to load cycle history")
-//            }
-//        }
-//    }
-
     private fun getCycleStats(cycleId: String) {
         viewModelScope.launch {
             _state.value = CycleState.Loading
@@ -186,9 +237,6 @@ class CycleViewModel  @Inject constructor(
     }
 }
 
-
-
-// Cycle State
 sealed class CycleState {
     object Idle : CycleState()
     object Loading : CycleState()
@@ -199,7 +247,6 @@ sealed class CycleState {
     object CycleEnded : CycleState()
 }
 
-// Cycle Events
 sealed class CycleEvent {
     object GetActiveCycle : CycleEvent()
     object GetCycleHistory : CycleEvent()
@@ -207,12 +254,10 @@ sealed class CycleEvent {
         val weeklyAmount: Int,
         val monthlyAmount: Int,
         val totalMembers: Int,
-        val startDate: Long // Add this parameter
+        val startDate: Long,
+        val groupId: String
     ) : CycleEvent()
     object EndCurrentCycle : CycleEvent()
     data class GetCycleStats(val cycleId: String) : CycleEvent()
     object ResetCycleState : CycleEvent()
 }
-
-
-

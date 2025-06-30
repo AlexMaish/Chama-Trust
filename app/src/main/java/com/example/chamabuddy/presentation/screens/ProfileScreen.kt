@@ -11,28 +11,24 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.example.chamabuddy.domain.model.MonthlySavingEntry
+import com.example.chamabuddy.presentation.navigation.AuthDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
+import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.CycleEvent
-import com.example.chamabuddy.presentation.viewmodel.CycleViewModel
+import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
 import com.example.chamabuddy.presentation.viewmodel.MemberEvent
 import com.example.chamabuddy.presentation.viewmodel.MemberState
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
@@ -43,21 +39,18 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-object ProfileDestination : NavigationDestination {
-    override val route = "profile"
-    override val title = "Member Profile"
-    const val memberIdArg = "memberId"
-    val routeWithArgs = "$route/{$memberIdArg}"
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
+    groupId: String,
     memberId: String,
     navigateBack: () -> Unit,
+    navController: NavHostController,
     savingsViewModel: SavingsViewModel = hiltViewModel(),
     memberViewModel: MemberViewModel = hiltViewModel(),
-    cycleViewModel: CycleViewModel = hiltViewModel()
+    homeViewModel: HomeViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
 
     val memberTotals by savingsViewModel.memberTotals.collectAsState()
@@ -65,7 +58,7 @@ fun ProfileScreen(
     val savingsState by savingsViewModel.state.collectAsState()
     val memberSavings by savingsViewModel.memberSavings.collectAsState()
     val memberState by memberViewModel.state.collectAsState()
-    val activeCycle by cycleViewModel.activeCycle.collectAsState()
+    val activeCycle by homeViewModel.activeCycle.collectAsState()
 
     var showAddSavingsDialog by remember { mutableStateOf(false) }
     var selectedMonth by remember { mutableStateOf("") }
@@ -79,12 +72,18 @@ fun ProfileScreen(
         memberSavings.sumOf { it.amount }
     }
 
-    
+
 
     val totalSavingsByCycle = remember(memberSavings) {
         memberSavings.sumOf { it.amount }
     }
 
+
+    LaunchedEffect(Unit) {
+        homeViewModel.activeCycle.collect { cycle ->
+            cycle?.cycleId?.let { savingsViewModel.initializeCycleId(it) }  // Changed to new method name
+        }
+    }
 
     val recorderNames = remember { mutableStateMapOf<String, String>() }
     LaunchedEffect(memberSavings) {
@@ -148,7 +147,7 @@ fun ProfileScreen(
 
     // Get active cycle
     LaunchedEffect(Unit) {
-        cycleViewModel.handleEvent(CycleEvent.GetActiveCycle)
+        homeViewModel.handleEvent(CycleEvent.GetActiveCycle)
     }
 
     // Fetch member details and savings
@@ -226,6 +225,18 @@ fun ProfileScreen(
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    // Logout icon-button in the top bar
+                    IconButton(onClick = {
+                        authViewModel.logout()
+                        // Clear **all** backstack and go to auth
+                        navController.navigate(AuthDestination.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }) {
+                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -447,7 +458,8 @@ fun ProfileScreen(
                                 monthYear = targetMonth,
                                 memberId = memberId,
                                 amount = amountValue,
-                                recordedBy = memberId
+                                recordedBy = memberId,
+                                groupId = groupId
                             )
                         )
                         showAddSavingsDialog = false

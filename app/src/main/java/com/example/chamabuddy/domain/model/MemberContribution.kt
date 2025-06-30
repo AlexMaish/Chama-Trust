@@ -47,5 +47,8 @@ data class MemberContribution(
     val contributionDate: String = System.currentTimeMillis().toString(),
 
     @ColumnInfo(name = "is_late")
-    val isLate: Boolean = false
+    val isLate: Boolean = false,
+
+    @ColumnInfo(name = "group_id")
+    val groupId: String
 )

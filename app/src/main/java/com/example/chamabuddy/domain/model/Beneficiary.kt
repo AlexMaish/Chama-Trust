@@ -18,6 +18,13 @@ import java.util.UUID
             childColumns = ["cycle_id"],
             onDelete = ForeignKey.CASCADE
         ),
+
+        ForeignKey(
+            entity = Group::class,
+            parentColumns = ["group_id"],
+            childColumns = ["group_id"],
+            onDelete = ForeignKey.CASCADE
+        ),
         ForeignKey(
             entity = WeeklyMeeting::class,
             parentColumns = ["meeting_id"],
@@ -58,7 +65,10 @@ data class Beneficiary(
     val dateAwarded: Date = Date(),
 
     @ColumnInfo(name = "cycle_id")
-    val cycleId: String
+    val cycleId: String,
+
+    @ColumnInfo(name = "group_id")
+    val groupId: String
 ) {
     init {
         require(memberId.isNotBlank()) { "memberId cannot be blank" }
@@ -70,69 +80,4 @@ data class Beneficiary(
 }
 
 
-
-
-
-
-
-
-
-
-
-//
-//@Entity(
-//    tableName = "beneficiaries",
-//    foreignKeys = [
-//
-//        ForeignKey(
-//            entity = Cycle::class,
-//            parentColumns = ["cycle_id"],
-//            childColumns = ["cycle_id"],
-//            onDelete = ForeignKey.CASCADE
-//        ),
-//
-//        ForeignKey(
-//            entity = WeeklyMeeting::class,
-//            parentColumns = ["meeting_id"],
-//            childColumns = ["meeting_id"],
-//            onDelete = ForeignKey.CASCADE
-//        ),
-//        ForeignKey(
-//            entity = Member::class,
-//            parentColumns = ["member_id"],
-//            childColumns = ["member_id"],
-//            onDelete = ForeignKey.CASCADE
-//        )
-//    ],
-//    indices = [
-//        Index(value = ["meeting_id"]),
-//        Index(value = ["member_id"]),
-//        Index(value = ["cycle_id"])
-//   ]
-//)
-//data class Beneficiary(
-//    @PrimaryKey
-//    @ColumnInfo(name = "beneficiary_id")
-//    val beneficiaryId: String,
-//
-//    @ColumnInfo(name = "meeting_id")
-//    val meetingId: String,
-//
-//    @ColumnInfo(name = "member_id")
-//    val memberId: String,
-//
-//    @ColumnInfo(name = "amount_received")
-//    val amountReceived: Int,
-//
-//    @ColumnInfo(name = "payment_order")
-//    val paymentOrder: Int,
-//
-//    @ColumnInfo(name = "date_awarded")
-//    val dateAwarded: Date = System.currentTimeMillis(),
-//
-//    @ColumnInfo(name = "cycle_id")
-//    val cycleId: String
-//
-//
-//)
 

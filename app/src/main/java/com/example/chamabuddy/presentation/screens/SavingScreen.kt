@@ -22,18 +22,20 @@ import com.example.chamabuddy.presentation.viewmodel.SavingsState // Add this im
 import com.example.chamabuddy.presentation.viewmodel.SavingsViewModel
 import com.example.chamabuddy.presentation.navigation.SavingsDestination // Add this import
 
-object SavingsDestination : NavigationDestination {
-    override val route = "savings"
-    override val title = "Savings"
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SavingsScreen(
+    groupId: String,
     navigateToProfile: (String) -> Unit,
     navigateBack: () -> Unit,
     viewModel: SavingsViewModel = hiltViewModel()
 ) {
+
+
+
+
     val state by viewModel.state.collectAsState()
     val members by viewModel.members.collectAsState()
     val memberTotals by viewModel.memberTotals.collectAsState()
@@ -45,7 +47,9 @@ fun SavingsScreen(
             MemberWithSavings(member, total)
         }
     }
-
+    LaunchedEffect(groupId) {
+        viewModel.initializeGroupId(groupId)
+    }
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(

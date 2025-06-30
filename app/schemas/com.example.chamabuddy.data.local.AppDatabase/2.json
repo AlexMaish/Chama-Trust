@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "dd68b85b47d13f614bf090a3e93c993f",
+    "identityHash": "9760ba65f13629accd25c819c1a55141",
     "entities": [
       {
         "tableName": "Member",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`member_id` TEXT NOT NULL, `name` TEXT NOT NULL, `nickname` TEXT, `phone_number` TEXT NOT NULL, `profile_picture` TEXT, `is_admin` INTEGER NOT NULL, `current_status` TEXT NOT NULL, `is_active` INTEGER NOT NULL, `join_date` INTEGER NOT NULL, `total_contributions` REAL NOT NULL, `total_savings` REAL NOT NULL, `benefited` INTEGER NOT NULL, PRIMARY KEY(`member_id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`member_id` TEXT NOT NULL, `name` TEXT NOT NULL, `nickname` TEXT, `phone_number` TEXT NOT NULL, `profile_picture` TEXT, `is_admin` INTEGER NOT NULL, `is_active` INTEGER NOT NULL, `join_date` INTEGER NOT NULL, `total_contributions` REAL NOT NULL, `total_savings` REAL NOT NULL, `benefited` INTEGER NOT NULL, `user_id` TEXT, `group_id` TEXT NOT NULL, PRIMARY KEY(`member_id`))",
         "fields": [
           {
             "fieldPath": "memberId",
@@ -45,12 +45,6 @@
             "notNull": true
           },
           {
-            "fieldPath": "currentStatus",
-            "columnName": "current_status",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
             "fieldPath": "isActive",
             "columnName": "is_active",
             "affinity": "INTEGER",
@@ -79,6 +73,18 @@
             "columnName": "benefited",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -92,7 +98,7 @@
       },
       {
         "tableName": "Cycle",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`cycle_id` TEXT NOT NULL, `start_date` TEXT NOT NULL, `end_date` TEXT, `weekly_amount` INTEGER NOT NULL, `monthly_savings_amount` INTEGER NOT NULL, `is_active` INTEGER NOT NULL, `total_members` INTEGER NOT NULL, `totalSavings` INTEGER NOT NULL, PRIMARY KEY(`cycle_id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`cycle_id` TEXT NOT NULL, `start_date` INTEGER NOT NULL, `end_date` INTEGER, `weekly_amount` INTEGER NOT NULL, `monthly_savings_amount` INTEGER NOT NULL, `is_active` INTEGER NOT NULL, `total_members` INTEGER NOT NULL, `totalSavings` INTEGER NOT NULL, `group_id` TEXT NOT NULL, PRIMARY KEY(`cycle_id`))",
         "fields": [
           {
             "fieldPath": "cycleId",
@@ -103,13 +109,13 @@
           {
             "fieldPath": "startDate",
             "columnName": "start_date",
-            "affinity": "TEXT",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
             "fieldPath": "endDate",
             "columnName": "end_date",
-            "affinity": "TEXT",
+            "affinity": "INTEGER",
             "notNull": false
           },
           {
@@ -141,6 +147,12 @@
             "columnName": "totalSavings",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -154,7 +166,7 @@
       },
       {
         "tableName": "WeeklyMeeting",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`meeting_id` TEXT NOT NULL, `cycle_id` TEXT NOT NULL, `meeting_date` INTEGER NOT NULL, `total_collected` INTEGER NOT NULL, `recorded_by` TEXT, PRIMARY KEY(`meeting_id`), FOREIGN KEY(`cycle_id`) REFERENCES `Cycle`(`cycle_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`recorded_by`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`meeting_id` TEXT NOT NULL, `cycle_id` TEXT NOT NULL, `meeting_date` INTEGER NOT NULL, `total_collected` INTEGER NOT NULL, `recorded_by` TEXT, `group_id` TEXT NOT NULL, PRIMARY KEY(`meeting_id`), FOREIGN KEY(`cycle_id`) REFERENCES `Cycle`(`cycle_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`recorded_by`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "meetingId",
@@ -185,6 +197,12 @@
             "columnName": "recorded_by",
             "affinity": "TEXT",
             "notNull": false
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -240,7 +258,7 @@
       },
       {
         "tableName": "beneficiaries",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`beneficiary_id` TEXT NOT NULL, `meeting_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, `amount_received` INTEGER NOT NULL, `payment_order` INTEGER NOT NULL, `date_awarded` INTEGER NOT NULL, `cycle_id` TEXT NOT NULL, PRIMARY KEY(`beneficiary_id`), FOREIGN KEY(`cycle_id`) REFERENCES `Cycle`(`cycle_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`meeting_id`) REFERENCES `WeeklyMeeting`(`meeting_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`member_id`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`beneficiary_id` TEXT NOT NULL, `meeting_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, `amount_received` INTEGER NOT NULL, `payment_order` INTEGER NOT NULL, `date_awarded` INTEGER NOT NULL, `cycle_id` TEXT NOT NULL, `group_id` TEXT NOT NULL, PRIMARY KEY(`beneficiary_id`), FOREIGN KEY(`cycle_id`) REFERENCES `Cycle`(`cycle_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`group_id`) REFERENCES `groups`(`group_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`meeting_id`) REFERENCES `WeeklyMeeting`(`meeting_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`member_id`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "beneficiaryId",
@@ -281,6 +299,12 @@
           {
             "fieldPath": "cycleId",
             "columnName": "cycle_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
             "affinity": "TEXT",
             "notNull": true
           }
@@ -333,6 +357,17 @@
             ]
           },
           {
+            "table": "groups",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "group_id"
+            ],
+            "referencedColumns": [
+              "group_id"
+            ]
+          },
+          {
             "table": "WeeklyMeeting",
             "onDelete": "CASCADE",
             "onUpdate": "NO ACTION",
@@ -358,7 +393,7 @@
       },
       {
         "tableName": "MemberContribution",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`contribution_id` TEXT NOT NULL, `meeting_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, `amount_contributed` INTEGER NOT NULL, `contribution_date` TEXT NOT NULL, `is_late` INTEGER NOT NULL, PRIMARY KEY(`contribution_id`), FOREIGN KEY(`meeting_id`) REFERENCES `WeeklyMeeting`(`meeting_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`member_id`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`contribution_id` TEXT NOT NULL, `meeting_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, `amount_contributed` INTEGER NOT NULL, `contribution_date` TEXT NOT NULL, `is_late` INTEGER NOT NULL, `group_id` TEXT NOT NULL, PRIMARY KEY(`contribution_id`), FOREIGN KEY(`meeting_id`) REFERENCES `WeeklyMeeting`(`meeting_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`member_id`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "contributionId",
@@ -394,6 +429,12 @@
             "fieldPath": "isLate",
             "columnName": "is_late",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -450,7 +491,7 @@
       },
       {
         "tableName": "MonthlySaving",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`saving_id` TEXT NOT NULL, `cycle_id` TEXT NOT NULL, `month_year` TEXT NOT NULL, `target_amount` INTEGER NOT NULL, `actual_amount` INTEGER NOT NULL, PRIMARY KEY(`saving_id`), FOREIGN KEY(`cycle_id`) REFERENCES `Cycle`(`cycle_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`saving_id` TEXT NOT NULL, `cycle_id` TEXT NOT NULL, `month_year` TEXT NOT NULL, `target_amount` INTEGER NOT NULL, `actual_amount` INTEGER NOT NULL, `group_id` TEXT NOT NULL, PRIMARY KEY(`saving_id`), FOREIGN KEY(`cycle_id`) REFERENCES `Cycle`(`cycle_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "savingId",
@@ -480,6 +521,12 @@
             "fieldPath": "actualAmount",
             "columnName": "actual_amount",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -516,7 +563,7 @@
       },
       {
         "tableName": "MonthlySavingEntry",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entry_id` TEXT NOT NULL, `saving_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, `amount` INTEGER NOT NULL, `entry_date` TEXT NOT NULL, `recorded_by` TEXT, PRIMARY KEY(`entry_id`), FOREIGN KEY(`saving_id`) REFERENCES `MonthlySaving`(`saving_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`member_id`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`recorded_by`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entry_id` TEXT NOT NULL, `saving_id` TEXT NOT NULL, `member_id` TEXT NOT NULL, `amount` INTEGER NOT NULL, `entry_date` TEXT NOT NULL, `recorded_by` TEXT, `group_id` TEXT NOT NULL, PRIMARY KEY(`entry_id`), FOREIGN KEY(`saving_id`) REFERENCES `MonthlySaving`(`saving_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`member_id`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`recorded_by`) REFERENCES `Member`(`member_id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
         "fields": [
           {
             "fieldPath": "entryId",
@@ -553,6 +600,12 @@
             "columnName": "recorded_by",
             "affinity": "TEXT",
             "notNull": false
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -625,12 +678,238 @@
             ]
           }
         ]
+      },
+      {
+        "tableName": "groups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`group_id` TEXT NOT NULL, `name` TEXT NOT NULL, `admin_id` TEXT NOT NULL, `admin_name` TEXT, `created_at` INTEGER NOT NULL, `total_savings` REAL NOT NULL, PRIMARY KEY(`group_id`))",
+        "fields": [
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "adminId",
+            "columnName": "admin_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "adminName",
+            "columnName": "admin_name",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalSavings",
+            "columnName": "total_savings",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "group_id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "users",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`user_id` TEXT NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `phone_number` TEXT NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`user_id`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "username",
+            "columnName": "username",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "password",
+            "columnName": "password",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phoneNumber",
+            "columnName": "phone_number",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "user_id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "user_groups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`user_id` TEXT NOT NULL, `group_id` TEXT NOT NULL, `is_owner` INTEGER NOT NULL, `joined_at` INTEGER NOT NULL, PRIMARY KEY(`user_id`, `group_id`), FOREIGN KEY(`user_id`) REFERENCES `users`(`user_id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`group_id`) REFERENCES `groups`(`group_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isOwner",
+            "columnName": "is_owner",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "joinedAt",
+            "columnName": "joined_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "user_id",
+            "group_id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_user_groups_user_id",
+            "unique": false,
+            "columnNames": [
+              "user_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_groups_user_id` ON `${TABLE_NAME}` (`user_id`)"
+          },
+          {
+            "name": "index_user_groups_group_id",
+            "unique": false,
+            "columnNames": [
+              "group_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_user_groups_group_id` ON `${TABLE_NAME}` (`group_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "users",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "user_id"
+            ],
+            "referencedColumns": [
+              "user_id"
+            ]
+          },
+          {
+            "table": "groups",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "group_id"
+            ],
+            "referencedColumns": [
+              "group_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "group_members",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`group_id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `is_admin` INTEGER NOT NULL, `joined_at` INTEGER NOT NULL, PRIMARY KEY(`group_id`, `user_id`), FOREIGN KEY(`group_id`) REFERENCES `groups`(`group_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "groupId",
+            "columnName": "group_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAdmin",
+            "columnName": "is_admin",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "joinedAt",
+            "columnName": "joined_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "group_id",
+            "user_id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": [
+          {
+            "table": "groups",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "group_id"
+            ],
+            "referencedColumns": [
+              "group_id"
+            ]
+          }
+        ]
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'dd68b85b47d13f614bf090a3e93c993f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9760ba65f13629accd25c819c1a55141')"
     ]
   }
 }

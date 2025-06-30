@@ -1,37 +1,24 @@
 package com.example.chamabuddy.presentation.screens
 
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.core.Spring.DampingRatioLowBouncy
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.material3.DrawerState
-import androidx.compose.material3.rememberDrawerState
-import kotlinx.coroutines.launch
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -40,16 +27,44 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -61,22 +76,16 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.chamabuddy.R
 import com.example.chamabuddy.domain.model.Cycle
-import com.example.chamabuddy.presentation.BottomBar
+import com.example.chamabuddy.domain.model.Group
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
 import com.example.chamabuddy.presentation.viewmodel.CycleEvent
 import com.example.chamabuddy.presentation.viewmodel.CycleState
-import com.example.chamabuddy.presentation.viewmodel.CycleViewModel
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
+import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
-import kotlin.math.abs
+import java.util.Locale
+import java.util.UUID
 
-object HomeDestination : NavigationDestination {
-    override val route = "home"
-    override val title = "ChamaBuddy"
-}
 
 val PremiumNavy = Color(0xFF0A1D3A)
 val SoftOffWhite = Color(0xFFF8F9FA)
@@ -89,21 +98,44 @@ val SearchBarGray = Color(0xFFF0F0F0)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    groupId: String,
     navigateToCycleDetails: (String) -> Unit,
     navigateToCreateCycle: () -> Unit,
-    navController: NavHostController,
+    navigateToGroupManagement: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
-    viewModel: CycleViewModel = hiltViewModel()
 ) {
+    val viewModel: HomeViewModel = hiltViewModel()
+
 
     val listState = rememberLazyListState()
     var bottomBarVisible by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Scroll direction tracking
-    var lastScrollPosition by remember { mutableStateOf(0) }
-    var isScrollingDown by remember { mutableStateOf(false) }
+    val userGroups by viewModel.userGroups.collectAsState()
+    val showSnackbar by viewModel.showSnackbar.collectAsState()
+    val snackbarMessage by viewModel.snackbarMessage.collectAsState()
+
+    val groupData by viewModel.groupData.collectAsState()
+
+
+    LaunchedEffect(groupId) {
+        if (groupId.isNotEmpty()) {
+            viewModel.loadGroupData(groupId)
+        }
+    }
+    // Show snackbar when needed
+    if (showSnackbar) {
+        LaunchedEffect(snackbarHostState) {
+            snackbarHostState.showSnackbar(snackbarMessage)
+            viewModel.resetSnackbar()
+        }
+    }
+
+    LaunchedEffect(groupId) {
+        viewModel.loadGroupData(groupId)
+    }
 
     // Propagate visibility changes to parent
     LaunchedEffect(bottomBarVisible) {
@@ -123,23 +155,12 @@ fun HomeScreen(
         snapshotFlow { listState.firstVisibleItemScrollOffset }
             .collect { currentOffset ->
                 val currentIndex = listState.firstVisibleItemIndex
-
-                // Calculate scroll delta
-                val delta = currentOffset - lastScrollPosition
-                lastScrollPosition = currentOffset
+                val delta = currentOffset - (listState.layoutInfo.visibleItemsInfo.firstOrNull()?.offset ?: 0)
 
                 // Determine scroll direction
                 when {
-                    // Scrolling down
-                    delta > 5 -> {
-                        isScrollingDown = true
-                        bottomBarVisible = false
-                    }
-                    // Scrolling up
-                    delta < -5 -> {
-                        isScrollingDown = false
-                        bottomBarVisible = true
-                    }
+                    delta > 5 -> bottomBarVisible = false
+                    delta < -5 -> bottomBarVisible = true
                 }
 
                 // Always show at top
@@ -167,6 +188,9 @@ fun HomeScreen(
         drawerContent = {
             Box(modifier = Modifier.width(280.dp)) {
                 SideNavigationDrawerContent(
+                    groups = userGroups,
+                    onGroupSelected = { /* Handle group selection */ },
+                    onCreateGroup = { navigateToGroupManagement() },
                     onClose = { scope.launch { drawerState.close() } },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -178,11 +202,18 @@ fun HomeScreen(
             topBar = {
                 LargeTopAppBar(
                     title = {
-                        Text(
-                            text = "ChamaTrust",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                        Column {
+                            // FIXED: Use safe call and null coalescing
+                            Text(
+                                text = groupData?.group?.name ?: "Loading...",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "${groupData?.members?.size ?: 0} members",
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
                     },
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -212,7 +243,15 @@ fun HomeScreen(
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = navigateToCreateCycle,
+                    onClick = {
+                        if (groupId.isNotEmpty()) { // Add this check
+                            if (userGroups.isEmpty()) {
+                                viewModel.showGroupRequiredMessage()
+                            } else {
+                                navigateToCreateCycle()
+                            }
+                        }
+                    },
                     containerColor = VibrantOrange
                 ) {
                     Icon(Icons.Default.Add, "New Cycle", tint = Color.White)
@@ -254,21 +293,16 @@ fun HomeScreen(
                     ) {
                         Column {
                             Text(
-                                "Hi Alex",
+                                "Hi ${groupData?.group?.adminName ?: "User"}",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 modifier = Modifier.padding(top = 8.dp)
                             )
-
-                            Text(
-                                "Welcome to ChamaTrust, Your Merry go round Assistant",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color.White.copy(alpha = 0.8f),
-                                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                            )
                         }
                     }
+                }
+
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -293,8 +327,7 @@ fun HomeScreen(
                             }
                         }
                         is CycleState.CycleHistory -> {
-                            val cycles = (state as CycleState.CycleHistory).cycles
-
+                            val cycles = (state as? CycleState.CycleHistory)?.cycles ?: emptyList()
                             Surface(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -340,7 +373,7 @@ fun HomeScreen(
             }
         }
     }
-}
+
 
 @Composable
 fun PremiumCycleCard(cycle: Cycle, onClick: () -> Unit) {
@@ -479,6 +512,9 @@ fun EmptyDashboard(onCreateClick: () -> Unit) {
 
 @Composable
 fun SideNavigationDrawerContent(
+    groups: List<Group>,
+    onGroupSelected: (Group) -> Unit,
+    onCreateGroup: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -502,10 +538,6 @@ fun SideNavigationDrawerContent(
                     .clip(CircleShape)
                     .border(2.dp, Color.White, CircleShape)
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, "Close", tint = Color.White)
-            }
         }
 
         Text(
@@ -515,18 +547,46 @@ fun SideNavigationDrawerContent(
             modifier = Modifier.padding(vertical = 16.dp)
         )
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0x44FFFFFF)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                "Groups will appear here",
-                color = Color.White.copy(alpha = 0.7f)
-            )
+        if (groups.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x44FFFFFF)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        "You haven't joined any groups yet",
+                        color = Color.White.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onCreateGroup,
+                        colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
+                    ) {
+                        Text("Create or Join a Group")
+                    }
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0x44FFFFFF))
+                    .padding(8.dp)
+            ) {
+                items(groups) { group ->
+                    GroupListItem(group = group, onGroupSelected = onGroupSelected)
+                }
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -561,6 +621,48 @@ fun SideNavigationDrawerContent(
                 SocialIcon(R.drawable.ic_facebook, "Facebook")
                 SocialIcon(R.drawable.ic_linkedin, "LinkedIn")
             }
+        }
+    }
+}
+
+@Composable
+fun GroupListItem(
+    group: Group,
+    onGroupSelected: (Group) -> Unit
+) {
+    Card(
+        onClick = { onGroupSelected(group) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(LightAccentBlue),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = group.name.take(1).uppercase(),
+                    color = PremiumNavy,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = group.name,
+                color = Color.White,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }

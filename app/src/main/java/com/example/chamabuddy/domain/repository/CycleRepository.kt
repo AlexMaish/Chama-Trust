@@ -7,9 +7,10 @@ interface CycleRepository {
     // Cycle management
     suspend fun startNewCycle(
         weeklyAmount: Int,
-        monthlySavingsAmount: Int,
+        monthlyAmount: Int,
         totalMembers: Int,
-        startDate: Long
+        startDate: Long,
+        groupId: String // Add this parameter
     ): Result<Cycle>
 
     suspend fun endCurrentCycle(): Result<Unit>
@@ -18,9 +19,13 @@ interface CycleRepository {
     fun getCurrentCycle(): Flow<Cycle?>
     fun getAllCycles(): Flow<List<Cycle>>
     suspend fun getCycleById(cycleId: String): Cycle?
+    suspend fun getActiveCycleForGroup(groupId: String): Cycle?
 
     // Stats
     suspend fun getCycleStats(cycleId: String): CycleStats
+
+    suspend fun getTotalSavings(): Int?
+    suspend fun getCycleHistory(): List<Cycle>
 }
 
 data class CycleStats(

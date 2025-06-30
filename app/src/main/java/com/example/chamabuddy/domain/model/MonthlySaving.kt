@@ -35,5 +35,8 @@ data class MonthlySaving(
     val targetAmount: Int,
 
     @ColumnInfo(name = "actual_amount")
-    val actualAmount: Int = 0
+    val actualAmount: Int = 0,
+
+    @ColumnInfo(name = "group_id")
+    val groupId: String
 )

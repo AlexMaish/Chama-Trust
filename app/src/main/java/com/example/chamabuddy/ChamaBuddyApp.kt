@@ -1,3 +1,4 @@
+// ChamaBuddyApp.kt
 package com.example.chamabuddy
 
 import android.os.Bundle
@@ -6,11 +7,17 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
 import com.example.chamabuddy.presentation.MainScreen
+import com.example.chamabuddy.presentation.navigation.AuthNavHost
+import com.example.chamabuddy.presentation.screens.SplashScreen
+import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.ui.theme.ChamaBuddyTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+// ChamaBuddyApp.kt (updated)
 @AndroidEntryPoint
 class ChamaBuddyApp : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -21,7 +28,26 @@ class ChamaBuddyApp : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen()
+                    val navController = rememberNavController()
+                    var showSplash by remember { mutableStateOf(true) }
+                    var isAuthenticated by remember { mutableStateOf(false) }
+
+                    if (showSplash) {
+                        SplashScreen {
+                            showSplash = false
+                        }
+                    } else {
+                        if (isAuthenticated) {
+                            MainScreen()
+                        } else {
+                            AuthNavHost(
+                                navController = navController,
+                                onAuthenticationSuccess = {
+                                    isAuthenticated = true
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

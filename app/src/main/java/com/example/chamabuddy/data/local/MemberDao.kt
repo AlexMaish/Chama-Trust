@@ -19,6 +19,8 @@ interface MemberDao {
     @Update
     suspend fun updateMember(member: Member)
 
+
+
     @Delete
     suspend fun deleteMember(member: Member)
 
@@ -28,27 +30,31 @@ interface MemberDao {
     @Query("SELECT * FROM Member WHERE is_admin = 1")
     fun getAllAdmins(): Flow<List<Member>>
 
-    @Query("SELECT  * FROM Member WHERE is_active = 1 ORDER BY name ASC")
-     fun getActiveMembers(): Flow<List<Member>>
+    @Query("SELECT * FROM Member WHERE is_active = 1 ORDER BY name ASC")
+    fun getActiveMembers(): Flow<List<Member>>
 
     @Query("SELECT * FROM Member ORDER BY name ASC")
     fun getAllMembers(): Flow<List<Member>>
 
-    //added
-    @Query("SELECT * FROM Member WHERE name LIKE '%' || :query || '%'")
-    fun searchMembersByName(query: String): Flow<List<Member>>
-
-    @Query("SELECT * FROM member WHERE name LIKE '%' || :query || '%' OR nickname LIKE '%' || :query || '%' OR phone_number LIKE '%' || :query || '%'")
+    @Query("SELECT * FROM Member WHERE name LIKE '%' || :query || '%' OR nickname LIKE '%' || :query || '%' OR phone_number LIKE '%' || :query || '%'")
     fun searchMembers(query: String): Flow<List<Member>>
-
-//
-//    @Query("SELECT * FROM member WHERE member_id = :memberId")
-//    suspend fun getMemberByName(memberId: String): Member?
 
     @Query("SELECT * FROM Member WHERE name = :name LIMIT 1")
     suspend fun getMemberByName(name: String): Member?
 
     @Query("SELECT COUNT(*) FROM member WHERE is_active = 1")
     suspend fun getActiveMembersCount(): Int
-}
 
+
+    @Query("""
+        SELECT m.* FROM Member m
+        INNER JOIN group_members gm ON m.user_id = gm.user_id
+        WHERE gm.group_id = :groupId AND m.is_active = 1
+        ORDER BY m.name ASC
+    """)
+    suspend fun getActiveMembersForGroup(groupId: String): List<Member>
+
+    @Query("SELECT * FROM member WHERE group_id = :groupId")
+    suspend fun getMembersByGroup(groupId: String): List<Member>
+
+}

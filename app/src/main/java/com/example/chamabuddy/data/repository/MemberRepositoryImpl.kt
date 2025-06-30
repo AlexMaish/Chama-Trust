@@ -1,113 +1,72 @@
 package com.example.chamabuddy.data.repository
 
-
 import android.net.Uri
 import com.example.chamabuddy.data.local.MemberDao
 import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.repository.MemberRepository
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.util.UUID
 import javax.inject.Inject
 
 class MemberRepositoryImpl @Inject constructor(
-    private val memberDao: MemberDao,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val memberDao: MemberDao
 ) : MemberRepository {
 
-    override suspend fun getMemberByName(name: String): Member? = withContext(dispatcher) {
-        memberDao.getMemberByName(name)
-    }
-    override suspend fun getMemberNameById(memberId: String): String? {
-        return withContext(dispatcher) {
-            try {
-                memberDao.getMemberById(memberId)?.name
-            } catch (e: Exception) {
-                null
-            }
+    override suspend fun getMemberNameById(memberId: String): String? =
+        withContext(Dispatchers.IO) {
+            memberDao.getMemberById(memberId)?.name
         }
-    }
 
-    override suspend fun addMember(member: Member) = withContext(dispatcher) {
-        memberDao.insertMember(member)
-    }
-
-    override suspend fun updateMember(member: Member) = withContext(dispatcher) {
+    override suspend fun updateMember(member: Member) = withContext(Dispatchers.IO) {
         memberDao.updateMember(member)
     }
 
-    override suspend fun deleteMember(member: Member) = withContext(dispatcher) {
+    override suspend fun deleteMember(member: Member) = withContext(Dispatchers.IO) {
         memberDao.deleteMember(member)
     }
 
-    override fun getAllMembers(): Flow<List<Member>> = memberDao.getAllMembers()
-
-    override suspend fun getMemberById(memberId: String): Member? = withContext(dispatcher) {
+    override suspend fun getMemberById(memberId: String): Member? = withContext(Dispatchers.IO) {
         memberDao.getMemberById(memberId)
     }
 
-    override fun getActiveMembers(): Flow<List<Member>> = memberDao.getActiveMembers()
-
-    override fun getAllAdmins(): Flow<List<Member>> = memberDao.getAllAdmins()
-
-    override suspend fun activateMember(memberId: String) =
-        updateMemberStatus(memberId, status = "active")
-
-    override suspend fun deactivateMember(memberId: String) =
-        updateMemberStatus(memberId, status = "inactive")
-
-    override suspend fun promoteToAdmin(memberId: String) =
-        updateMemberRole(memberId, isAdmin = true)
-
-    override suspend fun demoteFromAdmin(memberId: String) =
-        updateMemberRole(memberId, isAdmin = false)
-
-    override fun searchMembers(query: String): Flow<List<Member>> =
-        memberDao.getAllMembers().map { members ->
-            val lowerQuery = query.lowercase()
-            members.filter { member ->
-                member.name.contains(lowerQuery, ignoreCase = true) ||
-                        member.nickname?.contains(lowerQuery, ignoreCase = true) == true ||
-                        member.phoneNumber.contains(lowerQuery, ignoreCase = true)
-            }
-        }
-
-    // --- Private helpers to avoid repetition ---
-    private suspend fun updateMemberStatus(memberId: String, status: String) =
-        withContext(dispatcher) {
-            val member = memberDao.getMemberById(memberId)
-                ?: throw NoSuchElementException("Member not found")
-            memberDao.updateMember(member.copy(currentStatus = status))
-        }
-
-    private suspend fun updateMemberRole(memberId: String, isAdmin: Boolean) =
-        withContext(dispatcher) {
-            val member = memberDao.getMemberById(memberId)
-                ?: throw NoSuchElementException("Member not found")
-            memberDao.updateMember(member.copy(isAdmin = isAdmin))
-        }
-
-    override suspend fun getActiveMembersCount(): Int {
-        return memberDao.getActiveMembersCount()
-    }
-
     override suspend fun updateProfilePicture(memberId: String, imageUri: Uri) =
-        withContext(dispatcher) {
+        withContext(Dispatchers.IO) {
             val member = memberDao.getMemberById(memberId)
                 ?: throw NoSuchElementException("Member not found")
-            memberDao.updateMember(
-                member.copy(profilePicture = imageUri.toString())
-            )
+            memberDao.updateMember(member.copy(profilePicture = imageUri.toString()))
         }
 
     override suspend fun changePhoneNumber(memberId: String, newNumber: String) =
-        withContext(dispatcher) {
+        withContext(Dispatchers.IO) {
             val member = memberDao.getMemberById(memberId)
                 ?: throw NoSuchElementException("Member not found")
-            memberDao.updateMember(
-                member.copy(phoneNumber = newNumber)
-            )
+            memberDao.updateMember(member.copy(phoneNumber = newNumber))
         }
+
+    override suspend fun getMembersByGroup(groupId: String): List<Member> =
+        withContext(Dispatchers.IO) {
+            memberDao.getMembersByGroup(groupId).map { member ->
+                member.copy(
+                    name = member.name,
+                    phoneNumber = member.phoneNumber
+                )
+            }
+        }
+    override suspend fun addMember(member: Member) {
+        withContext(Dispatchers.IO) {
+            val memberId = member.memberId.ifEmpty { UUID.randomUUID().toString() }
+            memberDao.insertMember(member.copy(memberId = memberId))
+        }
+    }
+
+    override suspend fun getActiveMembersCount(): Int =
+        withContext(Dispatchers.IO) {
+            memberDao.getActiveMembersCount()
+        }
+
+    override fun getAllMembers(): Flow<List<Member>> = memberDao.getAllMembers()
+
+    override fun getActiveMembers(): Flow<List<Member>> = memberDao.getActiveMembers()
 }

@@ -52,5 +52,8 @@ data class MonthlySavingEntry(
     val entryDate: String = System.currentTimeMillis().toString(),
 
     @ColumnInfo(name = "recorded_by")
-    val recordedBy: String? = null
+    val recordedBy: String? = null,
+
+    @ColumnInfo(name = "group_id")
+    val groupId: String
 )

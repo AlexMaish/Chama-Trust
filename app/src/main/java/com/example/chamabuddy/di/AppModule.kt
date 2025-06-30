@@ -1,34 +1,17 @@
+
 package com.example.chamabuddy.di
 
 import android.content.Context
 import androidx.room.Room
-import com.example.chamabuddy.data.local.AppDatabase
-import com.example.chamabuddy.data.local.BeneficiaryDao
-import com.example.chamabuddy.data.local.CycleDao
-import com.example.chamabuddy.data.local.MemberContributionDao
-import com.example.chamabuddy.data.local.MemberDao
-import com.example.chamabuddy.data.local.MonthlySavingDao
-import com.example.chamabuddy.data.local.MonthlySavingEntryDao
-import com.example.chamabuddy.data.local.WeeklyMeetingDao
-import com.example.chamabuddy.data.repository.BeneficiaryRepositoryImpl
-import com.example.chamabuddy.data.repository.CycleRepositoryImpl
-import com.example.chamabuddy.data.repository.MemberContributionRepositoryImpl
-import com.example.chamabuddy.data.repository.MemberRepositoryImpl
-import com.example.chamabuddy.data.repository.MeetingRepositoryImpl
-import com.example.chamabuddy.data.repository.SavingsRepositoryImpl
-//import com.example.chamabuddy.data.repository.ChamaRepositoryImpl
-import com.example.chamabuddy.domain.repository.BeneficiaryRepository
-import com.example.chamabuddy.domain.repository.CycleRepository
-import com.example.chamabuddy.domain.repository.MemberContributionRepository
-import com.example.chamabuddy.domain.repository.MemberRepository
-import com.example.chamabuddy.domain.repository.MeetingRepository
-import com.example.chamabuddy.domain.repository.SavingsRepository
-import com.example.chamabuddy.domain.repository.ChamaRepository
+import com.example.chamabuddy.data.local.*
+import com.example.chamabuddy.data.repository.*
+import com.example.chamabuddy.domain.repository.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
 
@@ -38,16 +21,15 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(
-            context,
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
+        Room.databaseBuilder(
+            context.applicationContext,
             AppDatabase::class.java,
-            "chamabuddy_db"
-        ).fallbackToDestructiveMigration()
+            "mchama_database"
+        )
+            .fallbackToDestructiveMigration()
             .build()
-    }
 
-    // DAOs
     @Provides fun provideMemberDao(db: AppDatabase): MemberDao = db.memberDao()
     @Provides fun provideCycleDao(db: AppDatabase): CycleDao = db.cycleDao()
     @Provides fun provideMeetingDao(db: AppDatabase): WeeklyMeetingDao = db.meetingDao()
@@ -55,14 +37,32 @@ object AppModule {
     @Provides fun provideContributionDao(db: AppDatabase): MemberContributionDao = db.contributionDao()
     @Provides fun provideMonthlySavingDao(db: AppDatabase): MonthlySavingDao = db.monthlySavingDao()
     @Provides fun provideSavingEntryDao(db: AppDatabase): MonthlySavingEntryDao = db.savingEntryDao()
+    @Provides fun provideGroupDao(db: AppDatabase): GroupDao = db.groupDao()
+    @Provides fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+    @Provides fun provideUserGroupDao(db: AppDatabase): UserGroupDao = db.userGroupDao()
+    @Provides fun provideGroupMemberDao(db: AppDatabase): GroupMemberDao = db.groupMemberDao()
 
+    /** DISPATCHER **/
+    @Provides
+    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
 
-    // Repositories
+    /** REPOSITORIES **/
+    @Provides
+    @Singleton
+    fun provideUserRepository(
+        userDao: UserDao,
+        userGroupDao: UserGroupDao,
+        @ApplicationContext context: Context
+    ): UserRepository = UserRepositoryImpl(
+        userDao = userDao,
+        userGroupDao = userGroupDao,
+        context = context
+    )
     @Provides
     @Singleton
     fun provideMemberRepository(
-        dao: MemberDao
-    ): MemberRepository = MemberRepositoryImpl(dao)
+        memberDao: MemberDao,
+    ): MemberRepository = MemberRepositoryImpl(memberDao)
 
     @Provides
     @Singleton
@@ -70,20 +70,9 @@ object AppModule {
         cycleDao: CycleDao,
         meetingDao: WeeklyMeetingDao,
         beneficiaryDao: BeneficiaryDao,
-        memberDao: MemberDao
-    ): CycleRepository = CycleRepositoryImpl(cycleDao, meetingDao, beneficiaryDao, memberDao)
-
-    @Provides
-    @Singleton
-    fun provideMemberContributionRepository(
-        dao: MemberContributionDao
-    ): MemberContributionRepository = MemberContributionRepositoryImpl(dao)
-
-    @Provides
-    @Singleton
-    fun provideBeneficiaryRepository(
-        dao: BeneficiaryDao
-    ): BeneficiaryRepository = BeneficiaryRepositoryImpl(dao)
+        memberDao: MemberDao,
+        dispatcher: CoroutineDispatcher
+    ): CycleRepository = CycleRepositoryImpl(cycleDao, meetingDao, beneficiaryDao, memberDao, dispatcher)
 
     @Provides
     @Singleton
@@ -92,14 +81,29 @@ object AppModule {
         contributionDao: MemberContributionDao,
         beneficiaryDao: BeneficiaryDao,
         memberDao: MemberDao,
-        cycleDao: CycleDao
+        cycleDao: CycleDao,
+        dispatcher: CoroutineDispatcher
     ): MeetingRepository = MeetingRepositoryImpl(
         meetingDao,
         contributionDao,
         beneficiaryDao,
         memberDao,
-        cycleDao
+        cycleDao,
+        dispatcher
     )
+
+    @Provides
+    @Singleton
+    fun provideBeneficiaryRepository(
+        beneficiaryDao: BeneficiaryDao,
+        dispatcher: CoroutineDispatcher
+    ): BeneficiaryRepository = BeneficiaryRepositoryImpl(beneficiaryDao, dispatcher)
+
+    @Provides
+    @Singleton
+    fun provideMemberContributionRepository(
+        contributionDao: MemberContributionDao
+    ): MemberContributionRepository = MemberContributionRepositoryImpl(contributionDao)
 
     @Provides
     @Singleton
@@ -107,19 +111,21 @@ object AppModule {
         savingDao: MonthlySavingDao,
         entryDao: MonthlySavingEntryDao,
         cycleDao: CycleDao,
-        memberDao: MemberDao
-    ): SavingsRepository = SavingsRepositoryImpl(savingDao, entryDao, cycleDao, memberDao)
+        memberDao: MemberDao,
+        dispatcher: CoroutineDispatcher
+    ): SavingsRepository = SavingsRepositoryImpl(savingDao, entryDao, cycleDao, memberDao, dispatcher)
 
-//    @Provides
-//    @Singleton
-//    fun provideChamaRepository(
-//        memberRepo: MemberRepository,
-//        cycleRepo: CycleRepository,
-//        meetingRepo: MeetingRepository,
-//        savingsRepo: SavingsRepository
-//    ): ChamaRepository = ChamaRepositoryImpl(memberRepo, cycleRepo, meetingRepo, savingsRepo)
-//
-    // Dispatcher
     @Provides
-    fun provideIoDispatcher() = Dispatchers.IO
+    @Singleton
+    fun provideGroupRepository(
+        groupDao: GroupDao,
+        memberDao: MemberDao,
+        userGroupDao: UserGroupDao,
+        userRepository: UserRepository
+    ): GroupRepository = GroupRepositoryImpl(
+        groupDao = groupDao,
+        memberDao = memberDao,
+        userGroupDao = userGroupDao,
+        userRepository = userRepository
+    )
 }

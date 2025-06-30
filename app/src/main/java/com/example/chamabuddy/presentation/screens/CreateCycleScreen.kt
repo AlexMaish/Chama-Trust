@@ -24,7 +24,9 @@ import java.util.*
 @Composable
 fun CreateCycleScreen(
     navigateBack: () -> Unit,
-    viewModel: CreateCycleViewModel = hiltViewModel()
+    viewModel: CreateCycleViewModel = hiltViewModel(),
+    groupId: String
+
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isCreating by viewModel.isCreating.collectAsState()
@@ -64,7 +66,7 @@ fun CreateCycleScreen(
             ExtendedFloatingActionButton(
                 onClick = {
                     if (!isCreating) {
-                        viewModel.createCycle()
+                        viewModel.createCycle(groupId)
                     }
                 },
                 icon = {

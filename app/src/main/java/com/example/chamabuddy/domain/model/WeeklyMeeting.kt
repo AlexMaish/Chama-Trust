@@ -45,5 +45,8 @@ data class WeeklyMeeting(
     val totalCollected: Int,
 
     @ColumnInfo(name = "recorded_by")
-    val recordedBy: String? = null
+    val recordedBy: String? = null,
+
+    @ColumnInfo(name = "group_id")
+    val groupId: String
 )

@@ -1,18 +1,10 @@
 package com.example.chamabuddy.data.local
 
 import android.content.Context
-import androidx.room.Database
-import androidx.room.Room
-import androidx.room.RoomDatabase
-import androidx.room.TypeConverter
-import androidx.room.TypeConverters
-import com.example.chamabuddy.domain.model.Beneficiary
-import com.example.chamabuddy.domain.model.Cycle
-import com.example.chamabuddy.domain.model.Member
-import com.example.chamabuddy.domain.model.MemberContribution
-import com.example.chamabuddy.domain.model.MonthlySaving
-import com.example.chamabuddy.domain.model.MonthlySavingEntry
-import com.example.chamabuddy.domain.model.WeeklyMeeting
+import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.chamabuddy.domain.model.*
 import java.util.Date
 
 @Database(
@@ -23,9 +15,13 @@ import java.util.Date
         Beneficiary::class,
         MemberContribution::class,
         MonthlySaving::class,
-        MonthlySavingEntry::class
+        MonthlySavingEntry::class,
+        Group::class,
+        User::class,
+        UserGroup::class,
+        GroupMember::class
     ],
-    version = 7
+    version = 3
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -36,37 +32,14 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun contributionDao(): MemberContributionDao
     abstract fun monthlySavingDao(): MonthlySavingDao
     abstract fun savingEntryDao(): MonthlySavingEntryDao
-
-    companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
-
-        fun getDatabase(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "mchama_database"
-                )
-                    .fallbackToDestructiveMigration()
-                    .build()
-                INSTANCE = instance
-                instance
-            }
-        }
-    }
+    abstract fun groupDao(): GroupDao
+    abstract fun userDao(): UserDao
+    abstract fun userGroupDao(): UserGroupDao
+    abstract fun groupMemberDao(): GroupMemberDao
 }
 
-
-// ✅ Custom Room Type Converter for Date
 class Converters {
-    @TypeConverter
-    fun fromTimestamp(value: Long?): Date? {
-        return value?.let { Date(it) }
-    }
-
-    @TypeConverter
-    fun dateToTimestamp(date: Date?): Long? {
-        return date?.time
-    }
+    @TypeConverter fun fromTimestamp(value: Long?): Date? = value?.let { Date(it) }
+    @TypeConverter fun dateToTimestamp(date: Date?): Long? = date?.time
 }
+

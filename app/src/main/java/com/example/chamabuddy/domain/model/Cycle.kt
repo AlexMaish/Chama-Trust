@@ -29,5 +29,15 @@ data class Cycle(
 
     @ColumnInfo(name = "total_members")
     val totalMembers: Int,
-    var totalSavings: Int
+    var totalSavings: Int,
+
+
+    @ColumnInfo(name = "group_id")
+    val groupId: String
+
+
+
+
+
 )
+

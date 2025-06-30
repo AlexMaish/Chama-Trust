@@ -57,4 +57,6 @@ interface MonthlySavingEntryDao {
 //
 //    @Query("SELECT * FROM MonthlySavingEntry WHERE saving_id = :savingId")
 //    fun getEntriesForSaving(savingId: String): Flow<List<MonthlySavingEntry>>
+
+
 }

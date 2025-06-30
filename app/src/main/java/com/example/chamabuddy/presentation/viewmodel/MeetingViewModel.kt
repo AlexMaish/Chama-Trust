@@ -1,4 +1,3 @@
-// File: com/example/chamabuddy/presentation/viewmodel/MeetingViewModel.kt
 package com.example.chamabuddy.presentation.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
@@ -20,20 +19,14 @@ class MeetingViewModel @Inject constructor(
     private val beneficiaryRepository: BeneficiaryRepository
 ) : ViewModel() {
 
-
     private val _state = MutableStateFlow<MeetingState>(MeetingState.Idle)
     val state: StateFlow<MeetingState> = _state.asStateFlow()
 
-    private val _contributionState = MutableStateFlow<ContributionTrackingState>(
-        ContributionTrackingState()
-    )
+    private val _contributionState = MutableStateFlow(ContributionTrackingState())
     val contributionState: StateFlow<ContributionTrackingState> = _contributionState.asStateFlow()
 
     private val _beneficiaryState = MutableStateFlow(BeneficiarySelectionState())
     val beneficiaryState: StateFlow<BeneficiarySelectionState> = _beneficiaryState.asStateFlow()
-
-    private val _eligibleBeneficiaries = MutableStateFlow<List<Member>>(emptyList())
-    val eligibleBeneficiaries: StateFlow<List<Member>> = _eligibleBeneficiaries.asStateFlow()
 
     fun handleEvent(event: MeetingEvent) {
         when (event) {
@@ -56,7 +49,6 @@ class MeetingViewModel @Inject constructor(
 
     private fun loadMembersForContribution(meetingId: String) {
         viewModelScope.launch {
-            // Reset state to loading
             _contributionState.value = ContributionTrackingState(
                 isLoading = true,
                 members = emptyList(),
@@ -64,25 +56,16 @@ class MeetingViewModel @Inject constructor(
             )
 
             try {
-                // Get ALL members (not just active)
                 val allMembers = memberRepository.getAllMembers().first()
-
-                // Get existing contributions
                 val existingContributions = contributionRepository.getContributionsForMeeting(meetingId)
                     .associate { it.memberId to true }
-
-                // Get meeting details
                 val meeting = meetingRepository.getMeetingById(meetingId)
-                val weeklyAmount = meeting?.let {
-                    meetingRepository.getCycleWeeklyAmount(it.cycleId)
-                } ?: 0
+                val weeklyAmount = meeting?.let { meetingRepository.getCycleWeeklyAmount(it.cycleId) } ?: 0
 
-                // Create contribution map (default to false for all members)
                 val contributions = allMembers.associate { member ->
                     member.memberId to (existingContributions[member.memberId] ?: false)
                 }
 
-                // Calculate total collected
                 val totalCollected = contributions.count { it.value } * weeklyAmount
 
                 _contributionState.value = ContributionTrackingState(
@@ -125,7 +108,8 @@ class MeetingViewModel @Inject constructor(
                 val result = meetingRepository.createWeeklyMeeting(
                     cycleId = event.cycleId,
                     meetingDate = event.date,
-                    recordedBy = event.recordedBy
+                    recordedBy = event.recordedBy,
+                    groupId = event.groupId
                 )
                 if (result.isSuccess) {
                     _state.value = MeetingState.MeetingCreated(result.getOrNull()!!)
@@ -188,22 +172,16 @@ class MeetingViewModel @Inject constructor(
     }
 
     private fun loadEligibleBeneficiaries(meetingId: String) {
-
         viewModelScope.launch {
             _beneficiaryState.value = BeneficiarySelectionState(isLoading = true)
             try {
                 val meeting = meetingRepository.getMeetingById(meetingId)
                     ?: throw IllegalStateException("Meeting not found")
-
                 val cycleId = meeting.cycleId
                 val allActiveMembers = memberRepository.getActiveMembers().first()
-
-                // Get ALL beneficiaries in this cycle
                 val cycleBeneficiaries = beneficiaryRepository.getBeneficiariesByCycle(cycleId)
                     .map { it.memberId }
                     .toSet()
-
-                // Filter: Only members who haven't received in THIS CYCLE
                 val eligibleMembers = allActiveMembers.filter { member ->
                     !cycleBeneficiaries.contains(member.memberId)
                 }
@@ -234,8 +212,8 @@ class MeetingViewModel @Inject constructor(
                 val actualCycleId = meeting.cycleId
                 val weeklyAmount = meetingRepository.getCycleWeeklyAmount(actualCycleId)
 
-                // DELETE EXISTING BENEFICIARIES FIRST
-                deleteExistingBeneficiaries(meetingId)
+                // Delete existing beneficiaries
+                beneficiaryRepository.deleteBeneficiariesForMeeting(meetingId)
 
                 // Create new beneficiaries
                 val firstBeneficiary = Beneficiary(
@@ -245,7 +223,8 @@ class MeetingViewModel @Inject constructor(
                     meetingId = meetingId,
                     amountReceived = weeklyAmount,
                     dateAwarded = Date(),
-                    paymentOrder = 1
+                    paymentOrder = 1,
+                    groupId = meeting.groupId
                 )
 
                 val secondBeneficiary = Beneficiary(
@@ -255,7 +234,8 @@ class MeetingViewModel @Inject constructor(
                     meetingId = meetingId,
                     amountReceived = weeklyAmount,
                     dateAwarded = Date(),
-                    paymentOrder = 2
+                    paymentOrder = 2,
+                    groupId = meeting.groupId
                 )
 
                 beneficiaryRepository.insertBeneficiary(firstBeneficiary)
@@ -278,20 +258,16 @@ class MeetingViewModel @Inject constructor(
             }
         }
     }
+
     private fun loadBeneficiaryDetails(beneficiaryId: String) {
         viewModelScope.launch {
             _state.value = MeetingState.Loading
             try {
-                val beneficiary = beneficiaryRepository
-                    .getBeneficiaryById(beneficiaryId)
+                val beneficiary = beneficiaryRepository.getBeneficiaryById(beneficiaryId)
                     ?: throw IllegalStateException("Beneficiary not found")
-
-                val member = memberRepository
-                    .getMemberById(beneficiary.memberId)
+                val member = memberRepository.getMemberById(beneficiary.memberId)
                     ?: throw IllegalStateException("Member not found")
-
-                val meeting = meetingRepository
-                    .getMeetingById(beneficiary.meetingId)
+                val meeting = meetingRepository.getMeetingById(beneficiary.meetingId)
 
                 _state.value = MeetingState.BeneficiaryDetails(
                     beneficiary = beneficiary,
@@ -303,19 +279,24 @@ class MeetingViewModel @Inject constructor(
             }
         }
     }
-    suspend fun getMeetingStatus(meetingId: String): MeetingStatus {
-        return meetingRepository.getMeetingStatus(meetingId)
-    }
+
+
     private fun getMeetingStatus(event: MeetingEvent.GetMeetingStatus) {
         viewModelScope.launch {
             _state.value = MeetingState.Loading
             try {
-                val status = meetingRepository.getMeetingStatus(event.meetingId)
-                _state.value = MeetingState.MeetingStatus(status)
+                // Get domain model MeetingStatus
+                val domainStatus = meetingRepository.getMeetingStatus(event.meetingId)
+
+                // Create state representation
+                _state.value = MeetingState.MeetingStatusState(domainStatus)
             } catch (e: Exception) {
                 _state.value = MeetingState.Error(e.message ?: "Failed to get meeting status")
             }
         }
+    }
+    suspend fun getMeetingStatus(meetingId: String): MeetingStatus {
+        return meetingRepository.getMeetingStatus(meetingId)
     }
 
     private fun getMeetingsForCycle(event: MeetingEvent.GetMeetingsForCycle) {
@@ -330,10 +311,6 @@ class MeetingViewModel @Inject constructor(
         }
     }
 
-    private suspend fun deleteExistingBeneficiaries(meetingId: String) {
-        beneficiaryRepository.deleteBeneficiariesForMeeting(meetingId)
-    }
-
     private fun resetState() {
         _state.value = MeetingState.Idle
     }
@@ -344,49 +321,36 @@ sealed class MeetingState {
     object Loading : MeetingState()
     data class MeetingsLoaded(val meetings: List<MeetingWithDetails>) : MeetingState()
     data class MeetingCreated(val meeting: WeeklyMeeting) : MeetingState()
-    data class MeetingStatus(val status: com.example.chamabuddy.domain.repository.MeetingStatus) : MeetingState()
+
+    // Renamed to avoid conflict
+    data class MeetingStatusState(val status: com.example.chamabuddy.domain.model.MeetingStatus) : MeetingState()
+
     data class ContributionRecorded(val success: Boolean) : MeetingState()
     data class BeneficiariesSelected(
         val success: Boolean,
         val beneficiaries: List<String>,
-        val meetingStatus: com.example.chamabuddy.domain.repository.MeetingStatus
+        // Use domain model here too
+        val meetingStatus: com.example.chamabuddy.domain.model.MeetingStatus
     ) : MeetingState()
     data class Error(val message: String) : MeetingState()
-    data class EligibleBeneficiariesLoaded(
-        val members: List<Member>,
-        val alreadySelected: List<String> = emptyList()
-    ) : MeetingState()
     data class BeneficiaryDetails(
         val beneficiary: Beneficiary,
         val member: Member,
         val meeting: WeeklyMeeting? = null
     ) : MeetingState()
-
 }
 
 sealed class MeetingEvent {
-    data class CreateMeeting(val cycleId: String, val date: Date, val recordedBy: String?) : MeetingEvent()
-    data class RecordContributions(
-        val meetingId: String,
-        val contributions: Map<String, Boolean>
-    ) : MeetingEvent()
-    data class SelectBeneficiaries(
-        val meetingId: String,
-        val firstBeneficiaryId: String,
-        val secondBeneficiaryId: String
-    ) : MeetingEvent()
+    data class CreateMeeting(val cycleId: String, val date: Date, val recordedBy: String?, val groupId: String) : MeetingEvent()
+    data class RecordContributions(val meetingId: String, val contributions: Map<String, Boolean>) : MeetingEvent()
+    data class SelectBeneficiaries(val meetingId: String, val firstBeneficiaryId: String, val secondBeneficiaryId: String) : MeetingEvent()
     data class GetMeetingStatus(val meetingId: String) : MeetingEvent()
     data class GetMeetingsForCycle(val cycleId: String) : MeetingEvent()
     data class LoadEligibleBeneficiaries(val meetingId: String) : MeetingEvent()
     data class GetContributionsForMeeting(val meetingId: String) : MeetingEvent()
-    data class ConfirmBeneficiarySelection(
-        val meetingId: String,
-        val firstBeneficiaryId: String,
-        val secondBeneficiaryId: String
-    ) : MeetingEvent()
+    data class ConfirmBeneficiarySelection(val meetingId: String, val firstBeneficiaryId: String, val secondBeneficiaryId: String) : MeetingEvent()
     data class LoadBeneficiaryDetails(val beneficiaryId: String) : MeetingEvent()
     object ResetMeetingState : MeetingEvent()
-
 }
 
 data class ContributionTrackingState(

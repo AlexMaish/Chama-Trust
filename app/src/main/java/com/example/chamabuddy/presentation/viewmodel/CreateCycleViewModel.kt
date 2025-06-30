@@ -3,6 +3,7 @@ package com.example.chamabuddy.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.repository.CycleRepository
+import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.MemberRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateCycleViewModel @Inject constructor(
     private val cycleRepository: CycleRepository,
-    private val memberRepository: MemberRepository // Add this dependency
+    private val groupRepository: GroupRepository // Add this
 
 ) : ViewModel() {
 
@@ -47,30 +48,41 @@ class CreateCycleViewModel @Inject constructor(
         _errorMessage.value = null
     }
 
-    fun createCycle() {
-        if (_isCreating.value) return
 
-        _isCreating.value = true
-        _errorMessage.value = null
-
+    fun createCycle(groupId: String) {
         viewModelScope.launch {
+            _isCreating.value = true
             try {
+                // Get group with members
+                val groupWithMembers = groupRepository.getGroupWithMembers(groupId)
+                if (groupWithMembers == null) {
+                    _errorMessage.value = "Group not found"
+                    return@launch
+                }
+
+                val totalMembers = groupWithMembers.members.size
+                if (totalMembers == 0) {
+                    _errorMessage.value = "Group has no members"
+                    return@launch
+                }
+
+                // Get current UI state values
+                val currentState = uiState.value
+
                 cycleRepository.startNewCycle(
-                    weeklyAmount = uiState.value.weeklyAmount,
-                    monthlySavingsAmount = uiState.value.monthlySavingsAmount,
-                    totalMembers = getActiveMembersCount(),
-                    startDate = uiState.value.startDate
+                    weeklyAmount = currentState.weeklyAmount,
+                    monthlyAmount = currentState.monthlySavingsAmount,
+                    totalMembers = totalMembers,
+                    startDate = currentState.startDate,
+                    groupId = groupId
                 )
                 _creationSuccess.value = true
             } catch (e: Exception) {
-                _errorMessage.value = "Failed to create cycle: ${e.localizedMessage}"
+                _errorMessage.value = e.message ?: "Failed to create cycle"
             } finally {
                 _isCreating.value = false
             }
         }
-    }
-    private suspend fun getActiveMembersCount(): Int {
-        return memberRepository.getActiveMembersCount() // Implement this in your repository
     }
 
 

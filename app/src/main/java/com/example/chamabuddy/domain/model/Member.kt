@@ -29,9 +29,6 @@ data class Member(
     @ColumnInfo(name = "is_admin")
     val isAdmin: Boolean = false,
 
-    @ColumnInfo(name = "current_status")
-    val currentStatus: String = MemberStatus.ACTIVE.toString(),
-
     @ColumnInfo(name = "is_active")
     val isActive: Boolean = true,
 
@@ -48,16 +45,14 @@ data class Member(
     val totalSavings: Double = 0.0,
 
     @ColumnInfo(name = "benefited")
-    val benefited: Boolean = false
+    val benefited: Boolean = false,
+
+
+    @ColumnInfo(name = "user_id")
+    val userId: String? = null,
+
+
+    @ColumnInfo(name = "group_id")
+    val groupId: String
 )
 
-@ColumnInfo(name = "join_date")
-val joinDate: Long = System.currentTimeMillis()
-
-
-@ColumnInfo(name = "profile_picture")
-val profilePicture: String? = null
-
-enum class MemberStatus {
-    ACTIVE, INACTIVE
-}

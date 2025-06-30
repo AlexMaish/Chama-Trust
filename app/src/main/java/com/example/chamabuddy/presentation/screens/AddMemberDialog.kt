@@ -1,6 +1,3 @@
-package com.example.chamabuddy.presentation.screens
-
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,10 +22,9 @@ import androidx.compose.ui.unit.dp
 import com.example.chamabuddy.domain.model.Member
 import java.util.UUID
 
-
-
 @Composable
 fun AddMemberDialog(
+    groupId: String,  // Add groupId parameter
     onDismiss: () -> Unit,
     onAddMember: (Member) -> Unit
 ) {
@@ -93,7 +89,8 @@ fun AddMemberDialog(
                         name = name.trim(),
                         nickname = nickname.takeIf { it.isNotBlank() },
                         phoneNumber = phone.trim(),
-                        isAdmin = isAdmin
+                        isAdmin = isAdmin,
+                        groupId = groupId  // Use the passed groupId
                     )
                     onAddMember(newMember)
                 },

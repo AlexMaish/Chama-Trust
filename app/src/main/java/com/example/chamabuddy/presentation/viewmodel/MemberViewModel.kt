@@ -1,26 +1,26 @@
 package com.example.chamabuddy.presentation.viewmodel
 
 import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.repository.MemberRepository
-import com.example.chamabuddy.domain.repository.SavingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltViewModel
-class MemberViewModel  @Inject constructor(
-    private val memberRepository: MemberRepository,
-    private val savingsRepository: SavingsRepository
+class MemberViewModel @Inject constructor(
+    private val memberRepository: MemberRepository
 ) : ViewModel() {
 
+    private var currentGroupId: String by mutableStateOf("")
 
     private val _state = MutableStateFlow<MemberState>(MemberState.Idle)
     val state: StateFlow<MemberState> = _state.asStateFlow()
@@ -31,9 +31,13 @@ class MemberViewModel  @Inject constructor(
     private val _selectedMember = MutableStateFlow<Member?>(null)
     val selectedMember: StateFlow<Member?> = _selectedMember.asStateFlow()
 
+    fun setGroupId(groupId: String) {
+        currentGroupId = groupId
+    }
+
     fun handleEvent(event: MemberEvent) {
         when (event) {
-            is MemberEvent.LoadAllMembers -> loadMembers()
+            is MemberEvent.LoadMembersForGroup -> loadMembersForGroup(event.groupId)
             is MemberEvent.AddMember -> addMember(event.member)
             is MemberEvent.UpdateMember -> updateMember(event.member)
             is MemberEvent.DeleteMember -> deleteMember(event.member)
@@ -48,13 +52,19 @@ class MemberViewModel  @Inject constructor(
         _searchQuery.value = query
     }
 
-    private fun loadMembers() {
+    private fun loadMembersForGroup(groupId: String) {
+        currentGroupId = groupId
         viewModelScope.launch {
+            _state.value = MemberState.Loading
             try {
-                val members =  memberRepository.getActiveMembers().first()
-                _state.value = MemberState.MembersLoaded(members)
+                val members = memberRepository.getMembersByGroup(groupId)
+                if (members.isNotEmpty()) {
+                    _state.value = MemberState.MembersLoaded(members)
+                } else {
+                    _state.value = MemberState.Empty("No members found")
+                }
             } catch (e: Exception) {
-                _state.value = MemberState.Error(e.message ?: "Failed to load members")
+                _state.value = MemberState.Error("Failed to load members: ${e.localizedMessage}")
             }
         }
     }
@@ -62,12 +72,11 @@ class MemberViewModel  @Inject constructor(
     private fun addMember(member: Member) {
         viewModelScope.launch {
             _state.value = MemberState.Loading
-            _state.value = MemberState.Loading
             try {
                 memberRepository.addMember(member)
-                loadMembers() // Refresh the list
+                loadMembersForGroup(currentGroupId) // Reload members
             } catch (e: Exception) {
-                _state.value = MemberState.Error(e.message ?: "Failed to add member")
+                _state.value = MemberState.Error("Failed to add member: ${e.localizedMessage}")
             }
         }
     }
@@ -78,9 +87,9 @@ class MemberViewModel  @Inject constructor(
             try {
                 memberRepository.updateMember(member)
                 _selectedMember.value = member
-                loadMembers() // Refresh the list
+                loadMembersForGroup(currentGroupId) // Reload members
             } catch (e: Exception) {
-                _state.value = MemberState.Error(e.message ?: "Failed to update member")
+                _state.value = MemberState.Error("Update failed: ${e.localizedMessage}")
             }
         }
     }
@@ -90,9 +99,9 @@ class MemberViewModel  @Inject constructor(
             _state.value = MemberState.Loading
             try {
                 memberRepository.deleteMember(member)
-                loadMembers() // Refresh the list
+                loadMembersForGroup(currentGroupId) // Reload members
             } catch (e: Exception) {
-                _state.value = MemberState.Error(e.message ?: "Failed to delete member")
+                _state.value = MemberState.Error("Deletion failed: ${e.localizedMessage}")
             }
         }
     }
@@ -101,51 +110,42 @@ class MemberViewModel  @Inject constructor(
         viewModelScope.launch {
             _state.value = MemberState.Loading
             try {
-                val member = memberRepository.getMemberById(memberId)
-                if (member != null) {
+                memberRepository.getMemberById(memberId)?.let { member ->
                     _selectedMember.value = member
                     _state.value = MemberState.MemberDetails(member)
-                } else {
+                } ?: run {
                     _state.value = MemberState.Error("Member not found")
                 }
             } catch (e: Exception) {
-                _state.value = MemberState.Error(e.message ?: "Failed to load member details")
+                _state.value = MemberState.Error("Details error: ${e.localizedMessage}")
             }
         }
     }
 
-    fun updateProfilePicture(memberId: String, imageUri: Uri) {
+    private fun updateProfilePicture(memberId: String, imageUri: Uri) {
         viewModelScope.launch {
             _state.value = MemberState.Loading
             try {
                 memberRepository.updateProfilePicture(memberId, imageUri)
-                getMemberDetails(memberId) // Refresh member details
+                getMemberDetails(memberId) // Refresh details
             } catch (e: Exception) {
-                _state.value = MemberState.Error(
-                    e.message ?: "Failed to update profile picture"
-                )
+                _state.value = MemberState.Error("Profile update failed: ${e.localizedMessage}")
             }
         }
     }
-    fun getMemberNameById(memberId: String): String? {
-        return runBlocking {
-            try {
-                memberRepository.getMemberNameById(memberId)
-            } catch (e: Exception) {
-                null
-            }
-        }
+
+    suspend fun getMemberNameById(memberId: String): String? {
+        return memberRepository.getMemberNameById(memberId)
     }
-    fun changePhoneNumber(memberId: String, newNumber: String) {
+
+    private fun changePhoneNumber(memberId: String, newNumber: String) {
         viewModelScope.launch {
             _state.value = MemberState.Loading
             try {
                 memberRepository.changePhoneNumber(memberId, newNumber)
-                getMemberDetails(memberId) // Refresh member details
+                getMemberDetails(memberId) // Refresh details
             } catch (e: Exception) {
-                _state.value = MemberState.Error(
-                    e.message ?: "Failed to change phone number"
-                )
+                _state.value = MemberState.Error("Phone update failed: ${e.localizedMessage}")
             }
         }
     }
@@ -155,29 +155,26 @@ class MemberViewModel  @Inject constructor(
     }
 }
 
-// Member State
 sealed class MemberState {
     object Idle : MemberState()
     object Loading : MemberState()
     data class MembersLoaded(val members: List<Member>) : MemberState()
     data class MemberDetails(val member: Member) : MemberState()
     data class Error(val message: String) : MemberState()
+    data class Empty(val message: String) : MemberState()
 }
 
-// Member Events
 sealed class MemberEvent {
-    object LoadAllMembers : MemberEvent()
+    data class LoadMembersForGroup(val groupId: String) : MemberEvent()
     data class AddMember(val member: Member) : MemberEvent()
     data class UpdateMember(val member: Member) : MemberEvent()
     data class DeleteMember(val member: Member) : MemberEvent()
     data class GetMemberDetails(val memberId: String) : MemberEvent()
     object ResetMemberState : MemberEvent()
-
     data class UpdateProfilePicture(
         val memberId: String,
         val imageUri: Uri
     ) : MemberEvent()
-
     data class ChangePhoneNumber(
         val memberId: String,
         val newNumber: String

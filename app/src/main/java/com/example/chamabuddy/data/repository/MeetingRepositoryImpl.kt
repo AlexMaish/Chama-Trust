@@ -25,7 +25,8 @@ class MeetingRepositoryImpl @Inject constructor(
     override suspend fun createWeeklyMeeting(
         cycleId: String,
         meetingDate: Date,
-        recordedBy: String?
+        recordedBy: String?,
+        groupId: String
     ) = withContext(dispatcher) {
         try {
             val meeting = WeeklyMeeting(
@@ -33,7 +34,8 @@ class MeetingRepositoryImpl @Inject constructor(
                 cycleId = cycleId,
                 meetingDate = meetingDate,
                 totalCollected = 0,
-                recordedBy = recordedBy
+                recordedBy = recordedBy,
+                groupId = groupId
             )
             meetingDao.insertMeeting(meeting)
             Result.success(meeting)
@@ -42,11 +44,9 @@ class MeetingRepositoryImpl @Inject constructor(
         }
     }
 
-
     override suspend fun getMeetingWithDetails(meetingId: String): MeetingWithDetails? =
         withContext(dispatcher) {
             val meeting = meetingDao.getMeetingById(meetingId) ?: return@withContext null
-
             val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meetingId)
                 .map { beneficiary ->
                     val member = memberDao.getMemberById(beneficiary.memberId)
@@ -56,7 +56,6 @@ class MeetingRepositoryImpl @Inject constructor(
                         amountReceived = beneficiary.amountReceived
                     )
                 }
-
             val contributors = contributionDao.getContributorsForMeeting(meetingId)
                 .map { contribution ->
                     val member = memberDao.getMemberById(contribution.memberId)
@@ -86,7 +85,6 @@ class MeetingRepositoryImpl @Inject constructor(
                             amountReceived = beneficiary.amountReceived
                         )
                     }
-
                 val contributors = contributionDao.getContributorsForMeeting(meeting.meetingId)
                     .map { contribution ->
                         val member = memberDao.getMemberById(contribution.memberId)
@@ -110,8 +108,7 @@ class MeetingRepositoryImpl @Inject constructor(
         hasContributions: Boolean,
         hasBeneficiaries: Boolean
     ) {
-        // In a real implementation, you might update flags in the meeting table
-        // For now, we'll just ensure beneficiaries are properly saved
+        // Implementation can be added later
     }
 
     override suspend fun recordContributions(
@@ -119,12 +116,12 @@ class MeetingRepositoryImpl @Inject constructor(
         contributions: Map<String, Boolean>
     ): Result<Unit> = withContext(dispatcher) {
         try {
-            val meeting = meetingDao.getMeetingById(meetingId) ?: throw IllegalStateException("Meeting not found")
-            val cycle = cycleDao.getCycleById(meeting.cycleId) ?: throw IllegalStateException("Cycle not found")
+            val meeting = meetingDao.getMeetingById(meetingId)
+                ?: throw IllegalStateException("Meeting not found")
+            val cycle = cycleDao.getCycleById(meeting.cycleId)
+                ?: throw IllegalStateException("Cycle not found")
 
-            // Clear existing contributions
             contributionDao.deleteContributionsForMeeting(meetingId)
-
             var totalCollected = 0
             contributions.forEach { (memberId, hasContributed) ->
                 if (hasContributed) {
@@ -135,33 +132,34 @@ class MeetingRepositoryImpl @Inject constructor(
                             memberId = memberId,
                             amountContributed = cycle.weeklyAmount,
                             contributionDate = Date().toString(),
-                            isLate = false
+                            isLate = false,
+                            groupId = meeting.groupId
                         )
                     )
                     totalCollected += cycle.weeklyAmount
                 }
             }
-
-            // Update meeting with new total
             meetingDao.updateMeeting(meeting.copy(totalCollected = totalCollected))
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
     override suspend fun selectBeneficiaries(
         meetingId: String,
         firstBeneficiaryId: String,
         secondBeneficiaryId: String
     ) = withContext(dispatcher) {
         try {
-            val meeting = meetingDao.getMeetingById(meetingId) ?: throw IllegalStateException("Meeting not found")
-            val cycle = cycleDao.getCycleById(meeting.cycleId) ?: throw IllegalStateException("Cycle not found")
+            val meeting = meetingDao.getMeetingById(meetingId)
+                ?: throw IllegalStateException("Meeting not found")
+            val cycle = cycleDao.getCycleById(meeting.cycleId)
+                ?: throw IllegalStateException("Cycle not found")
 
             if (beneficiaryDao.hasReceivedInCycle(firstBeneficiaryId, meeting.cycleId) > 0) {
                 throw IllegalStateException("First beneficiary already received in this cycle")
             }
-
             if (beneficiaryDao.hasReceivedInCycle(secondBeneficiaryId, meeting.cycleId) > 0) {
                 throw IllegalStateException("Second beneficiary already received in this cycle")
             }
@@ -174,10 +172,10 @@ class MeetingRepositoryImpl @Inject constructor(
                     amountReceived = cycle.weeklyAmount,
                     paymentOrder = 1,
                     cycleId = cycle.cycleId,
-                    dateAwarded = Date()
+                    dateAwarded = Date(),
+                    groupId = meeting.groupId
                 )
             )
-
             beneficiaryDao.insertBeneficiary(
                 Beneficiary(
                     beneficiaryId = UUID.randomUUID().toString(),
@@ -186,10 +184,10 @@ class MeetingRepositoryImpl @Inject constructor(
                     amountReceived = cycle.weeklyAmount,
                     paymentOrder = 2,
                     cycleId = cycle.cycleId,
-                    dateAwarded = Date()
+                    dateAwarded = Date(),
+                    groupId = meeting.groupId
                 )
             )
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -205,12 +203,13 @@ class MeetingRepositoryImpl @Inject constructor(
             meetingDao.getLatestMeetingForCycle(cycleId)
         }
 
-    override suspend fun getMeetingStatus(meetingId: String): MeetingStatus =
+    override suspend fun getMeetingStatus(meetingId: String): MeetingStatus = // Correct return type
         withContext(dispatcher) {
-            val meeting = meetingDao.getMeetingById(meetingId) ?: throw IllegalStateException("Meeting not found")
-            val cycle = cycleDao.getCycleById(meeting.cycleId) ?: throw IllegalStateException("Cycle not found")
+            val meeting = meetingDao.getMeetingById(meetingId)
+                ?: throw IllegalStateException("Meeting not found")
+            val cycle = cycleDao.getCycleById(meeting.cycleId)
+                ?: throw IllegalStateException("Cycle not found")
             val activeMembers = memberDao.getActiveMembers().first()
-
             val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meetingId)
             val contributors = contributionDao.getContributorsForMeeting(meetingId)
 
@@ -241,4 +240,12 @@ class MeetingRepositoryImpl @Inject constructor(
                     )
                 }
         }
+
+    override suspend fun deleteBeneficiariesForMeeting(meetingId: String) {
+        beneficiaryDao.deleteBeneficiariesForMeeting(meetingId)
+    }
+
+    override suspend fun getBeneficiariesByCycle(cycleId: String): List<Beneficiary> {
+        return beneficiaryDao.getBeneficiariesByCycle(cycleId)
+    }
 }

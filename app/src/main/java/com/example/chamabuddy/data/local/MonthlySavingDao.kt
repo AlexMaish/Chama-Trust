@@ -40,7 +40,4 @@ interface MonthlySavingDao {
         @Update
         suspend fun update(saving: MonthlySaving)
 
-//        @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId")
-//        fun getSavingsForCycle(cycleId: String): Flow<List<MonthlySaving>>
-//
 }
