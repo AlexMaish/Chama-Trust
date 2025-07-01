@@ -8,7 +8,7 @@ finances efficiently. It automates contributions, tracks savings, selects benefi
 ##  Features
 
 -  Track weekly/monthly contributions
--  Randomly select beneficiaries
+-  Beneficiaries Selection
 -  Manage member profiles
 -  View group balance and individual savings
 -  Record transaction history and meeting minutes
