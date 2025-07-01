@@ -25,7 +25,6 @@ import com.example.chamabuddy.presentation.viewmodel.GroupHomeViewModel
 @Composable
 fun GroupsHomeScreen(
     navigateToGroupCycles: (String) -> Unit,
-    onBottomBarVisibilityChange: (Boolean) -> Unit,
     viewModel: GroupHomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()

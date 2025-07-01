@@ -19,12 +19,11 @@ object BeneficiaryDestination : NavigationDestination {
     override val route = "beneficiary"
     override val title = "Beneficiary"
 }
-
 object MembersDestination : NavigationDestination {
     override val route = "members"
     override val title = "Members"
     const val groupIdArg = "groupId"
-    val routeWithArgs = "$route/{$groupIdArg}"
+    val routeWithArgs = "$route/{$groupIdArg}"  // Correct format
 }
 object CycleDetailDestination : NavigationDestination {
     override val route = "cycle_detail"
@@ -72,6 +71,8 @@ object ProfileDestination : NavigationDestination {
 object SavingsDestination : NavigationDestination {
     override val route = "savings"
     override val title = "Savings"
+    const val groupIdArg = "groupId"
+    val routeWithArgs = "$route/{$groupIdArg}"  // Add this
 }
 
 

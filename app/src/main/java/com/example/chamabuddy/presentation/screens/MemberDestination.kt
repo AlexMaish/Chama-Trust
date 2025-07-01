@@ -32,6 +32,8 @@ fun MembersScreen(
     navigateToProfile: (String) -> Unit,
     viewModel: MemberViewModel = hiltViewModel()
 ) {
+
+    val state by viewModel.state.collectAsState()
     // Track if we should show the Add Member Dialog
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -41,7 +43,7 @@ fun MembersScreen(
         viewModel.handleEvent(MemberEvent.LoadMembersForGroup(groupId))
     }
 
-    val state by viewModel.state.collectAsState()
+
 
     Scaffold(
         topBar = {

@@ -52,6 +52,8 @@ interface CycleDao {
     @Query("SELECT * FROM Cycle WHERE group_id = :groupId")
     suspend fun getCyclesByGroupId(groupId: String): List<Cycle>
 
+    @Query("SELECT * FROM Cycle WHERE cycle_id IN (:cycleIds)")
+    suspend fun getCyclesByIds(cycleIds: List<String>): List<Cycle>
 
 
 }

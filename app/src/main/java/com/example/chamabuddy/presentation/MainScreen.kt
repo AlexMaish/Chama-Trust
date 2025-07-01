@@ -55,121 +55,28 @@ import com.example.chamabuddy.presentation.screens.SavingsScreen
 fun MainScreen() {
     val navController = rememberNavController()
     var currentGroupId by remember { mutableStateOf("") }
-    var isBottomBarVisible by remember { mutableStateOf(true) }
 
-    val onGroupSelected: (String) -> Unit = { groupId ->
-        currentGroupId = groupId
-        // Navigate to home with the new group ID
-        navController.navigate("${HomeDestination.route}/$groupId") {
-            popUpTo(GroupsHomeDestination.route) { inclusive = true }
-        }
-    }
-
-
-    val bottomBarItems = listOf(
-        TabItem(HomeDestination, Icons.Filled.Home, "Home"),
-        TabItem(SavingsDestination, Icons.Filled.Savings, "Savings"),
-        TabItem(BeneficiaryDestination, Icons.Filled.MonetizationOn, "Beneficiary"),
-        TabItem(MembersDestination, Icons.Filled.People, "Members"),
-        TabItem(ProfileDestination, Icons.Filled.Person, "Profile")
-    )
-
-    Scaffold(
-        bottomBar = {
-            AnimatedVisibility(visible = isBottomBarVisible) {
-                BottomBar(
-                    navController = navController,
-                    items = bottomBarItems,
-                    currentGroupId = currentGroupId
-                )
-            }
-        }
-    ) { innerPadding ->
+    Scaffold() { innerPadding ->
         MainNavHost(
             navController = navController,
             innerPadding = innerPadding,
-            onBottomBarVisibilityChange = { visible -> isBottomBarVisible = visible },
-            onGroupSelected = onGroupSelected,
+            onGroupSelected = { groupId ->
+                currentGroupId = groupId
+                navController.navigate("${HomeDestination.route}/$groupId") {
+                    popUpTo(GroupsHomeDestination.route) { inclusive = true }
+                }
+            },
             currentGroupId = currentGroupId
         )
     }
 }
 
-data class TabItem(
-    val destination: NavigationDestination,
-    val icon: ImageVector,
-    val title: String
-)
 
 
 
 
 
 
-
-
-
-
-
-
-@Composable
-fun BottomBar(
-    navController: NavHostController,
-    items: List<TabItem>,
-    currentGroupId: String
-) {
-    println("BottomBar - currentGroupId: $currentGroupId")
-    NavigationBar {
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentDestination = navBackStackEntry?.destination
-
-        items.forEach { item ->
-            println("Handling item: ${item.title}")
-            NavigationBarItem(
-                icon = { Icon(item.icon, contentDescription = item.title) },
-                label = { Text(item.title) },
-                selected = currentDestination?.hierarchy?.any {
-                    it.route?.substringBefore('/') == item.destination.route
-                } == true,
-                onClick = {
-                    println("Clicked ${item.title} with groupId: $currentGroupId")
-
-                    when (item.destination) {
-                        SavingsDestination,
-                        MembersDestination,
-                        ProfileDestination -> {
-                            if (currentGroupId.isNotBlank()) {
-                                val route = when (item.destination) {
-                                    SavingsDestination -> "${SavingsDestination.route}/$currentGroupId"
-                                    MembersDestination -> "${MembersDestination.route}/$currentGroupId"
-                                    ProfileDestination -> "${ProfileDestination.route}/$currentGroupId/current_user"
-                                    else -> item.destination.route
-                                }
-
-                                navController.navigate(route) {
-                                    // Remove popUpTo to keep back stack intact
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            } else {
-                                // Navigate to group selection if no group selected
-                                navController.navigate(GroupsHomeDestination.route) {
-                                    popUpTo(0)
-                                }
-                            }
-                        }
-                        else -> {
-                            navController.navigate(item.destination.route) {
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    }
-                }
-            )
-        }
-    }
-}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeetingDetailScreen(meetingId: String, navigateBack: () -> Unit) {
@@ -226,7 +133,6 @@ fun MeetingDetailScreen(meetingId: String, navigateBack: () -> Unit) {
 fun MainNavHost(
     navController: NavHostController,
     innerPadding: PaddingValues,
-    onBottomBarVisibilityChange: (Boolean) -> Unit,
     onGroupSelected: (String) -> Unit,
     currentGroupId: String
 ) {
@@ -235,17 +141,12 @@ fun MainNavHost(
         startDestination = GroupsHomeDestination.route,
         modifier = Modifier.padding(innerPadding)
     ){
-            composable(route = GroupsHomeDestination.route) {
-                GroupsHomeScreen(
-                    navigateToGroupCycles = onGroupSelected,
-//                    navigateToGroupCycles = { groupId ->
-//                        println("navigateToGroupCycles called with groupId: $groupId")
-//                        navController.navigate("${HomeDestination.route}/$groupId")
-//                        onGroupSelected(groupId)
-//                    },
-                    onBottomBarVisibilityChange = onBottomBarVisibilityChange
-                )
-            }
+        composable(route = GroupsHomeDestination.route) {
+            GroupsHomeScreen(
+                navigateToGroupCycles = onGroupSelected
+            )
+        }
+
 
 
 
@@ -276,9 +177,7 @@ fun MainNavHost(
         }
         composable(
             route = HomeDestination.routeWithArgs,
-            arguments = listOf(navArgument(HomeDestination.groupIdArg) {
-                type = NavType.StringType
-            }
+            arguments = listOf(navArgument(HomeDestination.groupIdArg) { type = NavType.StringType }
             ) ){ backStackEntry ->
                 val groupId = backStackEntry.arguments?.getString(HomeDestination.groupIdArg) ?: ""
                 HomeScreen(
@@ -291,24 +190,19 @@ fun MainNavHost(
                         navController.navigate("${CreateCycleDestination.route}/$groupId")
                     },
                     navigateToGroupManagement = {
-//                        currentGroupId = ""
                         navController.navigate(GroupsHomeDestination.route)
-                    },
-                    onBottomBarVisibilityChange = onBottomBarVisibilityChange
+                    }
                 )
             }
 
-        // In MainNavHost
-        composable(route = GroupsHomeDestination.route) {
-            GroupsHomeScreen(
-                navigateToGroupCycles = { groupId ->
-                    navController.navigate("${HomeDestination.route}/$groupId")
-                    onGroupSelected(groupId)
-                }
-                ,
-                onBottomBarVisibilityChange = onBottomBarVisibilityChange
-            )
-        }
+//        composable(route = GroupsHomeDestination.route) {
+//            GroupsHomeScreen(
+//                navigateToGroupCycles = { groupId ->
+//                    navController.navigate("${MainTabsDestination.route}/$groupId")
+//                }
+//            )
+//        }
+
 
 
 
@@ -441,22 +335,21 @@ fun MainNavHost(
         }
 
 
-
         composable(
             route = MembersDestination.routeWithArgs,
-            arguments = listOf(navArgument(MembersDestination.groupIdArg) {
-                type = NavType.StringType
-            }
-            )) { backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString(MembersDestination.groupIdArg) ?: ""
-                MembersScreen(
-                    groupId = groupId,
-                    navigateBack = { navController.popBackStack() },
-                    navigateToProfile = { memberId ->
-                        navController.navigate("${ProfileDestination.route}/$groupId/$memberId")
-                    }
-                )
-            }
+            arguments = listOf(
+                navArgument(MembersDestination.groupIdArg) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString(MembersDestination.groupIdArg) ?: ""
+            MembersScreen(
+                groupId = groupId,
+                navigateBack = { navController.popBackStack() },
+                navigateToProfile = { memberId ->
+                    navController.navigate("${ProfileDestination.route}/$groupId/$memberId")
+                }
+            )
+        }
 
         composable(
             route = ProfileDestination.routeWithArgs,
@@ -478,27 +371,27 @@ fun MainNavHost(
 
 
         composable(
-            route = "${SavingsDestination.route}/{groupId}",
-            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
-            SavingsScreen(
-                groupId = groupId,
-                navigateToProfile = { memberId ->
-                    navController.navigate("${ProfileDestination.route}/$groupId/$memberId")
-                },
-                navigateBack = { navController.popBackStack() }
-            )
-        }
-
+            route = SavingsDestination.routeWithArgs,
+            arguments = listOf(navArgument(SavingsDestination.groupIdArg) {
+                type = NavType.StringType
+            }
+            ) ){ backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString(SavingsDestination.groupIdArg) ?: ""
+                SavingsScreen(
+                    groupId = groupId,
+                    navigateToProfile = { memberId ->
+                        navController.navigate("${ProfileDestination.route}/$groupId/$memberId")
+                    },
+                    navigateBack = { navController.popBackStack() }
+                )
+            }
 
         composable(route = GroupsHomeDestination.route) {
             GroupsHomeScreen(
                 navigateToGroupCycles = { groupId ->
                     // Navigate to HomeScreen with group ID parameter
                     navController.navigate("${HomeDestination.route}/$groupId")
-                },
-                onBottomBarVisibilityChange = onBottomBarVisibilityChange
+                }
             )
 
 

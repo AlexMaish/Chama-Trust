@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.chamabuddy.domain.model.MonthlySaving
+import com.example.chamabuddy.domain.model.MonthlySavingEntry
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -39,5 +40,24 @@ interface MonthlySavingDao {
 
         @Update
         suspend fun update(saving: MonthlySaving)
+
+
+    @Query("""
+        SELECT DISTINCT m.cycle_id 
+        FROM MonthlySavingEntry e
+        INNER JOIN MonthlySaving m ON e.saving_id = m.saving_id
+        WHERE e.member_id = :memberId
+    """)
+    suspend fun getDistinctCycleIdsForMember(memberId: String): List<String>
+
+    @Query("""
+        SELECT e.* 
+        FROM MonthlySavingEntry e
+        INNER JOIN MonthlySaving m ON e.saving_id = m.saving_id
+        WHERE e.member_id = :memberId AND m.cycle_id = :cycleId
+    """)
+    suspend fun getSavingsForMemberInCycle(memberId: String, cycleId: String): List<MonthlySavingEntry>
+
+
 
 }

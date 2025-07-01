@@ -5,6 +5,8 @@ import androidx.room.*
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.chamabuddy.domain.model.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.Date
 
 @Database(
@@ -21,7 +23,8 @@ import java.util.Date
         UserGroup::class,
         GroupMember::class
     ],
-    version = 3
+    version = 3,
+    exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +39,13 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun userGroupDao(): UserGroupDao
     abstract fun groupMemberDao(): GroupMemberDao
+
+    suspend fun <T> runInTransaction(block: suspend () -> T): T {
+        return withContext(Dispatchers.IO) {
+            runInTransaction(block)
+        }
+    }
+
 }
 
 class Converters {

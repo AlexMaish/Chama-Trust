@@ -69,4 +69,16 @@ class MemberRepositoryImpl @Inject constructor(
     override fun getAllMembers(): Flow<List<Member>> = memberDao.getAllMembers()
 
     override fun getActiveMembers(): Flow<List<Member>> = memberDao.getActiveMembers()
+
+
+    override fun getMembersByGroupFlow(groupId: String): Flow<List<Member>> {
+        return memberDao.getMembersByGroupFlow(groupId)
+    }
+
+
+
+
+
+
+
 }

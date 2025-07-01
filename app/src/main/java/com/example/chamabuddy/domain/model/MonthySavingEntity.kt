@@ -55,5 +55,12 @@ data class MonthlySavingEntry(
     val recordedBy: String? = null,
 
     @ColumnInfo(name = "group_id")
-    val groupId: String
-)
+    val groupId: String,
+
+
+
+    @ColumnInfo(name = "isPlaceholder")
+    val isPlaceholder: Boolean = false,
+
+
+    )

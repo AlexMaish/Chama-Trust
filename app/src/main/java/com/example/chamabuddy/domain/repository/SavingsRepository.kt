@@ -3,6 +3,7 @@ package com.example.chamabuddy.domain.repository
 import com.example.chamabuddy.domain.model.MonthlySaving
 import com.example.chamabuddy.domain.model.MonthlySavingEntry
 import com.example.chamabuddy.domain.model.SavingsProgress
+import com.example.chamabuddy.presentation.viewmodel.CycleWithSavings
 import kotlinx.coroutines.flow.Flow
 
 interface SavingsRepository {
@@ -21,11 +22,20 @@ interface SavingsRepository {
         targetAmount: Int,
         groupId: String
     )
-
+    suspend fun getCyclesWithSavingsForMember(memberId: String): List<CycleWithSavings>
     suspend fun getMemberSavingsTotal(memberId: String): Int
     fun getMemberSavings(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>>
     fun getCycleSavings(cycleId: String): Flow<List<MonthlySaving>>
     suspend fun getTotalSavings(): Int
     suspend fun getTotalSavingsByCycle(cycleId: String): Int
     suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String): Int
-    suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String): SavingsProgress }
+    suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String): SavingsProgress
+
+    suspend fun createMissingMonthlyEntries(
+        memberId: String,
+        currentCycleId: String,
+        newMonthlyTarget: Int
+    )
+
+
+}

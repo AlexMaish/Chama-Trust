@@ -58,5 +58,19 @@ interface MonthlySavingEntryDao {
 //    @Query("SELECT * FROM MonthlySavingEntry WHERE saving_id = :savingId")
 //    fun getEntriesForSaving(savingId: String): Flow<List<MonthlySavingEntry>>
 
+    @Query("""
+        SELECT * 
+        FROM MonthlySavingEntry 
+        WHERE member_id = :memberId 
+        AND saving_id IN (
+            SELECT saving_id 
+            FROM MonthlySaving 
+            WHERE cycle_id = :cycleId
+        )
+    """)
+    suspend fun getSavingsForMemberInCycle(memberId: String, cycleId: String): List<MonthlySavingEntry>
+
+
+
 
 }

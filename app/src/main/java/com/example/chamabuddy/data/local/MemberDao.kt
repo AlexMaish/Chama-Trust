@@ -57,4 +57,9 @@ interface MemberDao {
     @Query("SELECT * FROM member WHERE group_id = :groupId")
     suspend fun getMembersByGroup(groupId: String): List<Member>
 
+
+    @Query("SELECT * FROM member WHERE group_id = :groupId")
+    fun getMembersByGroupFlow(groupId: String): Flow<List<Member>>
+
+
 }

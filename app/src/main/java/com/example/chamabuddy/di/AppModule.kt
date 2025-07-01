@@ -115,12 +115,20 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSavingsRepository(
+        db: AppDatabase,
         savingDao: MonthlySavingDao,
-        entryDao: MonthlySavingEntryDao,
+        savingEntryDao: MonthlySavingEntryDao,
         cycleDao: CycleDao,
         memberDao: MemberDao,
         dispatcher: CoroutineDispatcher
-    ): SavingsRepository = SavingsRepositoryImpl(savingDao, entryDao, cycleDao, memberDao, dispatcher)
+    ):  SavingsRepository = SavingsRepositoryImpl(
+        db = db,
+        savingDao = savingDao,
+        savingEntryDao = savingEntryDao,
+        cycleDao = cycleDao,
+        memberDao = memberDao, // Pass the parameter
+        dispatcher = dispatcher
+    )
 
     @Provides
     @Singleton

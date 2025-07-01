@@ -27,8 +27,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
@@ -45,6 +50,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -77,11 +84,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.chamabuddy.R
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.Group
+import com.example.chamabuddy.presentation.navigation.BeneficiaryDestination
+import com.example.chamabuddy.presentation.navigation.HomeDestination
+import com.example.chamabuddy.presentation.navigation.MembersDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
+import com.example.chamabuddy.presentation.navigation.ProfileDestination
+import com.example.chamabuddy.presentation.navigation.SavingsDestination
 import com.example.chamabuddy.presentation.viewmodel.CycleEvent
 import com.example.chamabuddy.presentation.viewmodel.CycleState
 import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
@@ -107,7 +121,6 @@ fun HomeScreen(
     navigateToCycleDetails: (String) -> Unit,
     navigateToCreateCycle: () -> Unit,
     navigateToGroupManagement: () -> Unit,
-    onBottomBarVisibilityChange: (Boolean) -> Unit,
 ) {
     val viewModel: HomeViewModel = hiltViewModel()
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -160,10 +173,6 @@ fun HomeScreen(
     }
 
 
-    // Propagate visibility changes to parent
-    LaunchedEffect(bottomBarVisible) {
-        onBottomBarVisibilityChange(bottomBarVisible)
-    }
 
     // Drawer state handling
     LaunchedEffect(drawerState) {
@@ -200,36 +209,19 @@ fun HomeScreen(
                 }
             }
     }
-    // Scroll detection logic
-//    LaunchedEffect(listState) {
-//        snapshotFlow { listState.firstVisibleItemScrollOffset }
-//            .collect { currentOffset ->
-//                val currentIndex = listState.firstVisibleItemIndex
-//                val delta = currentOffset - (listState.layoutInfo.visibleItemsInfo.firstOrNull()?.offset ?: 0)
-//
-//                // Determine scroll direction
-//                when {
-//                    delta > 5 -> bottomBarVisible = false
-//                    delta < -5 -> bottomBarVisible = true
-//                }
-//
-//                // Always show at top
-//                if (currentIndex == 0 && currentOffset == 0) {
-//                    bottomBarVisible = true
-//                }
-//
-//                // Handle non-scrollable content
-//                if (!listState.canScrollForward && !listState.canScrollBackward) {
-//                    bottomBarVisible = true
-//                }
-//            }
-//    }
+
     val stateValue by viewModel.state.collectAsState()
 
 
     val totalSavings by viewModel.totalSavings.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
+    val bottomBarItems = listOf(
+        TabItem(HomeDestination, Icons.Filled.Home, "Home"),
+        TabItem(SavingsDestination, Icons.Filled.Savings, "Savings"),
+        TabItem(BeneficiaryDestination, Icons.Filled.MonetizationOn, "Beneficiary"),
+        TabItem(MembersDestination, Icons.Filled.People, "Members"),
+        TabItem(ProfileDestination, Icons.Filled.Person, "Profile")
+    )
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = true,
@@ -310,6 +302,12 @@ fun HomeScreen(
                 ) {
                     Icon(Icons.Default.Add, "New Cycle", tint = Color.White)
                 }
+            }, bottomBar = {
+                BottomBar(
+                    navController = navController,
+                    items = bottomBarItems,
+                    currentGroupId = groupId
+                )
             },
             containerColor = SoftOffWhite
         ) { innerPadding ->
@@ -786,4 +784,47 @@ fun SocialIcon(iconRes: Int, description: String) {
             .size(32.dp)
             .clickable { /* Handle social link click */ }
     )
+}
+
+data class TabItem(
+    val destination: NavigationDestination,
+    val icon: ImageVector,
+    val title: String
+)
+
+
+@Composable
+fun BottomBar(
+    navController: NavHostController,
+    items: List<TabItem>,
+    currentGroupId: String
+) {
+    NavigationBar {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentDestination = navBackStackEntry?.destination
+
+        items.forEach { item ->
+            NavigationBarItem(
+                icon = { Icon(item.icon, contentDescription = item.title) },
+                label = { Text(item.title) },
+                selected = currentDestination?.hierarchy?.any {
+                    it.route?.substringBefore('/') == item.destination.route
+                } == true,
+                onClick = {
+                    when (item.destination) {
+                        HomeDestination ->
+                            navController.navigate("${HomeDestination.route}/$currentGroupId")
+                        SavingsDestination ->
+                            navController.navigate("${SavingsDestination.route}/$currentGroupId")
+                        MembersDestination ->
+                            navController.navigate("${MembersDestination.route}/$currentGroupId")
+                        ProfileDestination ->
+                            navController.navigate("${ProfileDestination.route}/$currentGroupId/current_user")
+                        else ->
+                            navController.navigate(item.destination.route)
+                    }
+                }
+            )
+        }
+    }
 }
