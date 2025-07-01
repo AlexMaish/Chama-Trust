@@ -22,7 +22,7 @@ interface SavingsRepository {
         targetAmount: Int,
         groupId: String
     )
-    suspend fun getCyclesWithSavingsForMember(memberId: String): List<CycleWithSavings>
+//    suspend fun getCyclesWithSavingsForMember(memberId: String): List<CycleWithSavings>
     suspend fun getMemberSavingsTotal(memberId: String): Int
     fun getMemberSavings(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>>
     fun getCycleSavings(cycleId: String): Flow<List<MonthlySaving>>
