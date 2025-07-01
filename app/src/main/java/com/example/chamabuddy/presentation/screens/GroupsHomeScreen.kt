@@ -28,15 +28,14 @@ fun GroupsHomeScreen(
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     viewModel: GroupHomeViewModel = hiltViewModel()
 ) {
-// Hide bottom bar for this screen
-    LaunchedEffect(Unit) {
-        onBottomBarVisibilityChange(false)
-    }
-
     val uiState by viewModel.uiState.collectAsState()
-    var showCreateGroupDialog by remember { mutableStateOf(false) }
     var groupName by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Handle dialog visibility from ViewModel
+    val showDialog by remember(uiState.showCreateGroupDialog) {
+        derivedStateOf { uiState.showCreateGroupDialog }
+    }
 
     // Handle snackbar messages
     LaunchedEffect(uiState.snackbarMessage) {
@@ -45,28 +44,13 @@ fun GroupsHomeScreen(
             viewModel.clearSnackbar()
         }
     }
-
-    LaunchedEffect(uiState.groups) {
-        println("Groups updated: ${uiState.groups.size} groups")
-        uiState.groups.forEach { println("- ${it.name} (${it.groupId})") }
-    }
-
-    // Reset dialog when hidden
-    LaunchedEffect(showCreateGroupDialog) {
-        if (!showCreateGroupDialog) {
-            groupName = ""
-            viewModel.clearValidationError()
-        }
-    }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(GroupsHomeDestination.title) }
-            )
+            TopAppBar(title = { Text(GroupsHomeDestination.title) })
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showCreateGroupDialog = true },
+                onClick = { viewModel.showCreateGroupDialog() },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Create new group")
@@ -74,43 +58,37 @@ fun GroupsHomeScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        Box(modifier = Modifier.padding(innerPadding)) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
-            uiState.groups.isEmpty() -> {
-                EmptyGroupsPlaceholder(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    onCreateClick = { showCreateGroupDialog = true }
-                )
-            }
-            else -> {
-                GroupList(
-                    groups = uiState.groups,
-                    onGroupClick = { group ->
-                        navigateToGroupCycles(group.groupId)
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                )
+                uiState.groups.isEmpty() -> {
+                    EmptyGroupsPlaceholder(
+                        modifier = Modifier.fillMaxSize(),
+                        onCreateClick = { viewModel.showCreateGroupDialog() }
+                    )
+                }
+                else -> {
+                    GroupList(
+                        groups = uiState.groups,
+                        onGroupClick = { navigateToGroupCycles(it.groupId) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }
 
     // Create Group Dialog
-    if (showCreateGroupDialog) {
+    if (showDialog) {
         AlertDialog(
-            onDismissRequest = { showCreateGroupDialog = false },
+            onDismissRequest = { viewModel.hideCreateGroupDialog() },
             title = { Text("Create New Group") },
             text = {
                 Column {
@@ -135,12 +113,7 @@ fun GroupsHomeScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        if (groupName.isNotBlank()) {
-                            viewModel.validateAndCreateGroup(groupName)
-                            showCreateGroupDialog = false
-                        }
-                    },
+                    onClick = { viewModel.validateAndCreateGroup(groupName) },
                     enabled = groupName.isNotBlank()
                 ) {
                     Text("Create")
@@ -148,7 +121,7 @@ fun GroupsHomeScreen(
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showCreateGroupDialog = false }
+                    onClick = { viewModel.hideCreateGroupDialog() }
                 ) {
                     Text("Cancel")
                 }

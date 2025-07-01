@@ -71,9 +71,16 @@ object AppModule {
         meetingDao: WeeklyMeetingDao,
         beneficiaryDao: BeneficiaryDao,
         memberDao: MemberDao,
+        groupRepository: GroupRepository, // Add this
         dispatcher: CoroutineDispatcher
-    ): CycleRepository = CycleRepositoryImpl(cycleDao, meetingDao, beneficiaryDao, memberDao, dispatcher)
-
+    ): CycleRepository = CycleRepositoryImpl(
+        cycleDao = cycleDao,
+        meetingDao = meetingDao,
+        beneficiaryDao = beneficiaryDao,
+        memberDao = memberDao,
+        groupRepository = groupRepository, // Add this
+        dispatcher = dispatcher
+    )
     @Provides
     @Singleton
     fun provideMeetingRepository(

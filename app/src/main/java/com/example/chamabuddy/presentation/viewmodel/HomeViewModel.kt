@@ -28,8 +28,13 @@ class HomeViewModel @Inject constructor(
     private val beneficiaryRepository: BeneficiaryRepository,
     private val savingsRepository: SavingsRepository,
     private val userRepository: UserRepository,
-    private val groupRepository: GroupRepository
+    private val groupRepository: GroupRepository,
 ) : ViewModel() {
+
+
+
+
+
 
     private val _groupData = MutableStateFlow<GroupWithMembers?>(null)
     val groupData: StateFlow<GroupWithMembers?> = _groupData.asStateFlow()
@@ -40,11 +45,25 @@ class HomeViewModel @Inject constructor(
     private val _state = MutableStateFlow<CycleState>(CycleState.Idle)
     val state: StateFlow<CycleState> = _state.asStateFlow()
 
+
     private val _activeCycle = MutableStateFlow<Cycle?>(null)
     val activeCycle: StateFlow<Cycle?> = _activeCycle.asStateFlow()
 
     private val _userGroups = MutableStateFlow<List<Group>>(emptyList())
     val userGroups: StateFlow<List<Group>> = _userGroups.asStateFlow()
+
+
+
+
+    private val _currentGroupId = MutableStateFlow<String?>(null)
+    var currentGroupId: StateFlow<String?> = _currentGroupId.asStateFlow()
+
+    fun setCurrentGroup(groupId: String) {
+        _currentGroupId.value = groupId
+    }
+
+
+
 
 
     private val _showSnackbar = MutableStateFlow(false)
@@ -53,13 +72,29 @@ class HomeViewModel @Inject constructor(
     private val _snackbarMessage = MutableStateFlow("")
     val snackbarMessage: StateFlow<String> = _snackbarMessage.asStateFlow()
 
-
-    private val _currentGroupId = MutableStateFlow<String?>(null)
-    val currentGroupId: StateFlow<String?> = _currentGroupId.asStateFlow()
-
-    fun setCurrentGroup(groupId: String) {
-        _currentGroupId.value = groupId
+    fun setSnackbarMessage(message: String) {
+        _snackbarMessage.value = message
     }
+
+    fun showSnackbar() {
+        _showSnackbar.value = true
+    }
+
+    fun resetSnackbar() {
+        _showSnackbar.value = false
+        _snackbarMessage.value = ""
+    }
+
+
+
+
+    fun refreshCycles() {
+        _currentGroupId.value?.let { groupId ->
+            loadCyclesForGroup(groupId)
+        }
+    }
+
+
 
 
 
@@ -76,38 +111,46 @@ class HomeViewModel @Inject constructor(
 
 
     init {
-        loadCycles()
         loadUserGroups()
     }
 
-
-
-    fun loadCycles() {
+    fun loadCyclesForGroup(groupId: String) {
         viewModelScope.launch {
             _state.value = CycleState.Loading
             try {
-                val cycles = cycleRepository.getCycleHistory()
+                println("Loading cycles for group: $groupId")
+                val cycles = cycleRepository.getCyclesByGroupId(groupId)
+                println("Loaded ${cycles.size} cycles")
                 _state.value = CycleState.CycleHistory(cycles)
-                _totalSavings.value = cycleRepository.getTotalSavings() ?: 0
+                _totalSavings.value = cycles.sumOf { it.totalSavings }
             } catch (e: Exception) {
-                _state.value = CycleState.Error(e.message ?: "Unknown error")
+                println("Error loading cycles: ${e.message}")
+                _state.value = CycleState.Error(e.message ?: "Failed to load cycles")
             }
         }
     }
 
-    // Update state setters to use .value
     fun loadUserGroups() {
         viewModelScope.launch {
             try {
-                val userId = "current_user_id_placeholder"
-                val groupIds = userRepository.getUserGroups(userId).getOrThrow()
-                _userGroups.value = groupRepository.getGroupsByIds(groupIds) // Update value
+                val userId = userRepository.getCurrentUserId()
+                if (userId != null) {
+                    val groupIds = userRepository.getUserGroups(userId).getOrThrow()
+                    _userGroups.value = groupRepository.getGroupsByIds(groupIds)
+                } else {
+                    _snackbarMessage.value = "No user logged in"
+                    _showSnackbar.value = true
+                }
             } catch (e: Exception) {
-                _showSnackbar.value = true // Update value
-                _snackbarMessage.value = "Failed to load groups: ${e.message}" // Update value
+                _snackbarMessage.value = "Error loading groups: ${e.message}"
+                _showSnackbar.value = true
             }
         }
     }
+
+
+
+
 
     fun showGroupRequiredMessage() {
         // Directly post the value
@@ -115,9 +158,7 @@ class HomeViewModel @Inject constructor(
         _showSnackbar.value = true
     }
 
-    fun resetSnackbar() {
-        _showSnackbar.value = false // Update value
-    }
+
 
     private fun getTotalSavings() {
         viewModelScope.launch {
@@ -236,7 +277,6 @@ class HomeViewModel @Inject constructor(
         _state.value = CycleState.Idle
     }
 }
-
 sealed class CycleState {
     object Idle : CycleState()
     object Loading : CycleState()

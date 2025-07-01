@@ -13,4 +13,5 @@ interface UserRepository {
     suspend fun setCurrentUserId(userId: String)
     suspend fun getUserName(userId: String): String?
 
+    suspend fun clearCurrentUser()
 }

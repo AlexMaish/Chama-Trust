@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.example.chamabuddy.R
 import com.example.chamabuddy.presentation.viewmodel.CreateCycleViewModel
 import java.text.SimpleDateFormat
@@ -23,11 +24,16 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateCycleScreen(
+    navController: NavHostController,
     navigateBack: () -> Unit,
-    viewModel: CreateCycleViewModel = hiltViewModel(),
     groupId: String
 
 ) {
+
+    val viewModel: CreateCycleViewModel = hiltViewModel()
+
+
+
     val uiState by viewModel.uiState.collectAsState()
     val isCreating by viewModel.isCreating.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -37,19 +43,43 @@ fun CreateCycleScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+
+
+    // State variables for input fields
+    var weeklyAmount by remember { mutableStateOf("") }
+    var monthlyAmount by remember { mutableStateOf("") }
+    var totalMembers by remember { mutableStateOf("") }
+    var startDate by remember { mutableStateOf(Calendar.getInstance()) }
+
+
+
+    // Ensure groupId is set in ViewModel
+    LaunchedEffect(groupId) {
+        viewModel.setGroupId(groupId)
+    }
+
+
+
+
+
     // Handle creation success
     LaunchedEffect(creationSuccess) {
         if (creationSuccess) {
+            // Notify HomeScreen to refresh
+            navController.previousBackStackEntry?.savedStateHandle?.set("cycle_created", true)
             navigateBack()
         }
     }
-
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearErrorMessage() // Fix the spelling here
         }
     }
+
+
+
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
@@ -66,7 +96,7 @@ fun CreateCycleScreen(
             ExtendedFloatingActionButton(
                 onClick = {
                     if (!isCreating) {
-                        viewModel.createCycle(groupId)
+                        viewModel.createCycle()
                     }
                 },
                 icon = {
@@ -172,4 +202,8 @@ fun DatePickerCard(
             DatePicker(state = datePickerState)
         }
     }
+
+
+
 }
+

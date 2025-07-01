@@ -33,18 +33,44 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
+    val authState: StateFlow<AuthState> = _authState
+
+    init {
+        viewModelScope.launch {
+            userRepository.getCurrentUserId()?.let {
+                _authState.value = AuthState.Authenticated(it)
+            }
+        }
+    }
+
     fun loginUser(identifier: String, password: String) {
         viewModelScope.launch {
             _loginState.value = Resource.Loading()
             userRepository.loginUser(identifier, password).fold(
-                onSuccess = { user -> _loginState.value = Resource.Success(user) },
-                onFailure = { e -> _loginState.value = Resource.Error(e.message ?: "Login failed") }
+                onSuccess = { user ->
+                    userRepository.setCurrentUserId(user.userId)
+                    _loginState.value = Resource.Success(user)
+                    _authState.value = AuthState.Authenticated(user.userId)
+                },
+                onFailure = { e ->
+                    _loginState.value = Resource.Error(e.message ?: "Login failed")
+                }
             )
         }
     }
 
+
     fun logout() {
-        _loginState.value = null
-        _registrationState.value = null
+        viewModelScope.launch {
+            userRepository.clearCurrentUser()
+            // Navigate to login screen
+        }
     }
+}
+
+sealed class AuthState {
+    object Unauthenticated : AuthState()
+    data class Authenticated(val userId: String) : AuthState()
 }

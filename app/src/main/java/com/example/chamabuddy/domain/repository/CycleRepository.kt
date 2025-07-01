@@ -26,6 +26,13 @@ interface CycleRepository {
 
     suspend fun getTotalSavings(): Int?
     suspend fun getCycleHistory(): List<Cycle>
+
+
+//    suspend fun createCycle(cycle: Cycle, groupId: String)
+    suspend fun getCyclesForGroup(groupId: String): List<Cycle>
+
+    suspend fun getCyclesByGroupId(groupId: String): List<Cycle>
+
 }
 
 data class CycleStats(

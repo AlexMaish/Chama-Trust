@@ -26,37 +26,32 @@ class GroupHomeViewModel @Inject constructor(
         loadUserGroups()
     }
 
+    fun showCreateGroupDialog() {
+        _uiState.value = _uiState.value.copy(showCreateGroupDialog = true)
+    }
+
+    fun hideCreateGroupDialog() {
+        _uiState.value = _uiState.value.copy(
+            showCreateGroupDialog = false,
+            nameValidationError = null
+        )
+    }
+
     fun validateAndCreateGroup(name: String) {
         viewModelScope.launch {
             try {
-                // Clear previous errors
-                _uiState.value = _uiState.value.copy(nameValidationError = null)
+                // ... validation logic ...
 
-                // Validate input
-                if (name.isBlank()) {
-                    _uiState.value = _uiState.value.copy(
-                        nameValidationError = "Group name cannot be empty"
-                    )
-                    return@launch
-                }
-
-                val userId = userRepository.getCurrentUserId() ?: throw Exception("User not authenticated")
+                val userId = userRepository.getCurrentUserId()
+                    ?: throw Exception("User not authenticated")
 
                 // Create group
                 groupRepository.createGroup(name, userId)
 
-                kotlinx.coroutines.delay(300)
-
-
                 // Refresh groups list
                 loadUserGroups()
 
-                // Update UI state
-                _uiState.value = _uiState.value.copy(
-                    snackbarMessage = "Group '$name' created successfully!",
-                    nameValidationError = null
-                )
-
+                // ... update UI state ...
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     snackbarMessage = "Failed to create group: ${e.message}"
@@ -69,13 +64,15 @@ class GroupHomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                val userId = userRepository.getCurrentUserId() ?: throw Exception("User not authenticated")
-                val groups = groupRepository.getUserGroups(userId)
+                val userId = userRepository.getCurrentUserId()
+                    ?: throw Exception("User not authenticated")
+
+                val groupIds = userRepository.getUserGroups(userId).getOrThrow()
+                val groups = groupRepository.getGroupsByIds(groupIds)
 
                 _uiState.value = _uiState.value.copy(
                     groups = groups,
-                    isLoading = false,
-                    snackbarMessage = null
+                    isLoading = false
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -86,13 +83,8 @@ class GroupHomeViewModel @Inject constructor(
         }
     }
 
-
     fun clearSnackbar() {
         _uiState.value = _uiState.value.copy(snackbarMessage = null)
-    }
-
-    fun clearValidationError() {
-        _uiState.value = _uiState.value.copy(nameValidationError = null)
     }
 }
 
@@ -100,5 +92,6 @@ data class GroupHomeUiState(
     val groups: List<Group> = emptyList(),
     val isLoading: Boolean = false,
     val snackbarMessage: String? = null,
-    val nameValidationError: String? = null
+    val nameValidationError: String? = null,
+    val showCreateGroupDialog: Boolean = false
 )

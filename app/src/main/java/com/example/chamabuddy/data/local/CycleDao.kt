@@ -43,4 +43,16 @@ interface CycleDao {
 
     @Query("SELECT * FROM Cycle ORDER BY start_date DESC")
     suspend fun getCycleHistory(): List<Cycle>
+
+
+    @Query("SELECT * FROM Cycle WHERE group_id = :groupId AND is_active = 1 LIMIT 1")
+    suspend fun getActiveCycleByGroupId(groupId: String): Cycle?
+
+
+    @Query("SELECT * FROM Cycle WHERE group_id = :groupId")
+    suspend fun getCyclesByGroupId(groupId: String): List<Cycle>
+
+
+
 }
+

@@ -7,7 +7,6 @@ import com.example.chamabuddy.domain.model.Member
 
 interface GroupRepository {
     suspend fun getGroup(groupId: String): Group?
-    suspend fun getGroupsByIds(ids: List<String>): List<Group>
     suspend fun getAllGroups(): List<Group>
     suspend fun getUserGroups(userId: String): List<Group>
     suspend fun findGroupByName(name: String, userId: String): Group?
@@ -17,4 +16,8 @@ interface GroupRepository {
 
     suspend fun addMemberToGroup(groupId: String, member: Member)
     suspend fun getGroupWithMembers(groupId: String): GroupWithMembers?
+
+
+    suspend fun getGroupsByIds(groupIds: List<String>): List<Group>
+
 }

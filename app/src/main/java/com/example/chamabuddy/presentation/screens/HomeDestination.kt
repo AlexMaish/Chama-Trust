@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,14 +46,17 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -98,6 +102,7 @@ val SearchBarGray = Color(0xFFF0F0F0)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    navController: NavHostController,
     groupId: String,
     navigateToCycleDetails: (String) -> Unit,
     navigateToCreateCycle: () -> Unit,
@@ -105,6 +110,7 @@ fun HomeScreen(
     onBottomBarVisibilityChange: (Boolean) -> Unit,
 ) {
     val viewModel: HomeViewModel = hiltViewModel()
+    var showCreateDialog by remember { mutableStateOf(false) }
 
 
     val listState = rememberLazyListState()
@@ -119,23 +125,40 @@ fun HomeScreen(
 
     val groupData by viewModel.groupData.collectAsState()
 
+    val currentBackStackEntry = navController.currentBackStackEntry
+    val savedStateHandle = currentBackStackEntry?.savedStateHandle
+    var refreshTrigger by remember { mutableStateOf(0) }
 
-    LaunchedEffect(groupId) {
-        if (groupId.isNotEmpty()) {
-            viewModel.loadGroupData(groupId)
+    LaunchedEffect(savedStateHandle) {
+        savedStateHandle?.get<Boolean>("cycle_created")?.let { created ->
+            if (created) {
+                refreshTrigger++ // Force refresh
+                savedStateHandle.remove<Boolean>("cycle_created")
+            }
         }
     }
+
+    // Add refreshTrigger as key to reload cycles
+    LaunchedEffect(groupId, refreshTrigger) {
+        println("Refreshing cycles for group: $groupId (trigger: $refreshTrigger)")
+        if (groupId.isNotEmpty()) {
+            viewModel.loadGroupData(groupId)
+            viewModel.loadCyclesForGroup(groupId)
+        }
+    }
+
+
+
+
+
     // Show snackbar when needed
-    if (showSnackbar) {
-        LaunchedEffect(snackbarHostState) {
+    LaunchedEffect(showSnackbar) {
+        if (showSnackbar) {
             snackbarHostState.showSnackbar(snackbarMessage)
             viewModel.resetSnackbar()
         }
     }
 
-    LaunchedEffect(groupId) {
-        viewModel.loadGroupData(groupId)
-    }
 
     // Propagate visibility changes to parent
     LaunchedEffect(bottomBarVisible) {
@@ -150,35 +173,60 @@ fun HomeScreen(
             }
     }
 
-    // Scroll detection logic
+
+
+
+    LaunchedEffect(groupId) {
+        println("HomeScreen groupId: $groupId")
+        viewModel.loadUserGroups()
+
+        if (groupId.isNotEmpty()) {
+            viewModel.loadGroupData(groupId)
+            viewModel.loadCyclesForGroup(groupId) // Load group-specific cycles
+        } else {
+            viewModel.setSnackbarMessage("No group selected. Please select a group first.")
+            viewModel.showSnackbar()
+        }
+    }
+// Replace existing scroll detection with:
     LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemScrollOffset }
-            .collect { currentOffset ->
-                val currentIndex = listState.firstVisibleItemIndex
-                val delta = currentOffset - (listState.layoutInfo.visibleItemsInfo.firstOrNull()?.offset ?: 0)
-
-                // Determine scroll direction
-                when {
-                    delta > 5 -> bottomBarVisible = false
-                    delta < -5 -> bottomBarVisible = true
-                }
-
-                // Always show at top
-                if (currentIndex == 0 && currentOffset == 0) {
-                    bottomBarVisible = true
-                }
-
-                // Handle non-scrollable content
-                if (!listState.canScrollForward && !listState.canScrollBackward) {
-                    bottomBarVisible = true
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                bottomBarVisible = when {
+                    index == 0 && offset == 0 -> true
+                    offset > 5 -> false
+                    offset < -5 -> true
+                    else -> bottomBarVisible
                 }
             }
     }
+    // Scroll detection logic
+//    LaunchedEffect(listState) {
+//        snapshotFlow { listState.firstVisibleItemScrollOffset }
+//            .collect { currentOffset ->
+//                val currentIndex = listState.firstVisibleItemIndex
+//                val delta = currentOffset - (listState.layoutInfo.visibleItemsInfo.firstOrNull()?.offset ?: 0)
+//
+//                // Determine scroll direction
+//                when {
+//                    delta > 5 -> bottomBarVisible = false
+//                    delta < -5 -> bottomBarVisible = true
+//                }
+//
+//                // Always show at top
+//                if (currentIndex == 0 && currentOffset == 0) {
+//                    bottomBarVisible = true
+//                }
+//
+//                // Handle non-scrollable content
+//                if (!listState.canScrollForward && !listState.canScrollBackward) {
+//                    bottomBarVisible = true
+//                }
+//            }
+//    }
+    val stateValue by viewModel.state.collectAsState()
 
-    val state by viewModel.state.collectAsState()
-    LaunchedEffect(Unit) {
-        viewModel.handleEvent(CycleEvent.GetCycleHistory)
-    }
+
     val totalSavings by viewModel.totalSavings.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -199,6 +247,7 @@ fun HomeScreen(
     ) {
         Scaffold(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 LargeTopAppBar(
                     title = {
@@ -244,12 +293,17 @@ fun HomeScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
-                        if (groupId.isNotEmpty()) { // Add this check
-                            if (userGroups.isEmpty()) {
-                                viewModel.showGroupRequiredMessage()
-                            } else {
-                                navigateToCreateCycle()
+                        when {
+                            groupId.isEmpty() -> {
+                                viewModel.setSnackbarMessage("Please select a group first")
+                                viewModel.showSnackbar()
+                                navigateToGroupManagement()
                             }
+                            userGroups.isEmpty() -> {
+                                viewModel.setSnackbarMessage("No groups available")
+                                viewModel.showSnackbar()
+                            }
+                            else -> showCreateDialog = true
                         }
                     },
                     containerColor = VibrantOrange
@@ -306,73 +360,107 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    when (state) {
-                        is CycleState.Loading -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(color = VibrantOrange)
-                            }
+                when (stateValue) {
+
+                    is CycleState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = VibrantOrange)
                         }
-                        is CycleState.Error -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    (state as CycleState.Error).message,
-                                    color = PremiumNavy
-                                )
-                            }
+                    }
+                    is CycleState.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text((stateValue as CycleState.Error).message, color = PremiumNavy)
+
                         }
-                        is CycleState.CycleHistory -> {
-                            val cycles = (state as? CycleState.CycleHistory)?.cycles ?: emptyList()
-                            Surface(
+                    }
+                    is CycleState.CycleHistory -> {
+                        val cycles = (stateValue as CycleState.CycleHistory).cycles
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
+                                .background(Color.White),
+                            color = Color.White
+                        ) {
+                            Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
-                                    .background(Color.White),
-                                color = Color.White
+                                    .padding(horizontal = 16.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp)
-                                ) {
-                                    Text(
-                                        "All Cycles",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = PremiumNavy,
-                                        modifier = Modifier.padding(vertical = 16.dp)
-                                    )
+                                Text(
+                                    "All Cycles",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PremiumNavy,
+                                    modifier = Modifier.padding(vertical = 16.dp)
+                                )
 
-                                    if (cycles.isEmpty()) {
-                                        EmptyDashboard(navigateToCreateCycle)
-                                    } else {
-                                        LazyColumn(
-                                            modifier = Modifier.fillMaxSize(),
-                                            state = listState,
-                                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                                        ) {
-                                            items(cycles) { cycle ->
-                                                PremiumCycleCard(
-                                                    cycle = cycle,
-                                                    onClick = { navigateToCycleDetails(cycle.cycleId) }
-                                                )
-                                            }
+                                if (cycles.isEmpty()) {
+                                    EmptyDashboard(navigateToCreateCycle)
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        state = listState,
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        items(cycles) { cycle ->
+                                            PremiumCycleCard(
+                                                cycle = cycle,
+                                                onClick = { navigateToCycleDetails(cycle.cycleId) }
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
-                        else -> {}
+                    }
+                    else -> {
+                        // Handle other states (like Idle) if needed
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No cycle data available",
+                                color = PremiumNavy
+                            )
+                        }
                     }
                 }
+                }
             }
+
         }
+
+
+    if (showCreateDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false },
+            title =      { Text("Start a new cycle?") },
+            text =       { Text("Are you sure you want to create a new cycle now?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCreateDialog = false
+                    navigateToCreateCycle()     // actually fire your navigation
+                }) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false }) {
+                    Text("No")
+                }
+            }
+        )
     }
+
+}
 
 
 @Composable
