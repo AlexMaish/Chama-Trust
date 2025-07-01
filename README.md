@@ -1,7 +1,7 @@
 Chama Trust
 
 **Chama Trust** is a mobile app designed to help merry-go-round (chama) groups in Kenya and beyond manage their
-finances efficiently. It automates contributions, tracks savings, selects beneficiaries randomly, and provides full transparency for all members.
+finances efficiently. It automates contributions, tracks savings, selects beneficiaries, and provides full transparency for all members.
 
 
 
