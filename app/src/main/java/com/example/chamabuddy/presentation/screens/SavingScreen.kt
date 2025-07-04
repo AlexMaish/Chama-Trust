@@ -12,17 +12,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.chamabuddy.domain.model.Member
-import com.example.chamabuddy.presentation.navigation.NavigationDestination
-import com.example.chamabuddy.presentation.viewmodel.SavingsState // Add this import
+import com.example.chamabuddy.presentation.viewmodel.SavingsState
 import com.example.chamabuddy.presentation.viewmodel.SavingsViewModel
-import com.example.chamabuddy.presentation.navigation.SavingsDestination // Add this import
 
-
+// Premium color scheme
+//val PremiumNavy = Color(0xFF0A1D3A)
+//val SoftOffWhite = Color(0xFFF8F9FA)
+//val VibrantOrange = Color(0xFFFF6B35)
+//val CardSurface = Color(0xFFFFFFFF)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,38 +36,54 @@ fun SavingsScreen(
     navigateBack: () -> Unit,
     viewModel: SavingsViewModel = hiltViewModel()
 ) {
-
-
-
-
     val state by viewModel.state.collectAsState()
     val members by viewModel.members.collectAsState()
     val memberTotals by viewModel.memberTotals.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    // Calculate total savings for each member
+    // Calculate total savings for all members
+    val totalGroupSavings = remember(memberTotals) {
+        memberTotals.values.sum()
+    }
+
     val memberSavingsList = remember(members, memberTotals) {
         members.values.map { member ->
             val total = memberTotals[member.memberId] ?: 0
             MemberWithSavings(member, total)
         }
     }
+
     LaunchedEffect(groupId) {
         viewModel.initializeGroupId(groupId)
     }
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Member Savings") },
+            LargeTopAppBar(
+                title = {
+                    Text(
+                        "Member Savings",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = PremiumNavy,
+                    scrolledContainerColor = PremiumNavy,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                scrollBehavior = scrollBehavior
             )
-        }
+        },
+        containerColor = SoftOffWhite
     ) { innerPadding ->
         when (state) {
             is SavingsState.Loading -> {
@@ -77,7 +97,7 @@ fun SavingsScreen(
                         CircularProgressIndicator()
                     }
                 } else {
-                    SavingsContent(innerPadding, memberSavingsList, navigateToProfile)
+                    SavingsContent(innerPadding, memberSavingsList, navigateToProfile, totalGroupSavings)
                 }
             }
             is SavingsState.Error -> {
@@ -87,11 +107,11 @@ fun SavingsScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text((state as SavingsState.Error).message)
+                    Text((state as SavingsState.Error).message, color = PremiumNavy)
                 }
             }
             else -> {
-                SavingsContent(innerPadding, memberSavingsList, navigateToProfile)
+                SavingsContent(innerPadding, memberSavingsList, navigateToProfile, totalGroupSavings)
             }
         }
     }
@@ -104,32 +124,49 @@ data class MemberWithSavings(val member: Member, val totalSavings: Int)
 private fun SavingsContent(
     innerPadding: PaddingValues,
     memberSavingsList: List<MemberWithSavings>,
-    navigateToProfile: (String) -> Unit
+    navigateToProfile: (String) -> Unit,
+    totalGroupSavings: Int
 ) {
-    if (memberSavingsList.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("No members available")
-        }
-    } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(memberSavingsList) { item ->
-                MemberSavingsCard(
-                    member = item.member,
-                    totalSavings = item.totalSavings,
-                    onClick = { navigateToProfile(item.member.memberId) }
-                )
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Total savings header
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CardSurface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Total Group Savings",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = PremiumNavy.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        "KES $totalGroupSavings",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = VibrantOrange
+                    )
+                }
             }
+        }
+
+        // Members list
+        items(memberSavingsList) { item ->
+            MemberSavingsCard(
+                member = item.member,
+                totalSavings = item.totalSavings,
+                onClick = { navigateToProfile(item.member.memberId) }
+            )
         }
     }
 }
@@ -142,7 +179,9 @@ fun MemberSavingsCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier
@@ -153,13 +192,14 @@ fun MemberSavingsCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    .background(VibrantOrange, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = member.name.take(2).uppercase(),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = 16.sp
+                    text = member.name.take(1).uppercase(),
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -168,21 +208,22 @@ fun MemberSavingsCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = member.name,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = PremiumNavy
                 )
                 Text(
                     text = member.phoneNumber,
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = PremiumNavy.copy(alpha = 0.7f)
                 )
             }
 
             Text(
                 text = "KES $totalSavings",
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = MaterialTheme.colorScheme.primary
+                fontSize = 16.sp,
+                color = VibrantOrange
             )
         }
     }

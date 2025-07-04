@@ -1,7 +1,10 @@
 package com.example.chamabuddy.presentation.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -11,17 +14,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.MonthlySavingEntry
 import com.example.chamabuddy.presentation.navigation.AuthDestination
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
@@ -38,7 +46,12 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+// Define colors to match home screen
+//val PremiumNavy = Color(0xFF0A1D3A)
+//val SoftOffWhite = Color(0xFFF8F9FA)
+//val VibrantOrange = Color(0xFFFF6B35)
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalAnimationApi::class)
 @Composable
 fun ProfileScreen(
     groupId: String,
@@ -83,8 +96,15 @@ fun ProfileScreen(
         allMemberCycles.flatMap { it.savingsEntries }.sumOf { it.amount }
     }
 
+    // State for expanded/collapsed cycles
+    val expandedCycles = remember { mutableStateMapOf<String, Boolean>() }
+
     LaunchedEffect(memberId) {
         savingsViewModel.handleEvent(SavingsEvent.GetAllMemberCycles(memberId))
+        // Expand all cycles by default
+        allMemberCycles.forEach {
+            expandedCycles[it.cycle.cycleId] = true
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -182,28 +202,61 @@ fun ProfileScreen(
         determinedMonth = determineSavingsMonth()
     }
 
+    // Get member details
+    val member = when (memberState) {
+        is MemberState.MemberDetails -> (memberState as MemberState.MemberDetails).member
+        else -> null
+    }
+
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollState = rememberLazyListState()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Member Profile") },
+            LargeTopAppBar(
+                title = {
+                    // Collapsed title
+                    Text(
+                        member?.name ?: "Member Profile",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        authViewModel.logout()
-                        navController.navigate(AuthDestination.route) {
-                            popUpTo(0) { inclusive = true }
+                    IconButton(
+                        onClick = {
+                            authViewModel.logout()
+                            navController.navigate(AuthDestination.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
                         }
-                    }) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
+                    ) {
+                        Icon(
+                            Icons.Default.ExitToApp,
+                            contentDescription = "Logout",
+                            tint = Color.White
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = PremiumNavy,
+                    scrolledContainerColor = PremiumNavy,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White,
+                    actionIconContentColor = Color.White
+                ),
+                scrollBehavior = scrollBehavior
             )
         },
         snackbarHost = {
@@ -221,9 +274,14 @@ fun ProfileScreen(
                         amount = activeCycle?.monthlySavingsAmount?.toString() ?: ""
                         selectedMonth = ""
                         showAddSavingsDialog = true
-                    }
+                    },
+                    containerColor = VibrantOrange
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Savings")
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add Savings",
+                        tint = Color.White
+                    )
                 }
             }
         }
@@ -231,36 +289,104 @@ fun ProfileScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(SoftOffWhite)
                 .padding(innerPadding)
         ) {
-            val scrollState = rememberLazyListState()
-            val profileHeight = 250.dp
-            val minHeaderHeight = 130.dp
+            if (memberState is MemberState.Loading || savingsState is SavingsState.Loading) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+                return@Box
+            }
+
+            (memberState as? MemberState.Error)?.let { errorState ->
+                Box(Modifier.fillMaxWidth(), Alignment.Center) {
+                    Text(errorState.message)
+                }
+                return@Box
+            }
+
+            (savingsState as? SavingsState.Error)?.let { errorState ->
+                Box(Modifier.fillMaxWidth(), Alignment.Center) {
+                    LaunchedEffect(errorState) {
+                        snackbarHostState.showSnackbar("Error: ${errorState.message}")
+                    }
+                }
+                return@Box
+            }
 
             LazyColumn(
                 state = scrollState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = profileHeight),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(SoftOffWhite),
+                contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Profile Header
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp)
+                    ) {
+                        if (member != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(90.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = member.name.take(2).uppercase(),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    fontSize = 36.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                member.name,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PremiumNavy
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                member.phoneNumber,
+                                fontSize = 18.sp,
+                                color = PremiumNavy.copy(alpha = 0.8f)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Total Savings: KES $totalSavings",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = VibrantOrange
+                            )
+                        } else {
+                            // Loading state
+                            CircularProgressIndicator(color = PremiumNavy)
+                        }
+                        Spacer(Modifier.height(24.dp))
+                    }
+                }
+
                 // Title section
                 item {
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(horizontal = 16.dp)
                     ) {
-                        Spacer(Modifier.height(16.dp))
-                        Divider()
-                        Spacer(Modifier.height(16.dp))
-                        Text("Savings History", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Spacer(Modifier.height(8.dp))
                         Text(
-                            "Total Savings: KES $totalSavings",
-                            fontSize = 18.sp,
+                            "Savings History",
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            fontSize = 20.sp,
+                            color = PremiumNavy
                         )
+                        Spacer(Modifier.height(8.dp))
+                        Divider(color = PremiumNavy.copy(alpha = 0.1f), thickness = 1.dp)
                         Spacer(Modifier.height(16.dp))
                     }
                 }
@@ -274,9 +400,16 @@ fun ProfileScreen(
                     }
                 } else {
                     allMemberCycles.forEachIndexed { index, cycleWithSavings ->
-                        item(key = "cycle_${cycleWithSavings.cycle.cycleId}") {
-                            CycleSavingsSection(
+                        val cycleId = cycleWithSavings.cycle.cycleId
+                        val isExpanded = expandedCycles.getOrDefault(cycleId, true)
+
+                        item(key = "cycle_$cycleId") {
+                            CycleSection(
                                 cycleWithSavings = cycleWithSavings,
+                                expanded = isExpanded,
+                                onExpandToggle = {
+                                    expandedCycles[cycleId] = !isExpanded
+                                },
                                 recorderNames = recorderNames,
                                 memberId = memberId,
                                 onAddSavings = { month, amountToAdd ->
@@ -293,91 +426,12 @@ fun ProfileScreen(
                             item(key = "divider_$index") {
                                 Divider(
                                     thickness = 4.dp,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                    color = PremiumNavy.copy(alpha = 0.1f),
                                     modifier = Modifier.padding(vertical = 24.dp)
                                 )
                             }
                         }
                     }
-                }
-            }
-
-            // Collapsible Profile Header
-            Box(
-                modifier = Modifier
-                    .height(
-                        maxOf(
-                            minHeaderHeight,
-                            profileHeight - scrollState.firstVisibleItemScrollOffset.dp
-                        )
-                    )
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .align(Alignment.TopCenter),
-                contentAlignment = Alignment.Center
-            ) {
-                if (memberState is MemberState.Loading || savingsState is SavingsState.Loading) {
-                    Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-                    return@Box
-                }
-
-                (memberState as? MemberState.Error)?.let { errorState ->
-                    Box(Modifier.fillMaxWidth(), Alignment.Center) {
-                        Text(errorState.message)
-                    }
-                    return@Box
-                }
-
-                (savingsState as? SavingsState.Error)?.let { errorState ->
-                    Box(Modifier.fillMaxWidth(), Alignment.Center) {
-                        LaunchedEffect(errorState) {
-                            snackbarHostState.showSnackbar("Error: ${errorState.message}")
-                        }
-                    }
-                    return@Box
-                }
-
-                val member = (memberState as? MemberState.MemberDetails)?.member ?: return@Box
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(90.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = member.name.take(2).uppercase(),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 36.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        member.name,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        member.phoneNumber,
-                        fontSize = 18.sp,
-                        color = Color.Gray
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Total Savings: KES $totalSavings",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                 }
             }
         }
@@ -412,7 +466,7 @@ fun ProfileScreen(
                     val targetMonth = selectedMonth.ifBlank { determinedMonth }
                     val amountValue = amount.toIntOrNull() ?: 0
 
-                    // Fix: Get current member ID properly
+                    // Get current member ID properly
                     val recordedById = if (!loadingMemberId) {
                         currentMemberId ?: run {
                             scope.launch {
@@ -426,7 +480,6 @@ fun ProfileScreen(
                         }
                         return@AddSavingsDialog
                     }
-
 
                     val displayMonth = convertToDisplayFormat(targetMonth)
                     val currentTotalForMonth = allMemberCycles.flatMap { it.savingsEntries }
@@ -448,16 +501,16 @@ fun ProfileScreen(
 
                     scope.launch {
                         try {
-                        savingsViewModel.handleEvent(
-                            SavingsEvent.RecordSavings(
-                                cycleId = targetCycleId,
-                                monthYear = targetMonth,
-                                memberId = memberId,
-                                amount = amountValue,
-                                recordedBy = recordedById, // Now a String
-                                groupId = groupId
+                            savingsViewModel.handleEvent(
+                                SavingsEvent.RecordSavings(
+                                    cycleId = targetCycleId,
+                                    monthYear = targetMonth,
+                                    memberId = memberId,
+                                    amount = amountValue,
+                                    recordedBy = recordedById,
+                                    groupId = groupId
+                                )
                             )
-                        )
                             showAddSavingsDialog = false
                             snackbarHostState.showSnackbar("Savings recorded")
                         } catch (e: Exception) {
@@ -505,7 +558,7 @@ fun AddSavingsDialog(
             Column {
                 Text(
                     text = "Auto-selected month: $determinedMonth",
-                    color = MaterialTheme.colorScheme.primary,
+                    color = PremiumNavy,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(16.dp))
@@ -540,11 +593,22 @@ fun AddSavingsDialog(
                 )
 
                 Spacer(Modifier.height(8.dp))
-                Text("Monthly target: KES $monthlyTarget", color = MaterialTheme.colorScheme.primary)
+                Text("Monthly target: KES $monthlyTarget", color = PremiumNavy)
             }
         },
-        confirmButton = { Button(onClick = onSave) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        confirmButton = {
+            Button(
+                onClick = onSave,
+                colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
     )
 }
 
@@ -572,7 +636,7 @@ fun MonthlySavingsCard(
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                Text(month, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(month, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PremiumNavy)
                 Text(
                     text = when {
                         isFuture -> "Upcoming"
@@ -581,9 +645,9 @@ fun MonthlySavingsCard(
                         else -> "Incomplete"
                     },
                     color = when {
-                        isFuture -> MaterialTheme.colorScheme.primary
+                        isFuture -> PremiumNavy
                         isComplete -> Color.Green
-                        isCurrentMonth -> MaterialTheme.colorScheme.primary
+                        isCurrentMonth -> VibrantOrange
                         else -> Color.Red
                     }
                 )
@@ -594,14 +658,15 @@ fun MonthlySavingsCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                color = if (isComplete) Color.Green else MaterialTheme.colorScheme.primary
+                color = if (isComplete) Color.Green else VibrantOrange
             )
 
             Spacer(Modifier.height(8.dp))
             Text(
                 text = "KES $totalSavings / KES $monthlyTarget",
                 modifier = Modifier.align(Alignment.End),
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                color = PremiumNavy
             )
             Spacer(Modifier.height(8.dp))
 
@@ -622,8 +687,8 @@ fun MonthlySavingsCard(
                             } catch (e: Exception) {
                                 Date()
                             }
-                            Text(dateFormat.format(date))
-                            Text("KES ${entry.amount}", fontWeight = FontWeight.Medium)
+                            Text(dateFormat.format(date), color = PremiumNavy)
+                            Text("KES ${entry.amount}", fontWeight = FontWeight.Medium, color = PremiumNavy)
                         }
                         Text(
                             "Recorded by: ${recorderNames[entry.recordedBy] ?: "Unknown"}",
@@ -633,18 +698,19 @@ fun MonthlySavingsCard(
                         )
                     }
                 }
-                Divider(Modifier.padding(vertical = 8.dp))
+                Divider(Modifier.padding(vertical = 8.dp), color = PremiumNavy.copy(alpha = 0.1f))
             }
 
             if (!isComplete) {
                 Button(
                     onClick = onClick,
                     enabled = !isFuture,
+                    colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
                 ) {
-                    Text("Add Savings (KES $remaining left)")
+                    Text("Add Savings (KES $remaining left)", color = Color.White)
                 }
             }
         }
@@ -661,8 +727,10 @@ private fun convertMonthToInputFormat(displayMonth: String): String {
 }
 
 @Composable
-fun CycleSavingsSection(
+fun CycleSection(
     cycleWithSavings: CycleWithSavings,
+    expanded: Boolean,
+    onExpandToggle: (String) -> Unit,
     recorderNames: Map<String, String>,
     memberId: String,
     onAddSavings: (String, Int) -> Unit,
@@ -670,120 +738,166 @@ fun CycleSavingsSection(
     determinedMonthDisplay: String
 ) {
     val cycle = cycleWithSavings.cycle
-    val entries = cycleWithSavings.savingsEntries
-    val monthlyTarget = cycle.monthlySavingsAmount
+    val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
-    // Generate months for this cycle
-    val allMonths = generateMonthsForCycle(
-        startDate = cycle.startDate,
-        endDate = cycle.endDate,
-        isActive = isActiveCycle
-    )
-
-    // Group entries by month
-    val groupedByMonth = entries.groupBy { entry ->
-        try {
-            val date = Date(entry.entryDate.toLong())
-            SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date)
-        } catch (e: Exception) {
-            "Unknown"
-        }
-    }
-
-    Column(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        // Cycle header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Cycle: ${formatDate(cycle.startDate)} - ${
-                    cycle.endDate?.let { formatDate(it) } ?: "Present"
-                }",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+        Column {
+            // Cycle header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExpandToggle(cycle.cycleId) }
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        "Cycle: ${cycle.cycleId.takeLast(6)}",
+                        fontWeight = FontWeight.Bold,
+                        color = PremiumNavy
+                    )
+                    Text(
+                        "Started: ${dateFormat.format(Date(cycle.startDate))}",
+                        fontSize = 14.sp,
+                        color = PremiumNavy.copy(alpha = 0.7f)
+                    )
+                    if (cycle.endDate != null) {
+                        Text(
+                            "Ended: ${dateFormat.format(Date(cycle.endDate))}",
+                            fontSize = 14.sp,
+                            color = PremiumNavy.copy(alpha = 0.7f)
+                        )
+                    }
+                }
 
-            Text(
-                text = "Monthly: KES $monthlyTarget",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
+                Icon(
+                    imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = PremiumNavy
+                )
+            }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            // Cycle content
+            AnimatedVisibility(visible = expanded) {
+                Column {
+                    // Monthly targets section
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Monthly Target:",
+                            fontWeight = FontWeight.Medium,
+                            color = PremiumNavy
+                        )
+                        Text(
+                            "KES ${cycle.monthlySavingsAmount}",
+                            fontWeight = FontWeight.Bold,
+                            color = PremiumNavy
+                        )
+                    }
 
-        // Monthly cards for this cycle
-        allMonths.forEach { monthName ->
-            val monthKey = convertMonthToInputFormat(monthName)
-            val monthEntries = groupedByMonth[monthName] ?: emptyList()
-            val currentTotal = monthEntries.sumOf { it.amount }
-            val isCurrentMonth = monthName == determinedMonthDisplay && isActiveCycle
-            val isFuture = isFutureMonth(monthName)
-            val isComplete = currentTotal >= monthlyTarget
+                    // Monthly savings cards
+                    val months = if (isActiveCycle) {
+                        generateMonthsUntilFuture(cycle.startDate, 2) // Current + 2 future months
+                    } else {
+                        generateMonthsForCompletedCycle(cycle)
+                    }
 
-            // Only show incomplete months for past cycles
-            if (!isActiveCycle && isComplete) return@forEach
+                    months.forEach { month ->
+                        val monthEntries = cycleWithSavings.savingsEntries.filter {
+                            try {
+                                val date = Date(it.entryDate.toLong())
+                                SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date) == month
+                            } catch (e: Exception) { false }
+                        }
 
-            MonthlySavingsCard(
-                month = monthName,
-                entries = monthEntries,
-                monthlyTarget = monthlyTarget,
-                onClick = {
-                    onAddSavings(monthKey, monthlyTarget - currentTotal)
-                },
-                isCurrentMonth = isCurrentMonth,
-                recorderNames = recorderNames,
-                isFuture = isFuture,
-                isComplete = isComplete,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+                        val isCurrentMonth = month == determinedMonthDisplay && isActiveCycle
+                        val isFuture = isFutureMonth(month)
+                        val isComplete = monthEntries.sumOf { it.amount } >= cycle.monthlySavingsAmount
+
+                        MonthlySavingsCard(
+                            month = month,
+                            entries = monthEntries,
+                            monthlyTarget = cycle.monthlySavingsAmount,
+                            onClick = {
+                                if (!isFuture && !isComplete) {
+                                    val inputFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+                                    val monthKey = try {
+                                        inputFormat.format(dateFormat.parse(month))
+                                    } catch (e: Exception) {
+                                        ""
+                                    }
+                                    onAddSavings(monthKey, cycle.monthlySavingsAmount - monthEntries.sumOf { it.amount })
+                                }
+                            },
+                            isCurrentMonth = isCurrentMonth,
+                            recorderNames = recorderNames,
+                            isFuture = isFuture,
+                            isComplete = isComplete,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 // Helper functions
-private fun generateMonthsForCycle(
-    startDate: Long,
-    endDate: Long?,
-    isActive: Boolean
-): List<String> {
-    val months = mutableListOf<String>()
+private fun generateMonthsUntilFuture(startDate: Long, futureMonths: Int): List<String> {
     val format = SimpleDateFormat("MMM yyyy", Locale.getDefault())
-    val startCal = Calendar.getInstance().apply {
+    val months = mutableListOf<String>()
+    val calendar = Calendar.getInstance().apply {
         time = Date(startDate)
         set(Calendar.DAY_OF_MONTH, 1)
     }
 
-    val endCal = if (endDate != null) {
-        Calendar.getInstance().apply {
-            time = Date(endDate)
-            set(Calendar.DAY_OF_MONTH, 1)
-        }
-    } else if (isActive) {
-        // For active cycle: show until current + 2 months
-        Calendar.getInstance().apply {
-            add(Calendar.MONTH, 2)
-            set(Calendar.DAY_OF_MONTH, 1)
-        }
-    } else {
-        // For completed cycles without end date
-        Calendar.getInstance()
+    val futureCalendar = Calendar.getInstance().apply {
+        add(Calendar.MONTH, futureMonths)
     }
 
-    while (!startCal.after(endCal)) {
-        months.add(format.format(startCal.time))
-        startCal.add(Calendar.MONTH, 1)
+    while (!calendar.after(futureCalendar)) {
+        months.add(format.format(calendar.time))
+        calendar.add(Calendar.MONTH, 1)
     }
 
     return months
 }
 
-private fun formatDate(timestamp: Long): String {
-    return SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Date(timestamp))
+private fun generateMonthsForCompletedCycle(cycle: Cycle): List<String> {
+    val format = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+    val months = mutableListOf<String>()
+    val calendar = Calendar.getInstance().apply {
+        time = Date(cycle.startDate)
+        set(Calendar.DAY_OF_MONTH, 1)
+    }
+
+    val endCalendar = if (cycle.endDate != null) {
+        Calendar.getInstance().apply {
+            time = Date(cycle.endDate)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+    } else {
+        // Shouldn't happen for completed cycle, but handle gracefully
+        Calendar.getInstance()
+    }
+
+    while (!calendar.after(endCalendar)) {
+        months.add(format.format(calendar.time))
+        calendar.add(Calendar.MONTH, 1)
+    }
+
+    return months
 }
 
 private fun isFutureMonth(monthName: String): Boolean {

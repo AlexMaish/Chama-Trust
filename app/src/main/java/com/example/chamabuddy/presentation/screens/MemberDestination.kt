@@ -14,8 +14,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,6 +25,13 @@ import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.presentation.viewmodel.MemberEvent
 import com.example.chamabuddy.presentation.viewmodel.MemberState
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
+
+//// Premium color scheme
+//val PremiumNavy = Color(0xFF0A1D3A)
+//val SoftOffWhite = Color(0xFFF8F9FA)
+//val VibrantOrange = Color(0xFFFF6B35)
+//val CardSurface = Color(0xFFFFFFFF)
+//val LightAccentBlue = Color(0xFFE3F2FD)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,9 +44,8 @@ fun MembersScreen(
     val state by viewModel.state.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
-
-    // Material 3 uses SnackbarHostState directly
     val snackbarHostState = remember { SnackbarHostState() }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { message ->
@@ -52,33 +60,46 @@ fun MembersScreen(
     }
 
     Scaffold(
-        // Add SnackbarHost for Material 3
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Group Members") },
+            LargeTopAppBar(
+                title = {
+                    Text(
+                        "Group Members",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Back",
+                            tint = Color.White
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = PremiumNavy,
+                    scrolledContainerColor = PremiumNavy,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                ),
+                scrollBehavior = scrollBehavior
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
+                containerColor = VibrantOrange,
                 modifier = Modifier.zIndex(1f)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Member")
+                Icon(Icons.Default.Add, contentDescription = "Add Member", tint = Color.White)
             }
-        }
+        },
+        containerColor = SoftOffWhite
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -104,7 +125,7 @@ fun MembersScreen(
                 is MemberState.Empty -> {
                     EmptyState(message = (state as MemberState.Empty).message)
                 }
-                else -> Unit // Handle other states if needed
+                else -> Unit
             }
         }
 
@@ -132,7 +153,7 @@ private fun MemberListContent(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(members) { member ->
                 MemberListItem(
@@ -155,8 +176,11 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
     ) {
         Text(message, color = MaterialTheme.colorScheme.error)
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) {
-            Text("Retry")
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
+        ) {
+            Text("Retry", color = Color.White)
         }
     }
 }
@@ -170,9 +194,11 @@ private fun EmptyState(message: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(message)
+        Text(message, color = PremiumNavy)
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Add a new member to get started", style = MaterialTheme.typography.bodySmall)
+        Text("Add a new member to get started",
+            style = MaterialTheme.typography.bodySmall,
+            color = PremiumNavy.copy(alpha = 0.7f))
     }
 }
 
@@ -182,10 +208,9 @@ fun MemberListItem(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = CardSurface),
         onClick = onClick
     ) {
         Row(
@@ -202,12 +227,13 @@ fun MemberListItem(
                 Text(
                     text = member.name,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = PremiumNavy
                 )
                 Text(
                     text = member.phoneNumber,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = PremiumNavy.copy(alpha = 0.7f)
                 )
             }
 
@@ -222,7 +248,7 @@ private fun InitialsAvatar(name: String) {
         modifier = Modifier
             .size(48.dp)
             .background(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                color = LightAccentBlue,
                 shape = CircleShape
             ),
         contentAlignment = Alignment.Center
@@ -230,7 +256,8 @@ private fun InitialsAvatar(name: String) {
         Text(
             text = name.take(1).uppercase(),
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.primary
+            color = PremiumNavy,
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -238,12 +265,12 @@ private fun InitialsAvatar(name: String) {
 @Composable
 private fun RoleBadge(isAdmin: Boolean) {
     Badge(
-        containerColor = if (isAdmin) MaterialTheme.colorScheme.tertiaryContainer
-        else MaterialTheme.colorScheme.secondaryContainer
+        containerColor = if (isAdmin) VibrantOrange else LightAccentBlue
     ) {
         Text(
             text = if (isAdmin) "Admin" else "Member",
-            style = MaterialTheme.typography.labelSmall
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isAdmin) Color.White else PremiumNavy
         )
     }
 }
@@ -261,7 +288,7 @@ fun AddMemberDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add New Member") },
+        title = { Text("Add New Member", color = PremiumNavy) },
         text = {
             Column {
                 OutlinedTextField(
@@ -269,14 +296,22 @@ fun AddMemberDialog(
                     onValueChange = { name = it },
                     label = { Text("Full Name *") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = SoftOffWhite,
+                        unfocusedContainerColor = SoftOffWhite
+                    )
                 )
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it },
                     label = { Text("Nickname (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = SoftOffWhite,
+                        unfocusedContainerColor = SoftOffWhite
+                    )
                 )
                 OutlinedTextField(
                     value = phone,
@@ -290,12 +325,16 @@ fun AddMemberDialog(
                         if (phone.isNotBlank() && phone.length < 10) {
                             Text("Valid phone number required")
                         }
-                    }
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = SoftOffWhite,
+                        unfocusedContainerColor = SoftOffWhite
+                    )
                 )
                 Text(
                     "* Member must have registered account with this phone number",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = PremiumNavy.copy(alpha = 0.7f)
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -303,11 +342,16 @@ fun AddMemberDialog(
                 ) {
                     Text(
                         text = "Administrator",
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        color = PremiumNavy
                     )
                     Switch(
                         checked = isAdmin,
-                        onCheckedChange = { isAdmin = it }
+                        onCheckedChange = { isAdmin = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = VibrantOrange,
+                            checkedTrackColor = VibrantOrange.copy(alpha = 0.5f)
+                        )
                     )
                 }
             }
@@ -325,14 +369,15 @@ fun AddMemberDialog(
                     )
                     onAddMember(newMember)
                 },
-                enabled = name.isNotBlank() && phone.length >= 10
+                enabled = name.isNotBlank() && phone.length >= 10,
+                colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
             ) {
-                Text("Add Member")
+                Text("Add Member", color = Color.White)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = PremiumNavy)
             }
         }
     )

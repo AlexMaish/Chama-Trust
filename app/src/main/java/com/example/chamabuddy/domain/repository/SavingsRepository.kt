@@ -41,4 +41,13 @@ interface SavingsRepository {
     suspend fun getCycleWithSavingsForMember(memberId: String): List<CycleWithSavings>
 
 
+    suspend fun createIncompleteMonths(
+        cycleId: String,
+        startDate: Long,
+        endDate: Long,
+        monthlyTarget: Int,
+        groupId: String
+    )
+
+
 }

@@ -222,4 +222,41 @@ class SavingsRepositoryImpl @Inject constructor(
 
 
 
+    override suspend fun createIncompleteMonths(
+        cycleId: String,
+        startDate: Long,
+        endDate: Long,
+        monthlyTarget: Int,
+        groupId: String
+    ) = withContext(dispatcher) {
+        val months = generateMonthsBetweenDates(startDate, endDate)
+        months.forEach { month ->
+            ensureMonthExists(cycleId, month, monthlyTarget, groupId)
+        }
+    }
+
+    private fun generateMonthsBetweenDates(start: Long, end: Long): List<String> {
+        val format = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+        val months = mutableListOf<String>()
+        val calendar = Calendar.getInstance().apply {
+            time = Date(start)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        val endCalendar = Calendar.getInstance().apply {
+            time = Date(end)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+
+        while (!calendar.after(endCalendar)) {
+            months.add(format.format(calendar.time))
+            calendar.add(Calendar.MONTH, 1)
+        }
+
+        return months
+    }
+
+
+
+
 }

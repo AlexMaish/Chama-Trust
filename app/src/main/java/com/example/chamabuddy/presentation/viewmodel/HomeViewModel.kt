@@ -31,11 +31,6 @@ class HomeViewModel @Inject constructor(
     private val groupRepository: GroupRepository,
 ) : ViewModel() {
 
-
-
-
-
-
     private val _groupData = MutableStateFlow<GroupWithMembers?>(null)
     val groupData: StateFlow<GroupWithMembers?> = _groupData.asStateFlow()
 
@@ -45,15 +40,11 @@ class HomeViewModel @Inject constructor(
     private val _state = MutableStateFlow<CycleState>(CycleState.Idle)
     val state: StateFlow<CycleState> = _state.asStateFlow()
 
-
     private val _activeCycle = MutableStateFlow<Cycle?>(null)
     val activeCycle: StateFlow<Cycle?> = _activeCycle.asStateFlow()
 
     private val _userGroups = MutableStateFlow<List<Group>>(emptyList())
     val userGroups: StateFlow<List<Group>> = _userGroups.asStateFlow()
-
-
-
 
     private val _currentGroupId = MutableStateFlow<String?>(null)
     var currentGroupId: StateFlow<String?> = _currentGroupId.asStateFlow()
@@ -61,10 +52,6 @@ class HomeViewModel @Inject constructor(
     fun setCurrentGroup(groupId: String) {
         _currentGroupId.value = groupId
     }
-
-
-
-
 
     private val _showSnackbar = MutableStateFlow(false)
     val showSnackbar: StateFlow<Boolean> = _showSnackbar.asStateFlow()
@@ -85,22 +72,14 @@ class HomeViewModel @Inject constructor(
         _snackbarMessage.value = ""
     }
 
-
-
-
     fun refreshCycles() {
         _currentGroupId.value?.let { groupId ->
             loadCyclesForGroup(groupId)
         }
     }
 
-
-
-
-
     fun loadGroupData(groupId: String) {
         viewModelScope.launch {
-            // Use getGroupWithMembers instead of getGroup
             _groupData.value = groupRepository.getGroupWithMembers(groupId)
         }
     }
@@ -108,7 +87,6 @@ class HomeViewModel @Inject constructor(
     fun getCurrentGroupId(): String? {
         return _currentGroupId.value
     }
-
 
     init {
         loadUserGroups()
@@ -119,7 +97,14 @@ class HomeViewModel @Inject constructor(
             _state.value = CycleState.Loading
             try {
                 println("Loading cycles for group: $groupId")
-                val cycles = cycleRepository.getCyclesByGroupId(groupId)
+                var cycles = cycleRepository.getCyclesByGroupId(groupId)
+
+                // Update each cycle with its total savings
+                cycles = cycles.map { cycle ->
+                    val total = savingsRepository.getTotalSavingsByCycle(cycle.cycleId)
+                    cycle.copy(totalSavings = total)
+                }
+
                 println("Loaded ${cycles.size} cycles")
                 _state.value = CycleState.CycleHistory(cycles)
                 _totalSavings.value = cycles.sumOf { it.totalSavings }
@@ -148,17 +133,10 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-
-
-
-
     fun showGroupRequiredMessage() {
-        // Directly post the value
         _snackbarMessage.value = "Create a group or join one first using the navigation menu"
         _showSnackbar.value = true
     }
-
-
 
     private fun getTotalSavings() {
         viewModelScope.launch {
@@ -169,7 +147,6 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-
 
     private fun getCycleHistory() {
         viewModelScope.launch {
@@ -195,7 +172,7 @@ class HomeViewModel @Inject constructor(
                 getTotalSavings()
             }
             is CycleEvent.StartNewCycle -> startNewCycle(event)
-            CycleEvent.EndCurrentCycle -> endCurrentCycle()
+            is CycleEvent.EndCurrentCycle -> endCurrentCycle(event)
             is CycleEvent.GetCycleStats -> getCycleStats(event.cycleId)
             CycleEvent.ResetCycleState -> resetState()
         }
@@ -243,17 +220,48 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun endCurrentCycle() {
+    private fun endCurrentCycle(event: CycleEvent.EndCurrentCycle) {
         viewModelScope.launch {
             _state.value = CycleState.Loading
             try {
-                val result = cycleRepository.endCurrentCycle()
-                if (result.isSuccess) {
-                    _activeCycle.value = null
-                    _state.value = CycleState.CycleEnded
+                // Get the current active cycle before ending it
+                val endedCycle = cycleRepository.getActiveCycle()
+
+                // End the current cycle
+                val endResult = cycleRepository.endCurrentCycle()
+                if (endResult.isSuccess) {
+                    // Create incomplete months for the ended cycle
+                    endedCycle?.let {
+                        savingsRepository.createIncompleteMonths(
+                            it.cycleId,
+                            it.startDate,
+                            System.currentTimeMillis(),
+                            it.monthlySavingsAmount,
+                            it.groupId
+                        )
+                    }
+
+                    // Start new cycle with adjusted parameters
+                    val newCycleResult = cycleRepository.startNewCycle(
+                        event.weeklyAmount,
+                        event.monthlyAmount,
+                        event.totalMembers,
+                        event.startDate,
+                        event.groupId
+                    )
+
+                    if (newCycleResult.isSuccess) {
+                        _activeCycle.value = newCycleResult.getOrNull()
+                        _state.value = CycleState.ActiveCycle(newCycleResult.getOrNull()!!)
+                    } else {
+                        _state.value = CycleState.Error(
+                            newCycleResult.exceptionOrNull()?.message ?: "Failed to start new cycle"
+                        )
+                    }
                 } else {
-                    _state.value =
-                        CycleState.Error(result.exceptionOrNull()?.message ?: "Failed to end cycle")
+                    _state.value = CycleState.Error(
+                        endResult.exceptionOrNull()?.message ?: "Failed to end cycle"
+                    )
                 }
             } catch (e: Exception) {
                 _state.value = CycleState.Error(e.message ?: "Failed to end cycle")
@@ -277,6 +285,7 @@ class HomeViewModel @Inject constructor(
         _state.value = CycleState.Idle
     }
 }
+
 sealed class CycleState {
     object Idle : CycleState()
     object Loading : CycleState()
@@ -297,7 +306,15 @@ sealed class CycleEvent {
         val startDate: Long,
         val groupId: String
     ) : CycleEvent()
-    object EndCurrentCycle : CycleEvent()
+
+    data class EndCurrentCycle(
+        val weeklyAmount: Int,
+        val monthlyAmount: Int,
+        val totalMembers: Int,
+        val startDate: Long,
+        val groupId: String
+    ) : CycleEvent()
+
     data class GetCycleStats(val cycleId: String) : CycleEvent()
     object ResetCycleState : CycleEvent()
 }

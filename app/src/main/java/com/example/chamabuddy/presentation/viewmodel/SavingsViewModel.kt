@@ -44,6 +44,13 @@ class SavingsViewModel @Inject constructor(
     private val _activeCycle = MutableStateFlow<Cycle?>(null)
     val activeCycle: StateFlow<Cycle?> = _activeCycle.asStateFlow()
 
+
+    private val _totalGroupSavings = MutableStateFlow(0)
+    val totalGroupSavings: StateFlow<Int> = _totalGroupSavings.asStateFlow()
+
+
+
+
     // Rename the properties to avoid setter conflicts
     private var _groupId: String by mutableStateOf("")
     private var _cycleId: String by mutableStateOf("")
