@@ -14,10 +14,14 @@ interface GroupRepository {
     suspend fun createGroup(name: String, adminId: String): Group
 
 
-    suspend fun addMemberToGroup(groupId: String, member: Member)
     suspend fun getGroupWithMembers(groupId: String): GroupWithMembers?
 
 
     suspend fun getGroupsByIds(groupIds: List<String>): List<Group>
+    suspend fun getUserGroupsWithDetails(userId: String): List<Group>
 
+
+    suspend fun getUserGroupsByPhone(phoneNumber: String): List<Group>
+
+    suspend fun addMemberToGroup(groupId: String, phoneNumber: String)
 }

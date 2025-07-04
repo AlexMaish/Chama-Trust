@@ -6,10 +6,12 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.chamabuddy.data.local.MemberDao
 import com.example.chamabuddy.data.local.UserDao
 import com.example.chamabuddy.data.local.UserGroupDao
 import com.example.chamabuddy.domain.model.User
 import com.example.chamabuddy.domain.model.UserGroup
+import com.example.chamabuddy.domain.repository.MemberRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -23,7 +25,8 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val userGroupDao: UserGroupDao,
-    @ApplicationContext private val context: Context, // Inject context
+    private val memberRepository: MemberRepository,
+    @ApplicationContext private val context: Context
 ) : UserRepository {
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
     private val dataStore = context.dataStore
@@ -72,7 +75,12 @@ class UserRepositoryImpl @Inject constructor(
             user
         }
     }
-
+    override suspend fun getUserByPhone(phoneNumber: String): User? {
+        val normalizedPhone = phoneNumber.replace(Regex("[^0-9]"), "")
+        return withContext(Dispatchers.IO) {
+            userDao.getUserByPhone(normalizedPhone)
+        }
+    }
     override suspend fun loginUser(
         identifier: String,
         password: String
@@ -104,10 +112,11 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getUserById(userId: String): User? =
-        withContext(Dispatchers.IO) {
+    override suspend fun getUserById(userId: String): User? {
+        return withContext(Dispatchers.IO) {
             userDao.getUserById(userId)
         }
+    }
     override suspend fun getUserGroups(userId: String): Result<List<String>> =
         withContext(dispatcher) {
             runCatching {
@@ -115,9 +124,24 @@ class UserRepositoryImpl @Inject constructor(
             }
         }
 
+    override suspend fun getCurrentUserMemberId(groupId: String): String? {
+        val userId = getCurrentUserId() ?: return null
+        val user = getCurrentUser() ?: return null
 
-
-
+        return withContext(Dispatchers.IO) {
+            // 1. Try by user ID
+            memberRepository.getMemberByUserId(userId, groupId)?.memberId
+            // 2. Try by phone number with normalization
+                ?: memberRepository.getMemberByPhoneForGroup(user.phoneNumber, groupId)?.memberId
+        }
+    }
+    fun String.normalizePhone(): String {
+        return this.replace(Regex("[^0-9]"), "").trim()
+    }
+    override suspend fun getCurrentUser(): User? {
+        val userId = getCurrentUserId()
+        return userId?.let { getUserById(it) }
+    }
 
 }
 

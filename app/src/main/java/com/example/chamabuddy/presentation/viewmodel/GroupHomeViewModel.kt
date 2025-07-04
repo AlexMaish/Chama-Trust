@@ -64,11 +64,17 @@ class GroupHomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
+                // Get current user ID
                 val userId = userRepository.getCurrentUserId()
                     ?: throw Exception("User not authenticated")
 
-                val groupIds = userRepository.getUserGroups(userId).getOrThrow()
-                val groups = groupRepository.getGroupsByIds(groupIds)
+                // Get current user object
+                val currentUser = userRepository.getUserById(userId)
+                    ?: throw Exception("User data not found. Please re-login.")
+
+
+                // Use phone number to fetch groups
+                val groups = groupRepository.getUserGroupsByPhone(currentUser.phoneNumber)
 
                 _uiState.value = _uiState.value.copy(
                     groups = groups,
@@ -82,6 +88,9 @@ class GroupHomeViewModel @Inject constructor(
             }
         }
     }
+
+
+
 
     fun clearSnackbar() {
         _uiState.value = _uiState.value.copy(snackbarMessage = null)

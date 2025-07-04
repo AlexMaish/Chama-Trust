@@ -7,7 +7,6 @@ import androidx.room.PrimaryKey
 import java.util.*
 
 
-
 @Entity(tableName = "Member")
 data class Member(
     @PrimaryKey
@@ -32,27 +31,15 @@ data class Member(
     @ColumnInfo(name = "is_active")
     val isActive: Boolean = true,
 
-//    @ColumnInfo(name = "join_date")
-//    val joinDate: Date = Date(),
-
     @ColumnInfo(name = "join_date")
     val joinDate: Long = System.currentTimeMillis(),
 
-    @ColumnInfo(name = "total_contributions")
-    val totalContributions: Double = 0.0,
-
-    @ColumnInfo(name = "total_savings")
-    val totalSavings: Double = 0.0,
-
-    @ColumnInfo(name = "benefited")
-    val benefited: Boolean = false,
-
-
     @ColumnInfo(name = "user_id")
-    val userId: String? = null,
-
+    val userId: String? = null, // Tracks associated user account
 
     @ColumnInfo(name = "group_id")
     val groupId: String
-)
 
+
+
+)

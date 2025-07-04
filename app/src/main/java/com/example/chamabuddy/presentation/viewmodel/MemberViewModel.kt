@@ -35,6 +35,10 @@ class MemberViewModel @Inject constructor(
         currentGroupId = groupId
     }
 
+
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
     fun handleEvent(event: MemberEvent) {
         when (event) {
             is MemberEvent.LoadMembersForGroup -> loadMembersForGroup(event.groupId)
@@ -42,7 +46,11 @@ class MemberViewModel @Inject constructor(
             is MemberEvent.UpdateMember -> updateMember(event.member)
             is MemberEvent.DeleteMember -> deleteMember(event.member)
             is MemberEvent.GetMemberDetails -> getMemberDetails(event.memberId)
-            is MemberEvent.UpdateProfilePicture -> updateProfilePicture(event.memberId, event.imageUri)
+            is MemberEvent.UpdateProfilePicture -> updateProfilePicture(
+                event.memberId,
+                event.imageUri
+            )
+
             is MemberEvent.ChangePhoneNumber -> changePhoneNumber(event.memberId, event.newNumber)
             MemberEvent.ResetMemberState -> resetState()
         }
@@ -74,12 +82,20 @@ class MemberViewModel @Inject constructor(
             _state.value = MemberState.Loading
             try {
                 memberRepository.addMember(member)
-                loadMembersForGroup(currentGroupId) // Reload members
+                loadMembersForGroup(currentGroupId)
+            } catch (e: IllegalStateException) {
+                // Specific error for user not registered
+                _snackbarMessage.value = e.message
             } catch (e: Exception) {
                 _state.value = MemberState.Error("Failed to add member: ${e.localizedMessage}")
             }
         }
     }
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
+    }
+
 
     private fun updateMember(member: Member) {
         viewModelScope.launch {

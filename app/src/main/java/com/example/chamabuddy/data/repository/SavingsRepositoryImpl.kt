@@ -37,6 +37,17 @@ class SavingsRepositoryImpl @Inject constructor(
         groupId: String
     ) = withContext(dispatcher) {
         try {
+            val recorder = memberDao.getMemberById(recordedBy)
+            if (recorder == null) {
+                throw IllegalStateException("Recorder (ID: $recordedBy) is not a valid group member")
+            }
+
+            val member = memberDao.getMemberById(memberId)
+            if (member == null) {
+                throw IllegalStateException("Member (ID: $memberId) does not exist")
+            }
+
+
             if (memberDao.getMemberById(memberId) == null) {
                 throw IllegalStateException("Member $memberId does not exist")
             }
@@ -82,7 +93,7 @@ class SavingsRepositoryImpl @Inject constructor(
 
             if (currentTotal >= monthlyTarget) {
                 val nextMonth = calculateNextMonth(monthYear)
-                ensureMonthExists(cycleId, nextMonth, monthlyTarget, groupId)
+                createMissingMonthlyEntries(cycleId, nextMonth, monthlyTarget, groupId)
             }
 
             Result.success(Unit)
@@ -130,23 +141,23 @@ class SavingsRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getCyclesWithSavingsForMember(memberId: String): List<CycleWithSavings> {
-        return withContext(dispatcher) {
-            // 1. Get distinct cycle IDs where member has savings
-            val cycleIds = savingDao.getDistinctCycleIdsForMember(memberId)
-            if (cycleIds.isEmpty()) return@withContext emptyList()
-
-            // 2. Get complete cycle objects
-            val cycles = cycleDao.getCyclesByIds(cycleIds)
-
-            // 3. Get savings entries for each cycle
-            cycles.map { cycle ->
-                val entries = savingEntryDao.getSavingsForMemberInCycle(
-                    memberId = memberId,
-                    cycleId = cycle.cycleId
+    override suspend fun createMissingMonthlyEntries(
+        cycleId: String,
+        monthYear: String,
+        targetAmount: Int,
+        groupId: String
+    ) {
+        if (savingDao.getSavingForMonth(cycleId, monthYear) == null) {
+            savingDao.insert(
+                MonthlySaving(
+                    savingId = UUID.randomUUID().toString(),
+                    cycleId = cycleId,
+                    monthYear = monthYear,
+                    targetAmount = targetAmount,
+                    actualAmount = 0,
+                    groupId = groupId
                 )
-                CycleWithSavings(cycle, entries)
-            }
+            )
         }
     }
 
@@ -191,7 +202,22 @@ class SavingsRepositoryImpl @Inject constructor(
         )
     }
 
-
+    override suspend fun getCycleWithSavingsForMember(memberId: String): List<CycleWithSavings> {
+        return withContext(dispatcher) {
+            val cycleIds = savingDao.getDistinctCycleIdsForMember(memberId)
+            if (cycleIds.isEmpty()) emptyList()
+            else {
+                val cycles = cycleDao.getCyclesByIds(cycleIds)
+                cycles.map { cycle ->
+                    val entries = savingEntryDao.getSavingsForMemberInCycle(
+                        memberId = memberId,
+                        cycleId = cycle.cycleId
+                    )
+                    CycleWithSavings(cycle, entries)
+                }
+            }
+        }
+    }
 
 
 

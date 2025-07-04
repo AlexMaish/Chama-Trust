@@ -32,10 +32,13 @@ interface SavingsRepository {
     suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String): SavingsProgress
 
     suspend fun createMissingMonthlyEntries(
-        memberId: String,
-        currentCycleId: String,
-        newMonthlyTarget: Int
+        cycleId: String,
+        monthYear: String,
+        targetAmount: Int,
+        groupId: String
     )
+
+    suspend fun getCycleWithSavingsForMember(memberId: String): List<CycleWithSavings>
 
 
 }

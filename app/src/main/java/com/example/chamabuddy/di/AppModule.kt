@@ -52,18 +52,23 @@ object AppModule {
     fun provideUserRepository(
         userDao: UserDao,
         userGroupDao: UserGroupDao,
+        memberRepository: MemberRepository, // Keep this dependency
         @ApplicationContext context: Context
     ): UserRepository = UserRepositoryImpl(
         userDao = userDao,
         userGroupDao = userGroupDao,
+        memberRepository = memberRepository,
         context = context
     )
     @Provides
     @Singleton
     fun provideMemberRepository(
         memberDao: MemberDao,
-    ): MemberRepository = MemberRepositoryImpl(memberDao)
-
+        userDao: UserDao
+    ): MemberRepository = MemberRepositoryImpl(
+        memberDao = memberDao,
+        userDao = userDao
+    )
     @Provides
     @Singleton
     fun provideCycleRepository(
@@ -71,16 +76,17 @@ object AppModule {
         meetingDao: WeeklyMeetingDao,
         beneficiaryDao: BeneficiaryDao,
         memberDao: MemberDao,
-        groupRepository: GroupRepository, // Add this
+        groupRepository: GroupRepository,
         dispatcher: CoroutineDispatcher
     ): CycleRepository = CycleRepositoryImpl(
         cycleDao = cycleDao,
         meetingDao = meetingDao,
         beneficiaryDao = beneficiaryDao,
         memberDao = memberDao,
-        groupRepository = groupRepository, // Add this
+        groupRepository = groupRepository,
         dispatcher = dispatcher
     )
+
     @Provides
     @Singleton
     fun provideMeetingRepository(
@@ -121,12 +127,12 @@ object AppModule {
         cycleDao: CycleDao,
         memberDao: MemberDao,
         dispatcher: CoroutineDispatcher
-    ):  SavingsRepository = SavingsRepositoryImpl(
+    ): SavingsRepository = SavingsRepositoryImpl(
         db = db,
         savingDao = savingDao,
         savingEntryDao = savingEntryDao,
         cycleDao = cycleDao,
-        memberDao = memberDao, // Pass the parameter
+        memberDao = memberDao,
         dispatcher = dispatcher
     )
 

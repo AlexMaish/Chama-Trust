@@ -131,7 +131,7 @@ class SavingsViewModel @Inject constructor(
             _state.value = SavingsState.Loading
             try {
                 // 1. Get all cycles where member has savings
-                var cyclesWithSavings = savingsRepository.getCyclesWithSavingsForMember(memberId)
+                var cyclesWithSavings = savingsRepository.getCycleWithSavingsForMember(memberId)
 
                 // 2. Get active cycle if exists
                 val activeCycle = _activeCycle.value
@@ -170,9 +170,6 @@ class SavingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = SavingsState.Loading
             try {
-                val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
-                monthFormat.parse(event.monthYear) // Validate format
-
                 val result = savingsRepository.recordMonthlySavings(
                     cycleId = event.cycleId,
                     monthYear = event.monthYear,
@@ -183,15 +180,15 @@ class SavingsViewModel @Inject constructor(
                 )
 
                 if (result.isSuccess) {
-                    getMemberSavings(SavingsEvent.GetMemberSavings(event.cycleId, event.memberId))
+                    // Refresh ALL cycles after saving
+                    getAllMemberCycles(event.memberId)
                     _state.value = SavingsState.SavingsRecorded(true)
                 } else {
+
                     _state.value = SavingsState.Error(
                         result.exceptionOrNull()?.message ?: "Failed to record savings"
                     )
                 }
-            } catch (e: ParseException) {
-                _state.value = SavingsState.Error("Invalid month format. Use MM/YYYY")
             } catch (e: Exception) {
                 _state.value = SavingsState.Error(e.message ?: "Failed to record savings")
             }

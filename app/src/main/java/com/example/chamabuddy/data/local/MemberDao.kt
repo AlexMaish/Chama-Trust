@@ -54,12 +54,24 @@ interface MemberDao {
     """)
     suspend fun getActiveMembersForGroup(groupId: String): List<Member>
 
+
     @Query("SELECT * FROM member WHERE group_id = :groupId")
     suspend fun getMembersByGroup(groupId: String): List<Member>
+
 
 
     @Query("SELECT * FROM member WHERE group_id = :groupId")
     fun getMembersByGroupFlow(groupId: String): Flow<List<Member>>
 
+    @Query("SELECT * FROM member WHERE user_id = :userId AND group_id = :groupId")
+    suspend fun getMemberByUserId(userId: String, groupId: String): Member?
 
+
+
+    @Query("SELECT * FROM member WHERE group_id = :groupId AND phone_number = :phoneNumber")
+    suspend fun getMemberByPhoneInGroup(groupId: String, phoneNumber: String): Member?
+
+
+    @Query("SELECT * FROM member WHERE group_id = :groupId AND REPLACE(REPLACE(phone_number, ' ', ''), '-', '') = :normalizedPhone")
+    suspend fun getMemberByNormalizedPhone(groupId: String, normalizedPhone: String): Member?
 }

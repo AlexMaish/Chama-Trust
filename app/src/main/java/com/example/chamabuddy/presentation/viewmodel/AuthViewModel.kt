@@ -8,6 +8,7 @@ import com.example.chamabuddy.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -16,12 +17,51 @@ class AuthViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser
+
     // nullable state: null = idle, Resource.Loading, Success, or Error
     private val _registrationState = MutableStateFlow<Resource<User>?>(null)
     val registrationState: StateFlow<Resource<User>?> = _registrationState
 
     private val _loginState = MutableStateFlow<Resource<User>?>(null)
     val loginState: StateFlow<Resource<User>?> = _loginState
+
+    private val _currentMemberId = MutableStateFlow<String?>(null)
+    val currentMemberId: StateFlow<String?> = _currentMemberId.asStateFlow()
+
+
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
+    val authState: StateFlow<AuthState> = _authState
+
+
+    init {
+        viewModelScope.launch {
+            // Combine both init blocks
+            userRepository.getCurrentUserId()?.let { userId ->
+                userRepository.getUserById(userId)?.let { user ->
+                    _currentUser.value = user
+                    _authState.value = AuthState.Authenticated(userId)
+                }
+            }
+        }
+    }
+
+
+    init {
+        viewModelScope.launch {
+            userRepository.getCurrentUserId()?.let {
+                _authState.value = AuthState.Authenticated(it)
+            }
+        }
+    }
+
+    suspend fun loadCurrentMemberId(groupId: String) {
+        _currentMemberId.value = userRepository.getCurrentUserMemberId(groupId)
+
+        // Debug logging
+        println("Loaded member ID: ${_currentMemberId.value} for group $groupId")
+    }
 
     fun registerUser(username: String, password: String, phoneNumber: String) {
         viewModelScope.launch {
@@ -34,23 +74,15 @@ class AuthViewModel @Inject constructor(
     }
 
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
-    val authState: StateFlow<AuthState> = _authState
-
-    init {
-        viewModelScope.launch {
-            userRepository.getCurrentUserId()?.let {
-                _authState.value = AuthState.Authenticated(it)
-            }
-        }
-    }
 
     fun loginUser(identifier: String, password: String) {
         viewModelScope.launch {
             _loginState.value = Resource.Loading()
             userRepository.loginUser(identifier, password).fold(
                 onSuccess = { user ->
+                    // Only set user ID in repository
                     userRepository.setCurrentUserId(user.userId)
+                    _currentUser.value = user
                     _loginState.value = Resource.Success(user)
                     _authState.value = AuthState.Authenticated(user.userId)
                 },
@@ -62,14 +94,14 @@ class AuthViewModel @Inject constructor(
     }
 
 
+
     fun logout() {
         viewModelScope.launch {
             userRepository.clearCurrentUser()
-            // Navigate to login screen
+            _currentUser.value = null
         }
     }
 }
-
 sealed class AuthState {
     object Unauthenticated : AuthState()
     data class Authenticated(val userId: String) : AuthState()

@@ -17,4 +17,8 @@ interface MemberRepository {
     suspend fun getMembersByGroup(groupId: String): List<Member>
     suspend fun getActiveMembersCount(): Int
     fun getMembersByGroupFlow(groupId: String): Flow<List<Member>>
+
+    suspend fun getMemberByUserId(userId: String, groupId: String): Member?
+
+    suspend fun getMemberByPhoneForGroup(phone: String, groupId: String): Member?
 }
