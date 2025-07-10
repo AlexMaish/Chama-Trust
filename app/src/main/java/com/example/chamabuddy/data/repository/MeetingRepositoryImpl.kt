@@ -19,6 +19,7 @@ class MeetingRepositoryImpl @Inject constructor(
     private val beneficiaryDao: BeneficiaryDao,
     private val memberDao: MemberDao,
     private val cycleDao: CycleDao,
+    private val weeklyMeetingDao: WeeklyMeetingDao,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : MeetingRepository {
 
@@ -42,6 +43,10 @@ class MeetingRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override suspend fun getMeetingWithCycle(meetingId: String): WeeklyMeetingWithCycle? {
+        return weeklyMeetingDao.getMeetingWithCycle(meetingId)
     }
 
     override suspend fun getMeetingWithDetails(meetingId: String): MeetingWithDetails? =
@@ -148,46 +153,48 @@ class MeetingRepositoryImpl @Inject constructor(
 
     override suspend fun selectBeneficiaries(
         meetingId: String,
-        firstBeneficiaryId: String,
-        secondBeneficiaryId: String
-    ) = withContext(dispatcher) {
+        beneficiaryIds: List<String>
+    ): Result<Unit> = withContext(dispatcher) {
         try {
             val meeting = meetingDao.getMeetingById(meetingId)
                 ?: throw IllegalStateException("Meeting not found")
             val cycle = cycleDao.getCycleById(meeting.cycleId)
                 ?: throw IllegalStateException("Cycle not found")
 
-            if (beneficiaryDao.hasReceivedInCycle(firstBeneficiaryId, meeting.cycleId) > 0) {
-                throw IllegalStateException("First beneficiary already received in this cycle")
-            }
-            if (beneficiaryDao.hasReceivedInCycle(secondBeneficiaryId, meeting.cycleId) > 0) {
-                throw IllegalStateException("Second beneficiary already received in this cycle")
+            // Enforce max beneficiaries
+            if (beneficiaryIds.size > cycle.beneficiariesPerMeeting) {
+                throw IllegalArgumentException(
+                    "Cannot select more than ${cycle.beneficiariesPerMeeting} beneficiaries"
+                )
             }
 
-            beneficiaryDao.insertBeneficiary(
-                Beneficiary(
-                    beneficiaryId = UUID.randomUUID().toString(),
-                    meetingId = meetingId,
-                    memberId = firstBeneficiaryId,
-                    amountReceived = cycle.weeklyAmount,
-                    paymentOrder = 1,
-                    cycleId = cycle.cycleId,
-                    dateAwarded = Date(),
-                    groupId = meeting.groupId
+            // Delete existing beneficiaries
+            beneficiaryDao.deleteBeneficiariesForMeeting(meetingId)
+
+            // Insert new beneficiaries
+            beneficiaryIds.forEachIndexed { index, beneficiaryId ->
+                beneficiaryDao.insertBeneficiary(
+                    Beneficiary(
+                        beneficiaryId = UUID.randomUUID().toString(),
+                        meetingId = meetingId,
+                        memberId = beneficiaryId,
+                        amountReceived = cycle.weeklyAmount,
+                        paymentOrder = index + 1,
+                        cycleId = cycle.cycleId,
+                        dateAwarded = Date(),
+                        groupId = meeting.groupId
+                    )
                 )
+            }
+
+            // Update meeting status (if needed)
+            // This function might be empty as we're computing status dynamically
+            updateMeetingStatus(
+                meetingId,
+                hasContributions = true, // Assuming contributions are recorded first
+                hasBeneficiaries = beneficiaryIds.isNotEmpty()
             )
-            beneficiaryDao.insertBeneficiary(
-                Beneficiary(
-                    beneficiaryId = UUID.randomUUID().toString(),
-                    meetingId = meetingId,
-                    memberId = secondBeneficiaryId,
-                    amountReceived = cycle.weeklyAmount,
-                    paymentOrder = 2,
-                    cycleId = cycle.cycleId,
-                    dateAwarded = Date(),
-                    groupId = meeting.groupId
-                )
-            )
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -203,23 +210,28 @@ class MeetingRepositoryImpl @Inject constructor(
             meetingDao.getLatestMeetingForCycle(cycleId)
         }
 
-    override suspend fun getMeetingStatus(meetingId: String): MeetingStatus = // Correct return type
-        withContext(dispatcher) {
-            val meeting = meetingDao.getMeetingById(meetingId)
-                ?: throw IllegalStateException("Meeting not found")
-            val cycle = cycleDao.getCycleById(meeting.cycleId)
-                ?: throw IllegalStateException("Cycle not found")
-            val activeMembers = memberDao.getActiveMembers().first()
-            val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meetingId)
-            val contributors = contributionDao.getContributorsForMeeting(meetingId)
 
-            MeetingStatus(
-                totalExpected = cycle.weeklyAmount * activeMembers.size,
-                totalContributed = meeting.totalCollected,
-                beneficiariesSelected = beneficiaries.size == 2,
-                fullyRecorded = contributors.size == activeMembers.size
-            )
-        }
+    override suspend fun getMeetingStatus(meetingId: String): MeetingStatus {
+        val meeting = meetingDao.getMeetingById(meetingId)
+            ?: throw IllegalStateException("Meeting not found")
+        val cycle = cycleDao.getCycleById(meeting.cycleId)
+            ?: throw IllegalStateException("Cycle not found")
+
+        // Get active group members
+        val activeMembers = memberDao.getActiveMembersByGroup(meeting.groupId)
+
+        val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meetingId)
+        val contributors = contributionDao.getContributorsForMeeting(meetingId)
+
+        return MeetingStatus(
+            totalExpected = cycle.weeklyAmount * activeMembers.size,
+            totalContributed = meeting.totalCollected,
+            beneficiariesSelected = beneficiaries.isNotEmpty(),
+            beneficiaryCount = beneficiaries.size,
+            requiredBeneficiaryCount = cycle.beneficiariesPerMeeting,
+            fullyRecorded = contributors.size == activeMembers.size
+        )
+    }
 
     override suspend fun getCycleWeeklyAmount(cycleId: String): Int {
         return cycleDao.getCycleById(cycleId)?.weeklyAmount ?: 0

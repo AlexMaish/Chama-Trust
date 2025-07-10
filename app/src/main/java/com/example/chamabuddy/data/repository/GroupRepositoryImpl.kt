@@ -13,16 +13,17 @@ import com.example.chamabuddy.domain.model.UserGroup
 import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import java.util.UUID
+import javax.inject.Inject
 
-class GroupRepositoryImpl(
+class GroupRepositoryImpl @Inject constructor(
     private val groupDao: GroupDao,
     private val memberDao: MemberDao,
     private val userGroupDao: UserGroupDao,
-    private val userRepository : UserRepository
-
+    private val userRepository: UserRepository,
+    private val groupMemberDao: GroupMemberDao
 ) : GroupRepository {
 
-
+    @Transaction
     override suspend fun createGroup(name: String, adminId: String): Group {
         val user = userRepository.getUserById(adminId)
             ?: throw Exception("User not found")
@@ -34,7 +35,15 @@ class GroupRepositoryImpl(
         )
         groupDao.insertGroup(group)
 
-        // Add creator as admin member
+        // Create GroupMember entry for admin
+        val groupMember = GroupMember(
+            groupId = group.groupId,
+            userId = adminId,
+            isAdmin = true
+        )
+        groupMemberDao.insert(groupMember)
+
+        // Create regular member entry for admin
         val adminMember = Member(
             memberId = UUID.randomUUID().toString(),
             name = user.username,
@@ -56,24 +65,14 @@ class GroupRepositoryImpl(
 
         return group
     }
-    // In GroupRepositoryImpl
+
+    @Transaction
     override suspend fun addMemberToGroup(groupId: String, phoneNumber: String) {
-        // 1. Check if user exists in the global user database (simulated)
-        val user = userRepository.getUserByPhone(phoneNumber)
-            ?: throw Exception("User not found")
+        val normalizedPhone = phoneNumber.normalizePhone()
+        val user = userRepository.getUserByPhone(normalizedPhone)
+            ?: throw Exception("User with phone $normalizedPhone not found")
 
-        // 2. Create member entry
-        val member = Member(
-            memberId = UUID.randomUUID().toString(),
-            name = user.username,
-            phoneNumber = phoneNumber,
-            isAdmin = false,
-            userId = user.userId,
-            groupId = groupId
-        )
-
-        // 3. Add to both tables
-        memberDao.insertMember(member)
+        // Add user-group association FIRST
         userGroupDao.insertUserGroup(
             UserGroup(
                 userId = user.userId,
@@ -81,32 +80,49 @@ class GroupRepositoryImpl(
                 isOwner = false
             )
         )
+
+        // Then create GroupMember entry
+        val groupMember = GroupMember(
+            groupId = groupId,
+            userId = user.userId,
+            isAdmin = false
+        )
+        groupMemberDao.insert(groupMember)
+
+        // Create regular member entry
+        val member = Member(
+            memberId = UUID.randomUUID().toString(),
+            name = user.username,
+            phoneNumber = user.phoneNumber,
+            isAdmin = false,
+            userId = user.userId,
+            groupId = groupId
+        )
+        memberDao.insertMember(member)
+    }
+    private fun String.normalizePhone(): String {
+        return this.replace(Regex("[^0-9]"), "").trim()
     }
 
     override suspend fun getGroup(groupId: String): Group? {
         return groupDao.getGroup(groupId)
     }
 
-
     override suspend fun getGroupsByIds(ids: List<String>): List<Group> {
         return groupDao.getGroupsByIds(ids)
     }
 
-
     override suspend fun getAllGroups(): List<Group> {
         return groupDao.getAllGroups()
     }
-
-
-    override suspend fun getUserGroups(userId: String): List<Group> {
-        // Get group IDs for the user
-        val groupIds = userGroupDao.getGroupsForUser(userId)
-
-        // Get groups by their IDs
-        return groupDao.getGroupsByIds(groupIds)
-    }
-
-
+//
+//    override suspend fun getUserGroups(userId: String): List<Group> {
+//        val groupIds = userGroupDao.getGroupIdsForUser(userId)
+//        return groupDao.getGroupsByIds(groupIds)
+//    }
+override suspend fun getUserGroups(userId: String): List<Group> {
+    return userGroupDao.getUserGroupsWithDetails(userId)
+}
     @Transaction
     override suspend fun getGroupWithMembers(groupId: String): GroupWithMembers? {
         return groupDao.getGroupWithMembers(groupId)
@@ -121,6 +137,10 @@ class GroupRepositoryImpl(
     }
 
     override suspend fun getUserGroupsByPhone(phoneNumber: String): List<Group> {
-        return userGroupDao.getGroupsForUserByPhone(phoneNumber)
+        return userGroupDao.getGroupsForUserByPhone(phoneNumber.normalizePhone())
+    }
+
+    override suspend fun getGroupById(groupId: String): Group? {
+        return groupDao.getGroup(groupId)
     }
 }

@@ -21,28 +21,22 @@ class CycleRepositoryImpl @Inject constructor(
     private val meetingDao: WeeklyMeetingDao,
     private val beneficiaryDao: BeneficiaryDao,
     private val memberDao: MemberDao,
-    private val groupRepository: GroupRepository, // This should come before dispatcher
+    private val groupRepository: GroupRepository,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : CycleRepository {
-
-
-
-
-
-
 
     override suspend fun startNewCycle(
         weeklyAmount: Int,
         monthlyAmount: Int,
-        totalMembers: Int, // This parameter is now used
+        totalMembers: Int,
         startDate: Long,
-        groupId: String
+        groupId: String,
+        beneficiariesPerMeeting: Int
     ): Result<Cycle> = withContext(dispatcher) {
         try {
             // Get actual member count
             val groupWithMembers = groupRepository.getGroupWithMembers(groupId)
             val actualMemberCount = groupWithMembers?.members?.size ?: 0
-
 
             // End any active cycle in this group
             cycleDao.getActiveCycleByGroupId(groupId)?.let {
@@ -54,11 +48,11 @@ class CycleRepositoryImpl @Inject constructor(
                 startDate = startDate,
                 weeklyAmount = weeklyAmount,
                 monthlySavingsAmount = monthlyAmount,
-                totalMembers = actualMemberCount, // Use actual count
+                totalMembers = actualMemberCount,
                 groupId = groupId,
                 cycleId = UUID.randomUUID().toString(),
-                totalSavings = 0
-
+                totalSavings = 0,
+                beneficiariesPerMeeting = beneficiariesPerMeeting
             )
 
             cycleDao.insertCycle(newCycle)
@@ -70,36 +64,6 @@ class CycleRepositoryImpl @Inject constructor(
         }
     }
 
-
-
-
-//    override suspend fun startNewCycle(
-//        weeklyAmount: Int,
-//        monthlySavingsAmount: Int,
-//        totalMembers: Int,
-//        startDate: Long,
-//        groupId: String
-//    ): Result<Cycle> = withContext(dispatcher) {
-//        try {
-//            cycleDao.getActiveCycle()?.let { cycleDao.endCycle(it.cycleId) }
-//
-//            val newCycle = Cycle(
-//                isActive = true,
-//                cycleId = UUID.randomUUID().toString(),
-//                startDate = startDate,
-//                weeklyAmount = weeklyAmount,
-//                monthlySavingsAmount = monthlySavingsAmount,
-//                totalMembers = totalMembers,
-//                totalSavings = 0,
-//                groupId = groupId
-//            )
-//
-//            cycleDao.insertCycle(newCycle)
-//            Result.success(newCycle)
-//        } catch (e: Exception) {
-//            Result.failure(e)
-//        }
-//    }
 
 
     override suspend fun endCurrentCycle(): Result<Unit> = withContext(dispatcher) {
@@ -162,15 +126,11 @@ class CycleRepositoryImpl @Inject constructor(
         cycleDao.getCycleHistory()
     }
 
-//    override suspend fun createCycle(cycle: Cycle, groupId: String) {
-//        cycleDao.insertCycle(cycle.copy(groupId = groupId))
-//    }
-
     override suspend fun getCyclesForGroup(groupId: String): List<Cycle> {
         return cycleDao.getCyclesByGroupId(groupId)
     }
 
-    override  suspend fun getActiveCycleForGroup(groupId: String): Cycle? {
+    override suspend fun getActiveCycleForGroup(groupId: String): Cycle? {
         return cycleDao.getActiveCycleByGroupId(groupId)
     }
 
@@ -179,6 +139,4 @@ class CycleRepositoryImpl @Inject constructor(
             cycleDao.getCyclesByGroupId(groupId)
         }
     }
-
-
 }

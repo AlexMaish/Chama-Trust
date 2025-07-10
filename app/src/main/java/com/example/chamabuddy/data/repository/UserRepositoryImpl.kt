@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_settings")
+
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val userGroupDao: UserGroupDao,
@@ -56,50 +57,59 @@ class UserRepositoryImpl @Inject constructor(
         phoneNumber: String
     ): Result<User> = withContext(dispatcher) {
         runCatching {
-            // Check for existing user
+            // Normalize phone number for consistency
+            val normalizedPhone = phoneNumber.normalizePhone()
+
+            // Check for existing user using normalized phone
             if (userDao.getUserByUsername(username) != null) {
                 throw Exception("Username already taken")
             }
-            if (userDao.getUserByPhone(phoneNumber) != null) {
+            if (userDao.getUserByPhone(normalizedPhone) != null) {
                 throw Exception("Phone number already registered")
             }
 
-            // Create new user
+            // Create new user with normalized phone
             val user = User(
                 username = username,
                 password = password,
-                phoneNumber = phoneNumber
+                phoneNumber = normalizedPhone
             )
             userDao.insertUser(user)
             setCurrentUserId(user.userId)
             user
         }
     }
+
     override suspend fun getUserByPhone(phoneNumber: String): User? {
-        val normalizedPhone = phoneNumber.replace(Regex("[^0-9]"), "")
-        return withContext(Dispatchers.IO) {
-            userDao.getUserByPhone(normalizedPhone)
-        }
+        val normalized = phoneNumber.normalizePhone()
+        return userDao.getUserByPhone(normalized)
     }
+
     override suspend fun loginUser(
         identifier: String,
         password: String
     ): Result<User> = withContext(dispatcher) {
         runCatching {
+            // Normalize identifier if it's a phone number
+            val normalizedIdentifier = if (identifier.contains(Regex("[^0-9]"))) {
+                identifier.normalizePhone()
+            } else {
+                identifier
+            }
+
             val user = userDao.getUserByUsername(identifier)
-                ?: userDao.getUserByPhone(identifier)
+                ?: userDao.getUserByPhone(normalizedIdentifier)
                 ?: throw IllegalArgumentException("User not found")
 
             if (user.password != password) throw IllegalArgumentException("Invalid credentials")
-            setCurrentUserId(user.userId) // Set as current user
+            setCurrentUserId(user.userId)
             user
         }
     }
 
     override suspend fun getUserName(userId: String): String? {
-        return userDao.getUserByUsername(userId)?.username
+        return userDao.getUserName(userId)
     }
-
 
     override suspend fun joinGroup(
         userId: String,
@@ -117,10 +127,11 @@ class UserRepositoryImpl @Inject constructor(
             userDao.getUserById(userId)
         }
     }
+
     override suspend fun getUserGroups(userId: String): Result<List<String>> =
         withContext(dispatcher) {
             runCatching {
-                userGroupDao.getUserGroups(userId)
+                userGroupDao.getGroupIdsForUser(userId)
             }
         }
 
@@ -129,19 +140,20 @@ class UserRepositoryImpl @Inject constructor(
         val user = getCurrentUser() ?: return null
 
         return withContext(Dispatchers.IO) {
-            // 1. Try by user ID
             memberRepository.getMemberByUserId(userId, groupId)?.memberId
-            // 2. Try by phone number with normalization
-                ?: memberRepository.getMemberByPhoneForGroup(user.phoneNumber, groupId)?.memberId
+                ?: memberRepository.getMemberByPhoneForGroup(
+                    user.phoneNumber.normalizePhone(),
+                    groupId
+                )?.memberId
         }
     }
-    fun String.normalizePhone(): String {
+
+    private fun String.normalizePhone(): String {
         return this.replace(Regex("[^0-9]"), "").trim()
     }
+
     override suspend fun getCurrentUser(): User? {
         val userId = getCurrentUserId()
         return userId?.let { getUserById(it) }
     }
-
 }
-

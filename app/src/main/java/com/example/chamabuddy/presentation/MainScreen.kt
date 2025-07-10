@@ -150,15 +150,13 @@ fun MainNavHost(
 
 
 
-        composable(route = BeneficiaryDestination.route) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Beneficiary Screen")
-            }
+        composable(BeneficiaryDetailDestination.routeWithArgs) { backStackEntry ->
+            val beneficiaryId = backStackEntry.arguments?.getString("beneficiaryId") ?: ""
+            BeneficiaryDetailScreen(
+                beneficiaryId = beneficiaryId,
+                navigateBack = { navController.popBackStack() }
+            )
         }
-
-//        composable(route = MembersDestination.route) {
-//            MembersScreen(navigateBack = { navController.popBackStack() })
-//        }
         composable(
             route = ProfileDestination.routeWithArgs,
             arguments = listOf(

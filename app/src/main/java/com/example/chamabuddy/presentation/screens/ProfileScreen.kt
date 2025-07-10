@@ -458,52 +458,48 @@ fun ProfileScreen(
                         .sumOf { it.amount }
                 },
                 onSave = {
-                    val targetCycleId = activeCycle?.cycleId ?: run {
-                        scope.launch { snackbarHostState.showSnackbar("No active cycle found") }
-                        return@AddSavingsDialog
-                    }
-                    val monthlyTargetValue = activeCycle?.monthlySavingsAmount ?: 0
-                    val targetMonth = selectedMonth.ifBlank { determinedMonth }
-                    val amountValue = amount.toIntOrNull() ?: 0
-
-                    // Get current member ID properly
-                    val recordedById = if (!loadingMemberId) {
-                        currentMemberId ?: run {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Member ID not found. Please try again.")
-                            }
-                            return@AddSavingsDialog
-                        }
-                    } else {
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Loading member information...")
-                        }
-                        return@AddSavingsDialog
-                    }
-
-                    val displayMonth = convertToDisplayFormat(targetMonth)
-                    val currentTotalForMonth = allMemberCycles.flatMap { it.savingsEntries }
-                        .filter {
-                            try {
-                                val date = Date(it.entryDate.toLong())
-                                SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date) == displayMonth
-                            } catch (e: Exception) { false }
-                        }
-                        .sumOf { it.amount }
-                    val remaining = monthlyTargetValue - currentTotalForMonth
-
-                    if (amountValue > remaining) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Amount exceeds remaining target! Max: KES $remaining")
-                        }
-                        return@AddSavingsDialog
-                    }
-
                     scope.launch {
                         try {
+                            // VALIDATION: Check active cycle exists and belongs to group
+                            val activeCycle = homeViewModel.activeCycle.value
+                                ?: throw Exception("No active cycle in this group")
+
+                            if (activeCycle.groupId != groupId) {
+                                throw Exception("Cycle does not belong to this group")
+                            }
+
+                            // Get current member ID
+                            val recordedById = if (!loadingMemberId) {
+                                currentMemberId ?: throw Exception("Member ID not found")
+                            } else {
+                                throw Exception("Loading member information...")
+                            }
+
+                            val targetMonth = selectedMonth.ifBlank { determinedMonth }
+                            val amountValue = amount.toIntOrNull() ?: 0
+                            val displayMonth = convertToDisplayFormat(targetMonth)
+
+                            // Calculate remaining target
+                            val currentTotalForMonth = allMemberCycles.flatMap { it.savingsEntries }
+                                .filter {
+                                    try {
+                                        val date = Date(it.entryDate.toLong())
+                                        SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date) == displayMonth
+                                    } catch (e: Exception) { false }
+                                }
+                                .sumOf { it.amount }
+
+                            val remaining = (activeCycle.monthlySavingsAmount ?: 0) - currentTotalForMonth
+
+                            if (amountValue > remaining) {
+                                snackbarHostState.showSnackbar("Amount exceeds remaining target! Max: KES $remaining")
+                                return@launch
+                            }
+
+                            // Record savings
                             savingsViewModel.handleEvent(
                                 SavingsEvent.RecordSavings(
-                                    cycleId = targetCycleId,
+                                    cycleId = activeCycle.cycleId,
                                     monthYear = targetMonth,
                                     memberId = memberId,
                                     amount = amountValue,
@@ -511,6 +507,7 @@ fun ProfileScreen(
                                     groupId = groupId
                                 )
                             )
+
                             showAddSavingsDialog = false
                             snackbarHostState.showSnackbar("Savings recorded")
                         } catch (e: Exception) {

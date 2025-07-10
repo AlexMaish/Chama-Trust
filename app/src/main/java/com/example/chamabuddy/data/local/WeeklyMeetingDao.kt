@@ -5,9 +5,11 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.WeeklyMeeting
+import com.example.chamabuddy.domain.model.WeeklyMeetingWithCycle
 import kotlinx.coroutines.flow.Flow
 
 
@@ -35,7 +37,9 @@ interface WeeklyMeetingDao {
     """)
     suspend fun getLatestMeetingForCycle(cycleId: String): WeeklyMeeting?
 
-
+    @Transaction
+    @Query("SELECT * FROM WeeklyMeeting WHERE meeting_id = :meetingId")
+    suspend fun getMeetingWithCycle(meetingId: String): WeeklyMeetingWithCycle?
 }
 
 

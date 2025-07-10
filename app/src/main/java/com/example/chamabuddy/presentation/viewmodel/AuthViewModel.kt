@@ -20,7 +20,6 @@ class AuthViewModel @Inject constructor(
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser: StateFlow<User?> = _currentUser
 
-    // nullable state: null = idle, Resource.Loading, Success, or Error
     private val _registrationState = MutableStateFlow<Resource<User>?>(null)
     val registrationState: StateFlow<Resource<User>?> = _registrationState
 
@@ -30,14 +29,11 @@ class AuthViewModel @Inject constructor(
     private val _currentMemberId = MutableStateFlow<String?>(null)
     val currentMemberId: StateFlow<String?> = _currentMemberId.asStateFlow()
 
-
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     val authState: StateFlow<AuthState> = _authState
 
-
     init {
         viewModelScope.launch {
-            // Combine both init blocks
             userRepository.getCurrentUserId()?.let { userId ->
                 userRepository.getUserById(userId)?.let { user ->
                     _currentUser.value = user
@@ -47,40 +43,29 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-
-    init {
-        viewModelScope.launch {
-            userRepository.getCurrentUserId()?.let {
-                _authState.value = AuthState.Authenticated(it)
-            }
-        }
-    }
-
     suspend fun loadCurrentMemberId(groupId: String) {
         _currentMemberId.value = userRepository.getCurrentUserMemberId(groupId)
-
-        // Debug logging
-        println("Loaded member ID: ${_currentMemberId.value} for group $groupId")
     }
 
     fun registerUser(username: String, password: String, phoneNumber: String) {
         viewModelScope.launch {
             _registrationState.value = Resource.Loading()
             userRepository.registerUser(username, password, phoneNumber).fold(
-                onSuccess = { user -> _registrationState.value = Resource.Success(user) },
-                onFailure = { e -> _registrationState.value = Resource.Error(e.message ?: "Registration failed") }
+                onSuccess = { user ->
+                    _registrationState.value = Resource.Success(user)
+                },
+                onFailure = { e ->
+                    _registrationState.value = Resource.Error(e.message ?: "Registration failed")
+                }
             )
         }
     }
-
-
 
     fun loginUser(identifier: String, password: String) {
         viewModelScope.launch {
             _loginState.value = Resource.Loading()
             userRepository.loginUser(identifier, password).fold(
                 onSuccess = { user ->
-                    // Only set user ID in repository
                     userRepository.setCurrentUserId(user.userId)
                     _currentUser.value = user
                     _loginState.value = Resource.Success(user)
@@ -93,15 +78,15 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-
-
     fun logout() {
         viewModelScope.launch {
             userRepository.clearCurrentUser()
             _currentUser.value = null
+            _authState.value = AuthState.Unauthenticated
         }
     }
 }
+
 sealed class AuthState {
     object Unauthenticated : AuthState()
     data class Authenticated(val userId: String) : AuthState()

@@ -49,5 +49,12 @@ interface SavingsRepository {
         groupId: String
     )
 
+    suspend fun getMemberSavingsTotalByGroupAndCycle(
+        groupId: String,
+        cycleId: String,
+        memberId: String
+    ): Int
 
+
+    suspend fun getTotalGroupSavings(groupId: String): Int
 }

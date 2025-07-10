@@ -38,7 +38,8 @@ interface CycleDao {
     @Query("SELECT * FROM Cycle WHERE group_id = :groupId")
     suspend fun getCyclesForGroup(groupId: String): List<Cycle>
 
-    @Query("SELECT SUM(totalSavings) FROM Cycle")
+    @Query("SELECT SUM(total_savings) FROM Cycle")
+
     suspend fun getTotalSavings(): Int?
 
     @Query("SELECT * FROM Cycle ORDER BY start_date DESC")

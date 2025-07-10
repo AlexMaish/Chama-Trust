@@ -71,6 +71,23 @@ interface MonthlySavingEntryDao {
     suspend fun getSavingsForMemberInCycle(memberId: String, cycleId: String): List<MonthlySavingEntry>
 
 
+    @Query("""
+        SELECT COALESCE(SUM(amount), 0)
+        FROM MonthlySavingEntry
+        WHERE member_id = :memberId
+        AND group_id = :groupId
+        AND saving_id IN (
+            SELECT saving_id FROM MonthlySaving 
+            WHERE cycle_id = :cycleId
+        )
+    """)
+    suspend fun getTotalForMemberInGroupCycle(
+        memberId: String,
+        groupId: String,
+        cycleId: String
+    ): Int
 
 
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM MonthlySavingEntry WHERE group_id = :groupId")
+    suspend fun getTotalSavingsByGroup(groupId: String): Int
 }

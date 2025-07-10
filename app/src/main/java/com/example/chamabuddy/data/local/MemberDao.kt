@@ -74,4 +74,7 @@ interface MemberDao {
 
     @Query("SELECT * FROM member WHERE group_id = :groupId AND REPLACE(REPLACE(phone_number, ' ', ''), '-', '') = :normalizedPhone")
     suspend fun getMemberByNormalizedPhone(groupId: String, normalizedPhone: String): Member?
+
+    @Query("SELECT * FROM member WHERE group_id = :groupId AND is_active = 1")
+    suspend fun getActiveMembersByGroup(groupId: String): List<Member>
 }

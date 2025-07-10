@@ -3,7 +3,9 @@ package com.example.chamabuddy.data.repository
 import android.net.Uri
 import com.example.chamabuddy.data.local.MemberDao
 import com.example.chamabuddy.data.local.UserDao
+import com.example.chamabuddy.data.local.UserGroupDao
 import com.example.chamabuddy.domain.model.Member
+import com.example.chamabuddy.domain.model.UserGroup
 import com.example.chamabuddy.domain.repository.MemberRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +16,8 @@ import javax.inject.Inject
 
 class MemberRepositoryImpl @Inject constructor(
     private val memberDao: MemberDao,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val userGroupDao: UserGroupDao
 ) : MemberRepository {
 
     override suspend fun getMemberNameById(memberId: String): String? {
@@ -78,6 +81,14 @@ class MemberRepositoryImpl @Inject constructor(
                 throw IllegalStateException("Member must be a registered user")
             }
 
+            userGroupDao.insertUserGroup(
+                UserGroup(
+                    userId = user.userId,
+                    groupId = member.groupId,
+                    isOwner = false
+                )
+            )
+
             val memberWithUserId = member.copy(userId = user.userId)
             val memberId = UUID.randomUUID().toString()
             memberDao.insertMember(memberWithUserId.copy(memberId = memberId))
@@ -116,5 +127,9 @@ class MemberRepositoryImpl @Inject constructor(
         return this.replace(Regex("[^0-9]"), "").trim()
     }
 
+
+    override suspend fun getActiveMembersByGroup(groupId: String): List<Member> {
+        return memberDao.getActiveMembersByGroup(groupId)
+    }
 
 }

@@ -23,7 +23,7 @@ import java.util.Date
         UserGroup::class,
         GroupMember::class
     ],
-    version = 6,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

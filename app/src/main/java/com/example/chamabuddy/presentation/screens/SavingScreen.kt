@@ -53,6 +53,16 @@ fun SavingsScreen(
         }
     }
 
+
+    LaunchedEffect(groupId) {
+        if (viewModel.activeCycle.value == null) {
+            // Show error or disable UI
+        } else {
+            viewModel.initializeGroupId(groupId)
+        }
+    }
+
+
     LaunchedEffect(groupId) {
         viewModel.initializeGroupId(groupId)
     }

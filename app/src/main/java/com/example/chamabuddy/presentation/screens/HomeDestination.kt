@@ -25,11 +25,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -96,6 +99,7 @@ import com.example.chamabuddy.presentation.navigation.MembersDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
 import com.example.chamabuddy.presentation.navigation.ProfileDestination
 import com.example.chamabuddy.presentation.navigation.SavingsDestination
+import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.CycleEvent
 import com.example.chamabuddy.presentation.viewmodel.CycleState
 import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
@@ -141,6 +145,18 @@ fun HomeScreen(
     val currentBackStackEntry = navController.currentBackStackEntry
     val savedStateHandle = currentBackStackEntry?.savedStateHandle
     var refreshTrigger by remember { mutableStateOf(0) }
+
+
+    val totalSavings by viewModel.totalGroupSavings.collectAsState()
+
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val currentMemberId by authViewModel.currentMemberId.collectAsState()
+
+    LaunchedEffect(groupId) {
+        if (groupId.isNotEmpty()) {
+            authViewModel.loadCurrentMemberId(groupId)
+        }
+    }
 
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.get<Boolean>("cycle_created")?.let { created ->
@@ -190,8 +206,9 @@ fun HomeScreen(
         viewModel.loadUserGroups()
 
         if (groupId.isNotEmpty()) {
+            // Call the public loadGroupData function
             viewModel.loadGroupData(groupId)
-            viewModel.loadCyclesForGroup(groupId) // Load group-specific cycles
+            viewModel.loadCyclesForGroup(groupId)
         } else {
             viewModel.setSnackbarMessage("No group selected. Please select a group first.")
             viewModel.showSnackbar()
@@ -213,14 +230,13 @@ fun HomeScreen(
     val stateValue by viewModel.state.collectAsState()
 
 
-    val totalSavings by viewModel.totalSavings.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val bottomBarItems = listOf(
-        TabItem(HomeDestination, Icons.Filled.Home, "Home"),
-        TabItem(SavingsDestination, Icons.Filled.Savings, "Savings"),
-        TabItem(BeneficiaryDestination, Icons.Filled.MonetizationOn, "Beneficiary"),
-        TabItem(MembersDestination, Icons.Filled.People, "Members"),
-        TabItem(ProfileDestination, Icons.Filled.Person, "Profile")
+        TabItem(icon = Icons.Default.Home, title = "Home", destination = HomeDestination),
+        TabItem(icon = Icons.Default.Person, title = "Beneficiary", destination = BeneficiaryDestination),
+        TabItem(icon = Icons.Default.Money, title = "Savings", destination = SavingsDestination),
+        TabItem(icon = Icons.Default.Group, title = "Members", destination = MembersDestination),
+        TabItem(icon = Icons.Default.AccountCircle, title = "Profile", destination = ProfileDestination)
     )
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -306,7 +322,8 @@ fun HomeScreen(
                 BottomBar(
                     navController = navController,
                     items = bottomBarItems,
-                    currentGroupId = groupId
+                    currentGroupId = groupId,
+                    currentMemberId = currentMemberId
                 )
             },
             containerColor = SoftOffWhite
@@ -797,7 +814,8 @@ data class TabItem(
 fun BottomBar(
     navController: NavHostController,
     items: List<TabItem>,
-    currentGroupId: String
+    currentGroupId: String,
+    currentMemberId: String? // Add current member ID parameter
 ) {
     NavigationBar {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -814,17 +832,28 @@ fun BottomBar(
                     when (item.destination) {
                         HomeDestination ->
                             navController.navigate("${HomeDestination.route}/$currentGroupId")
+
+                        BeneficiaryDestination ->  // Add this case
+                            navController.navigate("${BeneficiaryDestination.route}/$currentGroupId")
+
                         SavingsDestination ->
                             navController.navigate("${SavingsDestination.route}/$currentGroupId")
+
                         MembersDestination ->
                             navController.navigate("${MembersDestination.route}/$currentGroupId")
-                        ProfileDestination ->
-                            navController.navigate("${ProfileDestination.route}/$currentGroupId/current_user")
-                        else ->
-                            navController.navigate(item.destination.route)
+
+                        ProfileDestination -> {
+                            if (currentMemberId != null) {
+                                navController.navigate(
+                                    "${ProfileDestination.route}/$currentGroupId/$currentMemberId"
+                                )
+                            }
+                        }
                     }
                 }
             )
         }
+
+
     }
 }

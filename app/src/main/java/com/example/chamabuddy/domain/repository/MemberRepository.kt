@@ -21,4 +21,6 @@ interface MemberRepository {
     suspend fun getMemberByUserId(userId: String, groupId: String): Member?
 
     suspend fun getMemberByPhoneForGroup(phone: String, groupId: String): Member?
+
+    suspend fun getActiveMembersByGroup(groupId: String): List<Member>
 }

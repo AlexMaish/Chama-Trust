@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Member
+import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.MemberRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MemberViewModel @Inject constructor(
+    private val groupRepository: GroupRepository,
     private val memberRepository: MemberRepository
 ) : ViewModel() {
 
@@ -81,7 +83,7 @@ class MemberViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = MemberState.Loading
             try {
-                memberRepository.addMember(member)
+                groupRepository.addMemberToGroup(currentGroupId, member.phoneNumber)
                 loadMembersForGroup(currentGroupId)
             } catch (e: IllegalStateException) {
                 // Specific error for user not registered

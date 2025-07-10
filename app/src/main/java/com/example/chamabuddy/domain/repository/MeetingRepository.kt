@@ -24,8 +24,7 @@ interface MeetingRepository {
     ): Result<Unit>
     suspend fun selectBeneficiaries(
         meetingId: String,
-        firstBeneficiaryId: String,
-        secondBeneficiaryId: String
+        beneficiaryIds: List<String>
     ): Result<Unit>
     suspend fun getMeetingById(meetingId: String): WeeklyMeeting?
     suspend fun getLatestMeeting(cycleId: String): WeeklyMeeting?
@@ -34,6 +33,6 @@ interface MeetingRepository {
     suspend fun getBeneficiariesForMeeting(meetingId: String): List<BeneficiaryAndAmount>
     suspend fun deleteBeneficiariesForMeeting(meetingId: String)
     suspend fun getBeneficiariesByCycle(cycleId: String): List<Beneficiary>
-
+    suspend fun getMeetingWithCycle(meetingId: String): WeeklyMeetingWithCycle?
 
 }

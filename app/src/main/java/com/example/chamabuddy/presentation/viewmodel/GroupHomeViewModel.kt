@@ -1,4 +1,3 @@
-// GroupHomeViewModel.kt
 package com.example.chamabuddy.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -16,7 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class GroupHomeViewModel @Inject constructor(
     private val groupRepository: GroupRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GroupHomeUiState())
@@ -39,19 +38,23 @@ class GroupHomeViewModel @Inject constructor(
 
     fun validateAndCreateGroup(name: String) {
         viewModelScope.launch {
-            try {
-                // ... validation logic ...
+            if (name.isBlank()) {
+                _uiState.value = _uiState.value.copy(
+                    nameValidationError = "Group name cannot be empty"
+                )
+                return@launch
+            }
 
+            try {
                 val userId = userRepository.getCurrentUserId()
                     ?: throw Exception("User not authenticated")
 
-                // Create group
                 groupRepository.createGroup(name, userId)
-
-                // Refresh groups list
                 loadUserGroups()
-
-                // ... update UI state ...
+                hideCreateGroupDialog()
+                _uiState.value = _uiState.value.copy(
+                    snackbarMessage = "Group created successfully"
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     snackbarMessage = "Failed to create group: ${e.message}"
@@ -64,17 +67,9 @@ class GroupHomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             try {
-                // Get current user ID
-                val userId = userRepository.getCurrentUserId()
-                    ?: throw Exception("User not authenticated")
+                val userId = userRepository.getCurrentUserId()!!
 
-                // Get current user object
-                val currentUser = userRepository.getUserById(userId)
-                    ?: throw Exception("User data not found. Please re-login.")
-
-
-                // Use phone number to fetch groups
-                val groups = groupRepository.getUserGroupsByPhone(currentUser.phoneNumber)
+                val groups = groupRepository.getUserGroups(userId)
 
                 _uiState.value = _uiState.value.copy(
                     groups = groups,
@@ -89,8 +84,9 @@ class GroupHomeViewModel @Inject constructor(
         }
     }
 
-
-
+    fun refreshGroups() {
+        loadUserGroups()
+    }
 
     fun clearSnackbar() {
         _uiState.value = _uiState.value.copy(snackbarMessage = null)

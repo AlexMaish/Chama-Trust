@@ -11,4 +11,6 @@ interface BeneficiaryRepository {
     suspend fun getBeneficiariesByCycle(cycleId: String): List<Beneficiary>
     suspend fun getBeneficiaryById(beneficiaryId: String): Beneficiary?
     suspend fun deleteBeneficiariesForMeeting(meetingId: String)
+
+    suspend fun getBeneficiariesForMeeting(meetingId: String): List<Beneficiary>
 }

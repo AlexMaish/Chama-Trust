@@ -37,6 +37,23 @@ class SavingsRepositoryImpl @Inject constructor(
         groupId: String
     ) = withContext(dispatcher) {
         try {
+
+            // 1. Check if cycle belongs to the group
+            val cycle = cycleDao.getCycleById(cycleId)
+                ?: throw IllegalStateException("Cycle not found")
+
+            if (cycle.groupId != groupId) {
+                throw IllegalStateException("Cycle does not belong to this group")
+            }
+
+            // 2. Check if group has active cycle
+            val activeCycle = cycleDao.getActiveCycleForGroup(groupId)
+                ?: throw IllegalStateException("No active cycle in this group")
+
+            // 3. Ensure saving is recorded in active cycle
+            if (cycle.cycleId != activeCycle.cycleId) {
+                throw IllegalStateException("Can only record savings in active cycle")
+            }
             val recorder = memberDao.getMemberById(recordedBy)
             if (recorder == null) {
                 throw IllegalStateException("Recorder (ID: $recordedBy) is not a valid group member")
@@ -112,7 +129,6 @@ class SavingsRepositoryImpl @Inject constructor(
     }
 
 
-
     private fun calculateNextMonth(currentMonth: String): String {
         val format = SimpleDateFormat("MM/yyyy", Locale.getDefault())
         val date = format.parse(currentMonth) ?: return currentMonth
@@ -162,15 +178,14 @@ class SavingsRepositoryImpl @Inject constructor(
     }
 
 
-
-
-
-
     override suspend fun getMemberSavingsTotal(memberId: String): Int {
         return savingEntryDao.getMemberSavingsTotal(memberId) ?: 0
     }
 
-    override fun getMemberSavings(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>> {
+    override fun getMemberSavings(
+        cycleId: String,
+        memberId: String
+    ): Flow<List<MonthlySavingEntry>> {
         return savingEntryDao.getMemberSavingsForCycle(cycleId, memberId)
     }
 
@@ -178,29 +193,31 @@ class SavingsRepositoryImpl @Inject constructor(
         return savingDao.getSavingsForCycle(cycleId)
     }
 
-    override suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String) = withContext(dispatcher) {
-        savingEntryDao.getMemberSavingsTotalByCycle(cycleId, memberId)
-    }
+    override suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String) =
+        withContext(dispatcher) {
+            savingEntryDao.getMemberSavingsTotalByCycle(cycleId, memberId)
+        }
 
-    override suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String) = withContext(dispatcher) {
-        val saving = savingDao.getSavingForMonth(cycleId, monthYear)
-            ?: throw IllegalStateException("Monthly saving not found")
-        val activeMembers = memberDao.getActiveMembers().first()
-        val entries = savingEntryDao.getEntriesForSaving(saving.savingId).first()
-        val currentAmount = entries.sumOf { it.amount }
-        val membersCompleted = entries
-            .groupBy { it.memberId }
-            .count { (_, memberEntries) ->
-                memberEntries.sumOf { it.amount } >= saving.targetAmount
-            }
+    override suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String) =
+        withContext(dispatcher) {
+            val saving = savingDao.getSavingForMonth(cycleId, monthYear)
+                ?: throw IllegalStateException("Monthly saving not found")
+            val activeMembers = memberDao.getActiveMembers().first()
+            val entries = savingEntryDao.getEntriesForSaving(saving.savingId).first()
+            val currentAmount = entries.sumOf { it.amount }
+            val membersCompleted = entries
+                .groupBy { it.memberId }
+                .count { (_, memberEntries) ->
+                    memberEntries.sumOf { it.amount } >= saving.targetAmount
+                }
 
-        SavingsProgress(
-            targetAmount = saving.targetAmount * activeMembers.size,
-            currentAmount = currentAmount,
-            membersCompleted = membersCompleted,
-            totalMembers = activeMembers.size
-        )
-    }
+            SavingsProgress(
+                targetAmount = saving.targetAmount * activeMembers.size,
+                currentAmount = currentAmount,
+                membersCompleted = membersCompleted,
+                totalMembers = activeMembers.size
+            )
+        }
 
     override suspend fun getCycleWithSavingsForMember(memberId: String): List<CycleWithSavings> {
         return withContext(dispatcher) {
@@ -218,8 +235,6 @@ class SavingsRepositoryImpl @Inject constructor(
             }
         }
     }
-
-
 
 
     override suspend fun createIncompleteMonths(
@@ -257,6 +272,20 @@ class SavingsRepositoryImpl @Inject constructor(
     }
 
 
+    override suspend fun getMemberSavingsTotalByGroupAndCycle(
+        groupId: String,
+        cycleId: String,
+        memberId: String
+    ): Int {
+        return savingEntryDao.getTotalForMemberInGroupCycle(
+            memberId = memberId,
+            groupId = groupId,
+            cycleId = cycleId
+        )
+    }
 
 
+    override suspend fun getTotalGroupSavings(groupId: String): Int {
+        return savingEntryDao.getTotalSavingsByGroup(groupId) ?: 0
+    }
 }

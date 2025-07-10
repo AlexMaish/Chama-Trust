@@ -27,13 +27,8 @@ fun CreateCycleScreen(
     navController: NavHostController,
     navigateBack: () -> Unit,
     groupId: String
-
 ) {
-
     val viewModel: CreateCycleViewModel = hiltViewModel()
-
-
-
     val uiState by viewModel.uiState.collectAsState()
     val isCreating by viewModel.isCreating.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -43,42 +38,25 @@ fun CreateCycleScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-
-
-    // State variables for input fields
-    var weeklyAmount by remember { mutableStateOf("") }
-    var monthlyAmount by remember { mutableStateOf("") }
-    var totalMembers by remember { mutableStateOf("") }
-    var startDate by remember { mutableStateOf(Calendar.getInstance()) }
-
-
-
     // Ensure groupId is set in ViewModel
     LaunchedEffect(groupId) {
         viewModel.setGroupId(groupId)
     }
 
-
-
-
-
     // Handle creation success
     LaunchedEffect(creationSuccess) {
         if (creationSuccess) {
-            // Notify HomeScreen to refresh
             navController.previousBackStackEntry?.savedStateHandle?.set("cycle_created", true)
             navigateBack()
         }
     }
+
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.clearErrorMessage() // Fix the spelling here
+            viewModel.clearErrorMessage()
         }
     }
-
-
-
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -147,6 +125,19 @@ fun CreateCycleScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Beneficiaries per meeting
+            OutlinedTextField(
+                value = uiState.beneficiariesPerMeeting.toString(),
+                onValueChange = { viewModel.updateBeneficiariesPerMeeting(it) },
+                label = { Text("Beneficiaries per Meeting") },
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    keyboardType = KeyboardType.Number
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Start date selector
             DatePickerCard(
                 selectedDate = uiState.startDate,
@@ -202,8 +193,4 @@ fun DatePickerCard(
             DatePicker(state = datePickerState)
         }
     }
-
-
-
 }
-

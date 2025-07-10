@@ -36,10 +36,17 @@ fun BeneficiarySelectionScreen(
     viewModel: MeetingViewModel = hiltViewModel()
 ) {
     val beneficiaryState by viewModel.beneficiaryState.collectAsState()
-    var firstBeneficiary by remember { mutableStateOf<Member?>(null) }
-    var secondBeneficiary by remember { mutableStateOf<Member?>(null) }
-    val isSaveEnabled = firstBeneficiary != null && secondBeneficiary != null
+    val snackbarHostState = remember { SnackbarHostState() }
+    val maxBeneficiaries = beneficiaryState.maxBeneficiaries
+    var selectedBeneficiaries by remember { mutableStateOf<List<Member>>(emptyList()) }
     val coroutineScope = rememberCoroutineScope()
+
+    // Initialize with existing beneficiaries
+    LaunchedEffect(beneficiaryState.existingBeneficiaries) {
+        if (beneficiaryState.existingBeneficiaries.isNotEmpty()) {
+            selectedBeneficiaries = beneficiaryState.existingBeneficiaries
+        }
+    }
 
     // Load eligible beneficiaries
     LaunchedEffect(meetingId) {
@@ -47,6 +54,7 @@ fun BeneficiarySelectionScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Select Beneficiaries") },
@@ -58,28 +66,31 @@ fun BeneficiarySelectionScreen(
             )
         },
         floatingActionButton = {
-            if (isSaveEnabled) {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        firstBeneficiary?.let { first ->
-                            secondBeneficiary?.let { second ->
-                                coroutineScope.launch {
-                                    viewModel.handleEvent(
-                                        MeetingEvent.ConfirmBeneficiarySelection(
-                                            meetingId,
-                                            first.memberId,
-                                            second.memberId
-                                        )
-                                    )
-                                    navigateBack()
-                                }
-                            }
+            ExtendedFloatingActionButton(
+                onClick = {
+                    if (selectedBeneficiaries.isEmpty()) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Please select at least one beneficiary")
                         }
-                    },
-                    icon = { Icon(Icons.Default.Check, contentDescription = "Save") },
-                    text = { Text("Save Beneficiaries") }
-                )
-            }
+                    } else if (selectedBeneficiaries.size > maxBeneficiaries) {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Cannot select more than $maxBeneficiaries beneficiaries")
+                        }
+                    } else {
+                        coroutineScope.launch {
+                            viewModel.handleEvent(
+                                MeetingEvent.ConfirmBeneficiarySelection(
+                                    meetingId,
+                                    selectedBeneficiaries.map { it.memberId }
+                                )
+                            )
+                            onSaveComplete()
+                        }
+                    }
+                },
+                icon = { Icon(Icons.Default.Check, contentDescription = "Save") },
+                text = { Text("Save Beneficiaries") }
+            )
         }
     ) { innerPadding ->
         Box(
@@ -98,7 +109,8 @@ fun BeneficiarySelectionScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
-                beneficiaryState.eligibleMembers.isEmpty() -> {
+                beneficiaryState.eligibleMembers.isEmpty() &&
+                        beneficiaryState.existingBeneficiaries.isEmpty() -> {
                     Text(
                         text = "No eligible beneficiaries available",
                         style = MaterialTheme.typography.bodyLarge,
@@ -108,34 +120,66 @@ fun BeneficiarySelectionScreen(
                 else -> {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Text(
-                            text = "Select two beneficiaries for this meeting",
+                            "Select up to $maxBeneficiaries beneficiaries for this meeting",
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(16.dp)
+                        )
+                        Text(
+                            "Existing selections are pre-selected",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 16.dp)
                         )
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(beneficiaryState.eligibleMembers) { member ->
-                                BeneficiaryCandidateItem(
-                                    member = member,
-                                    isSelected = member == firstBeneficiary || member == secondBeneficiary,
-                                    onSelect = {
-                                        when {
-                                            firstBeneficiary == null -> firstBeneficiary = member
-                                            secondBeneficiary == null && firstBeneficiary != member ->
-                                                secondBeneficiary = member
-                                            firstBeneficiary == member -> firstBeneficiary = null
-                                            secondBeneficiary == member -> secondBeneficiary = null
-                                            else -> {
-                                                // Replace the oldest selection
-                                                firstBeneficiary = secondBeneficiary
-                                                secondBeneficiary = member
+                            // Show existing beneficiaries first
+                            if (beneficiaryState.existingBeneficiaries.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        "Current Beneficiaries",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+                                }
+                                items(beneficiaryState.existingBeneficiaries) { member ->
+                                    BeneficiaryCandidateItem(
+                                        member = member,
+                                        isSelected = selectedBeneficiaries.contains(member),
+                                        onSelect = {
+                                            selectedBeneficiaries = selectedBeneficiaries - member
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Show other eligible members
+                            if (beneficiaryState.eligibleMembers.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        "Eligible Members",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+                                }
+                                items(beneficiaryState.eligibleMembers) { member ->
+                                    BeneficiaryCandidateItem(
+                                        member = member,
+                                        isSelected = selectedBeneficiaries.contains(member),
+                                        onSelect = {
+                                            if (selectedBeneficiaries.size < maxBeneficiaries) {
+                                                selectedBeneficiaries = selectedBeneficiaries + member
+                                            } else {
+                                                coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        "Max $maxBeneficiaries beneficiaries allowed"
+                                                    )
+                                                }
                                             }
                                         }
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }
@@ -144,7 +188,6 @@ fun BeneficiarySelectionScreen(
         }
     }
 }
-
 @Composable
 fun BeneficiaryCandidateItem(
     member: Member,

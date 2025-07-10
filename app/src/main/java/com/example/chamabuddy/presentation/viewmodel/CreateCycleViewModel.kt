@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -16,7 +17,6 @@ import javax.inject.Inject
 class CreateCycleViewModel @Inject constructor(
     private val cycleRepository: CycleRepository,
     private val groupRepository: GroupRepository // Add this
-
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateCycleState())
@@ -44,6 +44,13 @@ class CreateCycleViewModel @Inject constructor(
     fun updateStartDate(date: Long) {
         _uiState.value = _uiState.value.copy(startDate = date)
     }
+
+
+    fun updateBeneficiariesPerMeeting(value: String) {
+        val intValue = value.toIntOrNull() ?: return
+        _uiState.update { it.copy(beneficiariesPerMeeting = intValue) }
+    }
+
     fun clearErrorMessage() {
         _errorMessage.value = null
     }
@@ -75,7 +82,8 @@ class CreateCycleViewModel @Inject constructor(
                     monthlyAmount = currentState.monthlySavingsAmount,
                     totalMembers = actualMemberCount,
                     startDate = currentState.startDate,
-                    groupId = groupId
+                    groupId = groupId,
+                    beneficiariesPerMeeting = uiState.value.beneficiariesPerMeeting
                 )
 
                 if (result.isFailure) {
@@ -86,8 +94,8 @@ class CreateCycleViewModel @Inject constructor(
                 if (cycleId.isNullOrEmpty()) {
                     throw Exception("Cycle created but no ID returned")
                 }
-                println("Cycle created successfully!")
 
+                println("Cycle created successfully!")
                 _creationSuccess.value = true
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Failed to create cycle"
@@ -102,49 +110,11 @@ class CreateCycleViewModel @Inject constructor(
         groupId = id
     }
 }
-//
-//    fun createCycle(groupId: String) {
-//        viewModelScope.launch {
-//            _isCreating.value = true
-//            try {
-//                // Get group with members
-//                val groupWithMembers = groupRepository.getGroupWithMembers(groupId)
-//                if (groupWithMembers == null) {
-//                    _errorMessage.value = "Group not found"
-//                    return@launch
-//                }
-//
-//                val totalMembers = groupWithMembers.members.size
-//                if (totalMembers == 0) {
-//                    _errorMessage.value = "Group has no members"
-//                    return@launch
-//                }
-//
-//                // Get current UI state values
-//                val currentState = uiState.value
-//
-//                cycleRepository.startNewCycle(
-//                    weeklyAmount = currentState.weeklyAmount,
-//                    monthlyAmount = currentState.monthlySavingsAmount,
-//                    totalMembers = totalMembers,
-//                    startDate = currentState.startDate,
-//                    groupId = groupId
-//                )
-//                _creationSuccess.value = true
-//            } catch (e: Exception) {
-//                _errorMessage.value = e.message ?: "Failed to create cycle"
-//            } finally {
-//                _isCreating.value = false
-//            }
-//        }
-//    }
-
-
-
 
 data class CreateCycleState(
     val weeklyAmount: Int = 200,
     val monthlySavingsAmount: Int = 200,
     val startDate: Long = System.currentTimeMillis(),
-    val groupId: String = ""
+    val groupId: String = "",
+    val beneficiariesPerMeeting: Int = 2
 )

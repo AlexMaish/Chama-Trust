@@ -43,20 +43,29 @@ fun ContributionScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+
+
     LaunchedEffect(meetingState) {
         when (val s = meetingState) {
             is MeetingState.ContributionRecorded -> {
                 if (s.success) {
-                    snackbarHostState.showSnackbar("Meeting saved successfully!")
-
-                    // Then handle navigation
                     val status = viewModel.getMeetingStatus(meetingId)
-                    if (status.beneficiariesSelected) {
-                        navigateBack()
-                    } else {
-                        snackbarHostState.showSnackbar("Select beneficiaries first to save meeting")
+
+                    // Force navigation if beneficiaries not selected or incomplete
+                    if (!status.beneficiariesSelected ||
+                        status.beneficiaryCount < status.requiredBeneficiaryCount) {
+
+                        snackbarHostState.showSnackbar("Please select beneficiaries")
                         navigateToBeneficiarySelection()
+                    } else {
+                        navigateBack()
                     }
+                }
+            }
+            is MeetingState.BeneficiariesSelected -> {
+                if (s.success) {
+                    // After saving beneficiaries, navigate back to cycle detail
+                    navigateBack()
                 }
             }
             is MeetingState.Error -> {
@@ -94,6 +103,14 @@ fun ContributionScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadSavedContributionState()?.let { savedState ->
+            viewModel.restoreContributions(savedState)
+        } ?: viewModel.handleEvent(
+            MeetingEvent.GetContributionsForMeeting(meetingId)
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
@@ -106,7 +123,12 @@ fun ContributionScreen(
                 },
                 actions = {
                     Button(
-                        onClick = { if (isNextEnabled) navigateToBeneficiarySelection() },
+                        onClick = {
+                            if (isNextEnabled) {
+                                viewModel.saveContributionState(state.contributions)
+                                navigateToBeneficiarySelection()
+                            }
+                        },
                         enabled = isNextEnabled,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,

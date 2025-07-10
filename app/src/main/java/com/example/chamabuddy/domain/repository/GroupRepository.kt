@@ -24,4 +24,6 @@ interface GroupRepository {
     suspend fun getUserGroupsByPhone(phoneNumber: String): List<Group>
 
     suspend fun addMemberToGroup(groupId: String, phoneNumber: String)
+
+    suspend fun getGroupById(groupId: String): Group?
 }

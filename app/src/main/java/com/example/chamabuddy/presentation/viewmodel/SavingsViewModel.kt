@@ -1,5 +1,6 @@
 package com.example.chamabuddy.presentation.viewmodel
 
+import android.R.interpolator.cycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -100,12 +101,16 @@ class SavingsViewModel @Inject constructor(
     private fun loadAllMemberSavingsTotalsByCycle() {
         viewModelScope.launch {
             try {
-                // Only get totals for current group's members
                 val activeMembers = memberRepository.getMembersByGroup(_groupId)
                 val totals = mutableMapOf<String, Int>()
 
                 activeMembers.forEach { member ->
-                    val total = savingsRepository.getMemberSavingsTotalByCycle(_cycleId, member.memberId)
+                    // Get savings specific to group and cycle
+                    val total = savingsRepository.getMemberSavingsTotalByGroupAndCycle(
+                        groupId = _groupId,
+                        cycleId = _cycleId,
+                        memberId = member.memberId
+                    )
                     totals[member.memberId] = total
                 }
                 _memberTotals.value = totals
@@ -177,6 +182,14 @@ class SavingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = SavingsState.Loading
             try {
+                // Validate against active cycle
+                val activeCycle = cycleRepository.getActiveCycleForGroup(event.groupId)
+                    ?: throw IllegalStateException("No active cycle in group")
+
+                if (activeCycle.cycleId != event.cycleId) {
+                    throw IllegalStateException("Must record in current cycle")
+                }
+
                 val result = savingsRepository.recordMonthlySavings(
                     cycleId = event.cycleId,
                     monthYear = event.monthYear,
@@ -185,7 +198,12 @@ class SavingsViewModel @Inject constructor(
                     recordedBy = event.recordedBy,
                     groupId = event.groupId
                 )
+                val cycle = cycleRepository.getCycleById(event.cycleId)
 
+                if (cycle == null) {
+                    _state.value = SavingsState.Error("No active cycle found")
+                    return@launch
+                }
                 if (result.isSuccess) {
                     // Refresh ALL cycles after saving
                     getAllMemberCycles(event.memberId)

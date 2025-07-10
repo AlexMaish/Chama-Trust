@@ -4,7 +4,6 @@ package com.example.chamabuddy.domain.model
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-
 @Entity(tableName = "Cycle")
 data class Cycle(
     @PrimaryKey
@@ -17,7 +16,6 @@ data class Cycle(
     @ColumnInfo(name = "end_date")
     val endDate: Long? = null,
 
-
     @ColumnInfo(name = "weekly_amount")
     val weeklyAmount: Int,
 
@@ -29,15 +27,13 @@ data class Cycle(
 
     @ColumnInfo(name = "total_members")
     val totalMembers: Int,
+
+    @ColumnInfo(name = "total_savings")
     var totalSavings: Int,
 
-
     @ColumnInfo(name = "group_id")
-    val groupId: String
+    val groupId: String,
 
-
-
-
-
+    @ColumnInfo(name = "beneficiaries_per_meeting")
+    val beneficiariesPerMeeting: Int = 2
 )
-

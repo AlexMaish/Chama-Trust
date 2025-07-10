@@ -1,4 +1,3 @@
-
 package com.example.chamabuddy.di
 
 import android.content.Context
@@ -52,7 +51,7 @@ object AppModule {
     fun provideUserRepository(
         userDao: UserDao,
         userGroupDao: UserGroupDao,
-        memberRepository: MemberRepository, // Keep this dependency
+        memberRepository: MemberRepository,
         @ApplicationContext context: Context
     ): UserRepository = UserRepositoryImpl(
         userDao = userDao,
@@ -60,15 +59,19 @@ object AppModule {
         memberRepository = memberRepository,
         context = context
     )
+
     @Provides
     @Singleton
     fun provideMemberRepository(
         memberDao: MemberDao,
-        userDao: UserDao
+        userDao: UserDao,
+        userGroupDao: UserGroupDao
     ): MemberRepository = MemberRepositoryImpl(
         memberDao = memberDao,
-        userDao = userDao
+        userDao = userDao,
+        userGroupDao = userGroupDao
     )
+
     @Provides
     @Singleton
     fun provideCycleRepository(
@@ -95,14 +98,16 @@ object AppModule {
         beneficiaryDao: BeneficiaryDao,
         memberDao: MemberDao,
         cycleDao: CycleDao,
+        weeklyMeetingDao: WeeklyMeetingDao,
         dispatcher: CoroutineDispatcher
     ): MeetingRepository = MeetingRepositoryImpl(
-        meetingDao,
-        contributionDao,
-        beneficiaryDao,
-        memberDao,
-        cycleDao,
-        dispatcher
+        meetingDao = meetingDao,
+        contributionDao = contributionDao,
+        beneficiaryDao = beneficiaryDao,
+        memberDao = memberDao,
+        cycleDao = cycleDao,
+        weeklyMeetingDao = weeklyMeetingDao,
+        dispatcher = dispatcher
     )
 
     @Provides
@@ -142,11 +147,13 @@ object AppModule {
         groupDao: GroupDao,
         memberDao: MemberDao,
         userGroupDao: UserGroupDao,
-        userRepository: UserRepository
+        userRepository: UserRepository,
+        groupMemberDao: GroupMemberDao  // Added this dependency
     ): GroupRepository = GroupRepositoryImpl(
         groupDao = groupDao,
         memberDao = memberDao,
         userGroupDao = userGroupDao,
-        userRepository = userRepository
+        userRepository = userRepository,
+        groupMemberDao = groupMemberDao  // Passed to implementation
     )
 }

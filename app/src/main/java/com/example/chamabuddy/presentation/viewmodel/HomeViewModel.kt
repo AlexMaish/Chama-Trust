@@ -7,10 +7,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.Group
 import com.example.chamabuddy.domain.model.GroupWithMembers
+import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.repository.BeneficiaryRepository
 import com.example.chamabuddy.domain.repository.CycleRepository
 import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.MeetingRepository
+import com.example.chamabuddy.domain.repository.MemberRepository
 import com.example.chamabuddy.domain.repository.SavingsRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +31,7 @@ class HomeViewModel @Inject constructor(
     private val savingsRepository: SavingsRepository,
     private val userRepository: UserRepository,
     private val groupRepository: GroupRepository,
+    private val memberRepository: MemberRepository
 ) : ViewModel() {
 
     private val _groupData = MutableStateFlow<GroupWithMembers?>(null)
@@ -45,6 +48,10 @@ class HomeViewModel @Inject constructor(
 
     private val _userGroups = MutableStateFlow<List<Group>>(emptyList())
     val userGroups: StateFlow<List<Group>> = _userGroups.asStateFlow()
+
+
+    private val _totalGroupSavings = MutableStateFlow(0)
+    val totalGroupSavings: StateFlow<Int> = _totalGroupSavings.asStateFlow()
 
     private val _currentGroupId = MutableStateFlow<String?>(null)
     var currentGroupId: StateFlow<String?> = _currentGroupId.asStateFlow()
@@ -80,7 +87,18 @@ class HomeViewModel @Inject constructor(
 
     fun loadGroupData(groupId: String) {
         viewModelScope.launch {
-            _groupData.value = groupRepository.getGroupWithMembers(groupId)
+            // Change from getGroupsByIds to getGroupById
+            val group = groupRepository.getGroupById(groupId) ?: return@launch
+            val members = memberRepository.getMembersByGroup(groupId)
+
+            // Create GroupWithMembers instead of GroupData
+            _groupData.value = GroupWithMembers(
+                group = group,
+                members = members
+            )
+
+            // Also load total savings for the group
+            _totalGroupSavings.value = savingsRepository.getTotalGroupSavings(groupId)
         }
     }
 
@@ -204,7 +222,8 @@ class HomeViewModel @Inject constructor(
                     event.monthlyAmount,
                     event.totalMembers,
                     event.startDate,
-                    event.groupId
+                    event.groupId,
+                    event.beneficiariesPerMeeting // Pass the new parameter
                 )
                 if (result.isSuccess) {
                     _activeCycle.value = result.getOrNull()
@@ -247,7 +266,8 @@ class HomeViewModel @Inject constructor(
                         event.monthlyAmount,
                         event.totalMembers,
                         event.startDate,
-                        event.groupId
+                        event.groupId,
+                        event.beneficiariesPerMeeting // Pass the new parameter
                     )
 
                     if (newCycleResult.isSuccess) {
@@ -268,7 +288,6 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-
     private fun getCycleStats(cycleId: String) {
         viewModelScope.launch {
             _state.value = CycleState.Loading
@@ -304,7 +323,8 @@ sealed class CycleEvent {
         val monthlyAmount: Int,
         val totalMembers: Int,
         val startDate: Long,
-        val groupId: String
+        val groupId: String,
+        val beneficiariesPerMeeting: Int
     ) : CycleEvent()
 
     data class EndCurrentCycle(
@@ -312,9 +332,15 @@ sealed class CycleEvent {
         val monthlyAmount: Int,
         val totalMembers: Int,
         val startDate: Long,
-        val groupId: String
+        val groupId: String,
+        val beneficiariesPerMeeting: Int
     ) : CycleEvent()
 
     data class GetCycleStats(val cycleId: String) : CycleEvent()
     object ResetCycleState : CycleEvent()
 }
+
+data class GroupData(
+    val group: Group,
+    val members: List<Member>
+)

@@ -33,7 +33,10 @@ class BeneficiaryRepositoryImpl @Inject constructor(
     override suspend fun deleteBeneficiariesForMeeting(meetingId: String) {
         beneficiaryDao.deleteBeneficiariesForMeeting(meetingId)
     }
-
+    override suspend fun getBeneficiariesForMeeting(meetingId: String): List<Beneficiary> =
+        withContext(dispatcher) {
+            beneficiaryDao.getBeneficiariesForMeeting(meetingId)
+        }
     override suspend fun getBeneficiaryById(beneficiaryId: String): Beneficiary? =
         withContext(dispatcher) {
             beneficiaryDao.getBeneficiaryById(beneficiaryId)
