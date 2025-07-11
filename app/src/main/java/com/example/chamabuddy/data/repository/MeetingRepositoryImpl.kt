@@ -256,7 +256,9 @@ class MeetingRepositoryImpl @Inject constructor(
     override suspend fun deleteBeneficiariesForMeeting(meetingId: String) {
         beneficiaryDao.deleteBeneficiariesForMeeting(meetingId)
     }
-
+    override suspend fun getCyclesByGroup(groupId: String): List<Cycle> {
+        return cycleDao.getCyclesByGroup(groupId)
+    }
     override suspend fun getBeneficiariesByCycle(cycleId: String): List<Beneficiary> {
         return beneficiaryDao.getBeneficiariesByCycle(cycleId)
     }

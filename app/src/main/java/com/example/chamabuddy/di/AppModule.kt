@@ -148,12 +148,12 @@ object AppModule {
         memberDao: MemberDao,
         userGroupDao: UserGroupDao,
         userRepository: UserRepository,
-        groupMemberDao: GroupMemberDao  // Added this dependency
+        groupMemberDao: GroupMemberDao
     ): GroupRepository = GroupRepositoryImpl(
         groupDao = groupDao,
         memberDao = memberDao,
         userGroupDao = userGroupDao,
         userRepository = userRepository,
-        groupMemberDao = groupMemberDao  // Passed to implementation
+        groupMemberDao = groupMemberDao
     )
 }

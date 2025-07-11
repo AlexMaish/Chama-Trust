@@ -1,6 +1,7 @@
 package com.example.chamabuddy.domain.repository
 
 import com.example.chamabuddy.domain.model.Cycle
+import com.example.chamabuddy.domain.model.CycleWithBeneficiaries
 import kotlinx.coroutines.flow.Flow
 
 interface CycleRepository {
@@ -23,6 +24,8 @@ interface CycleRepository {
     suspend fun getCyclesForGroup(groupId: String): List<Cycle>
     suspend fun getActiveCycleForGroup(groupId: String): Cycle?
     suspend fun getCyclesByGroupId(groupId: String): List<Cycle>
+    suspend fun getCyclesByGroup(groupId: String): List<Cycle>
+    suspend fun getCyclesWithBeneficiaries(groupId: String): List<CycleWithBeneficiaries>
 }
 
 data class CycleStats(

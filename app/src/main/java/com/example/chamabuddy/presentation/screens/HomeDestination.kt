@@ -93,7 +93,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.chamabuddy.R
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.Group
-import com.example.chamabuddy.presentation.navigation.BeneficiaryDestination
+import com.example.chamabuddy.presentation.navigation.BeneficiaryGroupDestination
 import com.example.chamabuddy.presentation.navigation.HomeDestination
 import com.example.chamabuddy.presentation.navigation.MembersDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
@@ -106,8 +106,6 @@ import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.UUID
-
 
 val PremiumNavy = Color(0xFF0A1D3A)
 val SoftOffWhite = Color(0xFFF8F9FA)
@@ -129,7 +127,6 @@ fun HomeScreen(
     val viewModel: HomeViewModel = hiltViewModel()
     var showCreateDialog by remember { mutableStateOf(false) }
 
-
     val listState = rememberLazyListState()
     var bottomBarVisible by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -145,7 +142,6 @@ fun HomeScreen(
     val currentBackStackEntry = navController.currentBackStackEntry
     val savedStateHandle = currentBackStackEntry?.savedStateHandle
     var refreshTrigger by remember { mutableStateOf(0) }
-
 
     val totalSavings by viewModel.totalGroupSavings.collectAsState()
 
@@ -176,10 +172,6 @@ fun HomeScreen(
         }
     }
 
-
-
-
-
     // Show snackbar when needed
     LaunchedEffect(showSnackbar) {
         if (showSnackbar) {
@@ -188,8 +180,6 @@ fun HomeScreen(
         }
     }
 
-
-
     // Drawer state handling
     LaunchedEffect(drawerState) {
         snapshotFlow { drawerState.isOpen }
@@ -197,9 +187,6 @@ fun HomeScreen(
                 bottomBarVisible = !isOpen
             }
     }
-
-
-
 
     LaunchedEffect(groupId) {
         println("HomeScreen groupId: $groupId")
@@ -214,7 +201,8 @@ fun HomeScreen(
             viewModel.showSnackbar()
         }
     }
-// Replace existing scroll detection with:
+
+    // Replace existing scroll detection with:
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .collect { (index, offset) ->
@@ -229,11 +217,10 @@ fun HomeScreen(
 
     val stateValue by viewModel.state.collectAsState()
 
-
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val bottomBarItems = listOf(
         TabItem(icon = Icons.Default.Home, title = "Home", destination = HomeDestination),
-        TabItem(icon = Icons.Default.Person, title = "Beneficiary", destination = BeneficiaryDestination),
+        TabItem(icon = Icons.Default.Person, title = "Beneficiaries", destination = BeneficiaryGroupDestination),
         TabItem(icon = Icons.Default.Money, title = "Savings", destination = SavingsDestination),
         TabItem(icon = Icons.Default.Group, title = "Members", destination = MembersDestination),
         TabItem(icon = Icons.Default.AccountCircle, title = "Profile", destination = ProfileDestination)
@@ -268,8 +255,7 @@ fun HomeScreen(
                             )
                             Text(
                                 text = "${groupData?.members?.size ?: 0} members",
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
+                                color = Color.White.copy(alpha = 0.8f))
                         }
                     },
                     navigationIcon = {
@@ -318,13 +304,33 @@ fun HomeScreen(
                 ) {
                     Icon(Icons.Default.Add, "New Cycle", tint = Color.White)
                 }
-            }, bottomBar = {
-                BottomBar(
-                    navController = navController,
-                    items = bottomBarItems,
-                    currentGroupId = groupId,
-                    currentMemberId = currentMemberId
-                )
+            },
+            bottomBar = {
+                // Bottom Navigation Bar
+                NavigationBar {
+                    bottomBarItems.forEachIndexed { index, item ->
+                        NavigationBarItem(
+                            icon = { Icon(item.icon, contentDescription = item.title) },
+                            label = { Text(item.title) },
+                            selected = false, // Simplified for this example
+                            onClick = {
+                                when (item.title) {
+                                    "Beneficiaries" -> navController.navigate(
+                                        "${BeneficiaryGroupDestination.route}/$groupId"
+                                    )
+                                    "Home" -> navController.navigate("${HomeDestination.route}/$groupId")
+                                    "Savings" -> navController.navigate("${SavingsDestination.route}/$groupId")
+                                    "Members" -> navController.navigate("${MembersDestination.route}/$groupId")
+                                    "Profile" -> {
+                                        if (currentMemberId != null) {
+                                            navController.navigate("${ProfileDestination.route}/$groupId/$currentMemberId")
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
             },
             containerColor = SoftOffWhite
         ) { innerPadding ->
@@ -372,11 +378,9 @@ fun HomeScreen(
                     }
                 }
 
-
-                    Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 when (stateValue) {
-
                     is CycleState.Loading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -391,7 +395,6 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text((stateValue as CycleState.Error).message, color = PremiumNavy)
-
                         }
                     }
                     is CycleState.CycleHistory -> {
@@ -448,21 +451,19 @@ fun HomeScreen(
                         }
                     }
                 }
-                }
             }
-
         }
-
+    }
 
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title =      { Text("Start a new cycle?") },
-            text =       { Text("Are you sure you want to create a new cycle now?") },
+            title = { Text("Start a new cycle?") },
+            text = { Text("Are you sure you want to create a new cycle now?") },
             confirmButton = {
                 TextButton(onClick = {
                     showCreateDialog = false
-                    navigateToCreateCycle()     // actually fire your navigation
+                    navigateToCreateCycle()
                 }) {
                     Text("Yes")
                 }
@@ -474,7 +475,6 @@ fun HomeScreen(
             }
         )
     }
-
 }
 
 
@@ -833,8 +833,8 @@ fun BottomBar(
                         HomeDestination ->
                             navController.navigate("${HomeDestination.route}/$currentGroupId")
 
-                        BeneficiaryDestination ->  // Add this case
-                            navController.navigate("${BeneficiaryDestination.route}/$currentGroupId")
+                        BeneficiaryGroupDestination ->  // Add this case
+                            navController.navigate("${BeneficiaryGroupDestination.route}/$currentGroupId")
 
                         SavingsDestination ->
                             navController.navigate("${SavingsDestination.route}/$currentGroupId")

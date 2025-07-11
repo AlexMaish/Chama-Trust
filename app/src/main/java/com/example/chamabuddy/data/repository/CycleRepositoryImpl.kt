@@ -6,6 +6,9 @@ import com.example.chamabuddy.data.local.MemberDao
 import com.example.chamabuddy.data.local.WeeklyMeetingDao
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.repository.CycleRepository
+import com.example.chamabuddy.domain.model.CycleWithBeneficiaries
+import com.example.chamabuddy.domain.model.BeneficiaryWithMember
+
 import com.example.chamabuddy.domain.repository.CycleStats
 import com.example.chamabuddy.domain.repository.GroupRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -83,6 +86,12 @@ class CycleRepositoryImpl @Inject constructor(
         }
     }
 
+
+    override suspend fun getCyclesByGroup(groupId: String): List<Cycle> {
+        return cycleDao.getCyclesByGroup(groupId)
+    }
+
+
     override fun getCurrentCycle(): Flow<Cycle?> = cycleDao.observeActiveCycle()
     override fun getAllCycles(): Flow<List<Cycle>> = cycleDao.getAllCycles()
 
@@ -139,4 +148,27 @@ class CycleRepositoryImpl @Inject constructor(
             cycleDao.getCyclesByGroupId(groupId)
         }
     }
+
+
+
+    override suspend fun getCyclesWithBeneficiaries(groupId: String): List<CycleWithBeneficiaries> {
+        return withContext(dispatcher) {
+            val cycles = cycleDao.getCyclesByGroupId(groupId)
+            cycles.map { cycle ->
+                val beneficiaries = beneficiaryDao.getBeneficiariesByCycle(cycle.cycleId)
+                val beneficiariesWithMembers = beneficiaries.mapNotNull { beneficiary ->
+                    val member = memberDao.getMemberById(beneficiary.memberId)
+                    if (member != null) {
+                        BeneficiaryWithMember(beneficiary, member)
+                    } else {
+                        null // Skip if member not found
+                    }
+                }
+                CycleWithBeneficiaries(cycle, beneficiariesWithMembers)
+            }
+        }
+    }
+
+
+
 }

@@ -34,5 +34,5 @@ interface MeetingRepository {
     suspend fun deleteBeneficiariesForMeeting(meetingId: String)
     suspend fun getBeneficiariesByCycle(cycleId: String): List<Beneficiary>
     suspend fun getMeetingWithCycle(meetingId: String): WeeklyMeetingWithCycle?
-
+    suspend fun getCyclesByGroup(groupId: String): List<Cycle>
 }

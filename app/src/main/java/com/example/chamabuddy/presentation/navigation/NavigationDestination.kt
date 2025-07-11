@@ -101,3 +101,10 @@ object GroupsHomeDestination : NavigationDestination {
     override val title = "Your Groups"
 }
 
+
+object BeneficiaryGroupDestination : NavigationDestination {
+    override val route = "beneficiary_group"
+    override val title = "Beneficiaries"
+    const val groupIdArg = "groupId"
+    val routeWithArgs = "$route/{$groupIdArg}"
+}

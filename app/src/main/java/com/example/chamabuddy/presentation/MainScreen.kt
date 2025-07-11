@@ -49,6 +49,7 @@ import com.example.chamabuddy.presentation.screens.MembersScreen
 import com.example.chamabuddy.presentation.screens.ProfileScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen // Add this import
 import com.example.chamabuddy.presentation.navigation.SavingsDestination
+import com.example.chamabuddy.presentation.screens.BeneficiaryGroupScreen
 import com.example.chamabuddy.presentation.screens.GroupsHomeScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen
 @Composable
@@ -201,7 +202,19 @@ fun MainNavHost(
 //            )
 //        }
 
-
+        composable(
+            route = BeneficiaryGroupDestination.routeWithArgs,
+            arguments = listOf(navArgument(BeneficiaryGroupDestination.groupIdArg) {
+                type = NavType.StringType
+            }
+            ) ){ backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString(BeneficiaryGroupDestination.groupIdArg) ?: ""
+                BeneficiaryGroupScreen(
+                    groupId = groupId,
+                    navigateBack = { navController.popBackStack() },
+                    navController = navController
+                )
+            }
 
 
         composable(
