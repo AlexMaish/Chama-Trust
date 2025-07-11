@@ -14,9 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.example.chamabuddy.domain.model.Member
+import com.example.chamabuddy.presentation.navigation.CycleDetailDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
 import com.example.chamabuddy.presentation.viewmodel.MeetingEvent
+import com.example.chamabuddy.presentation.viewmodel.MeetingState
 import com.example.chamabuddy.presentation.viewmodel.MeetingViewModel
 import kotlinx.coroutines.launch
 
@@ -32,7 +35,7 @@ object BeneficiarySelectionDestination : NavigationDestination {
 fun BeneficiarySelectionScreen(
     meetingId: String,
     navigateBack: () -> Unit,
-    onSaveComplete: () -> Unit,
+    navController: NavHostController,
     viewModel: MeetingViewModel = hiltViewModel()
 ) {
     val beneficiaryState by viewModel.beneficiaryState.collectAsState()
@@ -40,6 +43,7 @@ fun BeneficiarySelectionScreen(
     val maxBeneficiaries = beneficiaryState.maxBeneficiaries
     var selectedBeneficiaries by remember { mutableStateOf<List<Member>>(emptyList()) }
     val coroutineScope = rememberCoroutineScope()
+
 
     // Initialize with existing beneficiaries
     LaunchedEffect(beneficiaryState.existingBeneficiaries) {
@@ -51,6 +55,26 @@ fun BeneficiarySelectionScreen(
     // Load eligible beneficiaries
     LaunchedEffect(meetingId) {
         viewModel.handleEvent(MeetingEvent.LoadEligibleBeneficiaries(meetingId))
+    }
+    val meetingState by viewModel.state.collectAsState()
+
+    LaunchedEffect(meetingState) {
+        when (val s = meetingState) {
+            is MeetingState.BeneficiariesSelected -> {
+                if (s.success) {
+
+                    s.meeting?.let { meeting ->
+                        navController.navigate("${CycleDetailDestination.route}/${meeting.groupId}/${meeting.cycleId}") {
+                            popUpTo(BeneficiarySelectionDestination.route) { inclusive = true }
+                        }
+                    }
+
+//                    snackbarHostState.showSnackbar("Beneficiaries Saved Successfully")
+                }
+                viewModel.handleEvent(MeetingEvent.ResetMeetingState)
+            }
+            else -> {}
+        }
     }
 
     Scaffold(
@@ -72,10 +96,6 @@ fun BeneficiarySelectionScreen(
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar("Please select at least one beneficiary")
                         }
-                    } else if (selectedBeneficiaries.size > maxBeneficiaries) {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Cannot select more than $maxBeneficiaries beneficiaries")
-                        }
                     } else {
                         coroutineScope.launch {
                             viewModel.handleEvent(
@@ -84,7 +104,8 @@ fun BeneficiarySelectionScreen(
                                     selectedBeneficiaries.map { it.memberId }
                                 )
                             )
-                            onSaveComplete()
+
+                            snackbarHostState.showSnackbar("Beneficiaries Saved Successfully")
                         }
                     }
                 },

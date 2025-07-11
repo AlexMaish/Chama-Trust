@@ -248,47 +248,18 @@ fun MainNavHost(
 
         composable(
             route = ContributionDestination.routeWithArgs,
-            arguments = listOf(
-                navArgument(ContributionDestination.meetingIdArg) { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val meetingId =
-                backStackEntry.arguments?.getString(ContributionDestination.meetingIdArg) ?: ""
-            ContributionScreen(
-                meetingId = meetingId,
-                navigateToBeneficiarySelection = {
-                    navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
-                },
-                navigateBack = { navController.popBackStack() }
-            )
-        }
-
-
-
-        composable(
-            route = BeneficiarySelectionDestination.routeWithArgs,
-            arguments = listOf(
-                navArgument(BeneficiarySelectionDestination.meetingIdArg) {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-            val meetingId =
-                backStackEntry.arguments?.getString(BeneficiarySelectionDestination.meetingIdArg)
-                    ?: ""
-            BeneficiarySelectionScreen(
-                meetingId = meetingId,
-                navigateBack = { navController.popBackStack() },
-                onSaveComplete = {
-                    // Navigate back to cycle detail screen
-                    navController.popBackStack(
-                        route = CycleDetailDestination.route,
-                        inclusive = false
-                    )
-                }
-            )
-        }
-
+            arguments = listOf(navArgument(ContributionDestination.meetingIdArg) { type = NavType.StringType }
+            ) ){ entry ->
+                val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
+                ContributionScreen(
+                    meetingId = meetingId,
+                    navigateToBeneficiarySelection = {
+                        navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
+                    },
+                    navigateBack = { navController.popBackStack() },
+                    navController = navController // Pass navController here
+                )
+            }
 
 
         composable(BeneficiaryDetailDestination.routeWithArgs) { backStackEntry ->
@@ -299,38 +270,20 @@ fun MainNavHost(
             )
         }
 
-        composable(
-            route = ContributionDestination.routeWithArgs,
-            arguments = listOf(navArgument(ContributionDestination.meetingIdArg) {
-                type = NavType.StringType
-            }
-            )) { backStackEntry ->
-            val meetingId =
-                backStackEntry.arguments?.getString(ContributionDestination.meetingIdArg) ?: ""
-            ContributionScreen(
-                meetingId = meetingId,
-                navigateToBeneficiarySelection = {
-                    navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
-                },
-                navigateBack = { navController.popBackStack() }
-            )
-        }
+
 
         composable(
             route = BeneficiarySelectionDestination.routeWithArgs,
-            arguments = listOf(navArgument(BeneficiarySelectionDestination.meetingIdArg) {
-                type = NavType.StringType
-            }
-            )) { backStackEntry ->
-            val meetingId =
-                backStackEntry.arguments?.getString(BeneficiarySelectionDestination.meetingIdArg)
-                    ?: ""
+            arguments = listOf(navArgument(BeneficiarySelectionDestination.meetingIdArg) { type = NavType.StringType }
+            ) ){ entry ->
+            val meetingId = entry.arguments?.getString(BeneficiarySelectionDestination.meetingIdArg)!!
             BeneficiarySelectionScreen(
                 meetingId = meetingId,
                 navigateBack = { navController.popBackStack() },
-                onSaveComplete = { navController.popBackStack() }
+                navController = navController
             )
         }
+
 
 
         composable(

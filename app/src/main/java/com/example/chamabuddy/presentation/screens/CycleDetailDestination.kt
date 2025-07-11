@@ -54,7 +54,10 @@ fun CycleDetailScreenForMeetings(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
-
+    if (groupId.isBlank() || cycleId.isBlank()) {
+        Text("Error: Missing group or cycle ID")
+        return
+    }
     LaunchedEffect(cycleId) {
         viewModel.handleEvent(MeetingEvent.GetMeetingsForCycle(cycleId))
     }

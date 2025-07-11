@@ -118,6 +118,15 @@ interface BeneficiaryDao {
     @Query("DELETE FROM beneficiaries WHERE meeting_id = :meetingId")
     suspend fun deleteBeneficiariesForMeeting(meetingId: String)
 
+
+
+    @Query("UPDATE beneficiaries SET amount_received = :newAmount WHERE beneficiary_id = :beneficiaryId")
+    suspend fun updateBeneficiaryAmount(beneficiaryId: String, newAmount: Int)
+
+
+    @Query("SELECT COUNT(*) FROM beneficiaries WHERE meeting_id = :meetingId")
+    suspend fun getBeneficiaryCountForMeeting(meetingId: String): Int
+
 //    @Query("SELECT COUNT(*) FROM beneficiaries WHERE member_id = :memberId AND cycle_id = :cycleId")
 //    suspend fun hasReceivedInCycle(memberId: String, cycleId: String): Int
 }

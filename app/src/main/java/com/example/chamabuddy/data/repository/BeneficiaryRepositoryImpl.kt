@@ -45,12 +45,17 @@ class BeneficiaryRepositoryImpl @Inject constructor(
     override suspend fun deleteBeneficiary(beneficiaryId: String) = withContext(dispatcher) {
         // This would require a new query in the DAO
     }
+    override suspend fun updateBeneficiaryAmount(beneficiaryId: String, newAmount: Int) {
+        beneficiaryDao.updateBeneficiaryAmount(beneficiaryId, newAmount)
+    }
 
     suspend fun getEligibleMembersForMeeting(meetingId: String): List<Member> =
         withContext(dispatcher) {
             beneficiaryDao.getEligibleMembersForMeeting(meetingId)
         }
-
+    override suspend fun getBeneficiaryCountForMeeting(meetingId: String): Int {
+        return beneficiaryDao.getBeneficiaryCountForMeeting(meetingId)
+    }
     override suspend fun getBeneficiariesByCycle(cycleId: String): List<Beneficiary> =
         withContext(dispatcher) {
             beneficiaryDao.getBeneficiariesByCycle(cycleId)

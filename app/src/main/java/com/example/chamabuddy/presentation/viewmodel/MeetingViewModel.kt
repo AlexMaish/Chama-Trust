@@ -48,6 +48,7 @@ class MeetingViewModel @Inject constructor(
             is MeetingEvent.RecordContributions -> recordContributions(event)
             is MeetingEvent.SelectBeneficiaries -> selectBeneficiaries(event)
             is MeetingEvent.GetMeetingStatus -> getMeetingStatus(event)
+            is MeetingEvent.UpdateBeneficiaryAmount -> updateBeneficiaryAmount(event)
             is MeetingEvent.GetMeetingsForCycle -> getMeetingsForCycle(event)
             is MeetingEvent.LoadEligibleBeneficiaries -> loadEligibleBeneficiaries(event.meetingId)
             is MeetingEvent.GetContributionsForMeeting -> loadMembersForContribution(event.meetingId)
@@ -59,6 +60,22 @@ class MeetingViewModel @Inject constructor(
             MeetingEvent.ResetMeetingState -> resetState()
         }
     }
+
+    private fun updateBeneficiaryAmount(event: MeetingEvent.UpdateBeneficiaryAmount) {
+        viewModelScope.launch {
+            try {
+                beneficiaryRepository.updateBeneficiaryAmount(
+                    event.beneficiaryId,
+                    event.newAmount
+                )
+                // Reload beneficiary details
+                loadBeneficiaryDetails(event.beneficiaryId)
+            } catch (e: Exception) {
+                _state.value = MeetingState.Error(e.message ?: "Failed to update amount")
+            }
+        }
+    }
+
 
     private fun loadMembersForContribution(meetingId: String) {
         viewModelScope.launch {
@@ -100,7 +117,9 @@ class MeetingViewModel @Inject constructor(
             }
         }
     }
-
+    suspend fun getBeneficiaryCountForMeeting(meetingId: String): Int {
+        return beneficiaryRepository.getBeneficiaryCountForMeeting(meetingId)
+    }
     suspend fun updateContributionStatus(memberId: String, hasContributed: Boolean) {
         val currentContributions = _contributionState.value.contributions.toMutableMap()
         currentContributions[memberId] = hasContributed
@@ -224,20 +243,19 @@ class MeetingViewModel @Inject constructor(
             try {
                 val meeting = meetingRepository.getMeetingById(meetingId)
                     ?: throw IllegalStateException("Meeting not found")
-                val actualCycleId = meeting.cycleId
-                val weeklyAmount = meetingRepository.getCycleWeeklyAmount(actualCycleId)
+                val totalCollected = meeting.totalCollected
+                val beneficiaryCount = beneficiaryIds.size.coerceAtLeast(1)
+                val amountPerBeneficiary = totalCollected / beneficiaryCount
 
-                // Delete existing beneficiaries
                 beneficiaryRepository.deleteBeneficiariesForMeeting(meetingId)
 
-                // Create new beneficiaries (enforce max limit)
                 beneficiaryIds.take(beneficiaryState.value.maxBeneficiaries).forEachIndexed { index, beneficiaryId ->
                     val beneficiary = Beneficiary(
                         beneficiaryId = UUID.randomUUID().toString(),
                         memberId = beneficiaryId,
-                        cycleId = actualCycleId,
+                        cycleId = meeting.cycleId,
                         meetingId = meetingId,
-                        amountReceived = weeklyAmount,
+                        amountReceived = amountPerBeneficiary,
                         dateAwarded = Date(),
                         paymentOrder = index + 1,
                         groupId = meeting.groupId
@@ -255,7 +273,8 @@ class MeetingViewModel @Inject constructor(
                 _state.value = MeetingState.BeneficiariesSelected(
                     success = true,
                     beneficiaries = beneficiaryIds,
-                    meetingStatus = meetingRepository.getMeetingStatus(meetingId)
+                    meetingStatus = meetingRepository.getMeetingStatus(meetingId),
+                    meeting = meeting
                 )
             } catch (e: Exception) {
                 _state.value = MeetingState.Error(e.message ?: "Failed to select beneficiaries")
@@ -351,8 +370,8 @@ sealed class MeetingState {
     data class BeneficiariesSelected(
         val success: Boolean,
         val beneficiaries: List<String>,
-        // Use domain model here too
-        val meetingStatus: com.example.chamabuddy.domain.model.MeetingStatus
+        val meetingStatus: MeetingStatus,
+        val meeting: WeeklyMeeting? = null
     ) : MeetingState()
     data class Error(val message: String) : MeetingState()
     data class BeneficiaryDetails(
@@ -375,6 +394,7 @@ sealed class MeetingEvent {
         val beneficiaryIds: List<String>
     ) : MeetingEvent()
     data class LoadBeneficiaryDetails(val beneficiaryId: String) : MeetingEvent()
+    data class UpdateBeneficiaryAmount(val beneficiaryId: String, val newAmount: Int) : MeetingEvent()
     object ResetMeetingState : MeetingEvent()
 }
 

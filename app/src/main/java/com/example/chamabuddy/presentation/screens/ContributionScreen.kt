@@ -1,5 +1,6 @@
 package com.example.chamabuddy.presentation.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,7 +16,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.example.chamabuddy.domain.model.Member
+import com.example.chamabuddy.presentation.navigation.CycleDetailDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
 import com.example.chamabuddy.presentation.viewmodel.MeetingEvent
 import com.example.chamabuddy.presentation.viewmodel.MeetingState
@@ -35,6 +38,7 @@ fun ContributionScreen(
     meetingId: String,
     navigateToBeneficiarySelection: () -> Unit,
     navigateBack: () -> Unit,
+    navController: NavHostController,
     viewModel: MeetingViewModel = hiltViewModel()
 ) {
     val state by viewModel.contributionState.collectAsState()
@@ -43,7 +47,11 @@ fun ContributionScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-
+    fun navigateToCycleDetail(groupId: String, cycleId: String) {
+        navController.navigate("${CycleDetailDestination.route}/$groupId/$cycleId") {
+            popUpTo(ContributionDestination.route) { inclusive = true }
+        }
+    }
 
     LaunchedEffect(meetingState) {
         when (val s = meetingState) {
@@ -51,21 +59,16 @@ fun ContributionScreen(
                 if (s.success) {
                     val status = viewModel.getMeetingStatus(meetingId)
 
-                    // Force navigation if beneficiaries not selected or incomplete
-                    if (!status.beneficiariesSelected ||
-                        status.beneficiaryCount < status.requiredBeneficiaryCount) {
-
-                        snackbarHostState.showSnackbar("Please select beneficiaries")
+                    if (!status.beneficiariesSelected) {
+                        snackbarHostState.showSnackbar("Select beneficiaries to complete meeting")
                         navigateToBeneficiarySelection()
                     } else {
-                        navigateBack()
+                        // Get meeting details for navigation
+                        state.meeting?.let { meeting ->
+                            navigateToCycleDetail(meeting.groupId, meeting.cycleId)
+                        }
+                        snackbarHostState.showSnackbar("Meeting Saved Successfully")
                     }
-                }
-            }
-            is MeetingState.BeneficiariesSelected -> {
-                if (s.success) {
-                    // After saving beneficiaries, navigate back to cycle detail
-                    navigateBack()
                 }
             }
             is MeetingState.Error -> {
@@ -79,27 +82,19 @@ fun ContributionScreen(
         viewModel.handleEvent(MeetingEvent.GetContributionsForMeeting(meetingId))
     }
 
-    // Handle meeting state changes
-    LaunchedEffect(meetingState) {
-        when (val s = meetingState) {
-            is MeetingState.ContributionRecorded -> {
-                if (s.success) {
-                    // Check if beneficiaries are selected
-                    val status = viewModel.getMeetingStatus(meetingId)
-                    if (status.beneficiariesSelected) {
-                        // Navigate back to cycle detail
-                        navigateBack()
-                    } else {
-                        // Show message and navigate to beneficiary selection
-                        snackbarHostState.showSnackbar("Select beneficiaries first to save meeting")
-                        navigateToBeneficiarySelection()
-                    }
-                }
-            }
-            is MeetingState.Error -> {
-                snackbarHostState.showSnackbar("Error: ${s.message}")
-            }
-            else -> {}
+    val backHandler = BackHandler {
+        coroutineScope.launch {
+            viewModel.saveContributionState(state.contributions)
+            navigateBack()
+        }
+    }
+    backHandler
+
+    // Function to handle back action with state saving
+    fun handleBack() {
+        coroutineScope.launch {
+            viewModel.saveContributionState(state.contributions)
+            navigateBack()
         }
     }
 
@@ -117,14 +112,15 @@ fun ContributionScreen(
             TopAppBar(
                 title = { Text(ContributionDestination.title) },
                 navigationIcon = {
-                    IconButton(onClick = navigateBack) {
+                    IconButton(onClick = { handleBack() }) {  // Modified back button
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     Button(
                         onClick = {
-                            if (isNextEnabled) {
+                            coroutineScope.launch {
+                                // Save state before navigation
                                 viewModel.saveContributionState(state.contributions)
                                 navigateToBeneficiarySelection()
                             }
