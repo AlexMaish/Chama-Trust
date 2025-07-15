@@ -40,16 +40,16 @@ fun SavingsScreen(
     val members by viewModel.members.collectAsState()
     val memberTotals by viewModel.memberTotals.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val groupMemberTotals by viewModel.groupMemberTotals.collectAsState()
+    val totalGroupSavings by viewModel.totalGroupSavings.collectAsState()
 
-    // Calculate total savings for all members
-    val totalGroupSavings = remember(memberTotals) {
-        memberTotals.values.sum()
-    }
 
-    val memberSavingsList = remember(members, memberTotals) {
+    val memberSavingsList = remember(members, groupMemberTotals) {
         members.values.map { member ->
-            val total = memberTotals[member.memberId] ?: 0
-            MemberWithSavings(member, total)
+            MemberWithSavings(
+                member = member,
+                totalSavings = groupMemberTotals[member.memberId] ?: 0
+            )
         }
     }
 

@@ -35,5 +35,8 @@ data class Cycle(
     val groupId: String,
 
     @ColumnInfo(name = "beneficiaries_per_meeting")
-    val beneficiariesPerMeeting: Int = 2
+    val beneficiariesPerMeeting: Int = 2,
+
+    @ColumnInfo(name = "cycleNumber ")
+    val cycleNumber : Int = 0
 )

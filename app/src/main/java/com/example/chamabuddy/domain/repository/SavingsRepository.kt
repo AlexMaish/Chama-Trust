@@ -40,7 +40,7 @@ interface SavingsRepository {
 
     suspend fun getCycleWithSavingsForMember(memberId: String): List<CycleWithSavings>
 
-
+    suspend fun getMemberSavingsTotalInGroup(groupId: String, memberId: String): Int
     suspend fun createIncompleteMonths(
         cycleId: String,
         startDate: Long,

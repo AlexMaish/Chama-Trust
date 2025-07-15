@@ -32,6 +32,7 @@ class BeneficiaryGroupViewModel @Inject constructor(
             _state.value = _state.value.copy(isLoading = true)
             try {
                 val cyclesWithBeneficiaries = cycleRepository.getCyclesWithBeneficiaries(groupId)
+                    .sortedByDescending { it.cycle.cycleNumber }
                 val activeMembers = memberRepository.getActiveMembersByGroup(groupId)
 
                 _state.value = _state.value.copy(

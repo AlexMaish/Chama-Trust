@@ -25,6 +25,9 @@ import com.example.chamabuddy.domain.model.BeneficiaryWithMember
 import com.example.chamabuddy.domain.model.CycleWithBeneficiaries
 import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.presentation.viewmodel.BeneficiaryGroupViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // Custom colors
 
@@ -154,13 +157,29 @@ fun ExpandableCycleBeneficiaries(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "Cycle: ${cycle.cycle.startDate} - ${cycle.cycle.endDate}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = PremiumNavy,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(Modifier.weight(1f)) {
+                    // Add cycle number in desc order (already sorted)
+                    Text(
+                        text = "Cycle #${cycle.cycle.cycleNumber}",
+                        fontWeight = FontWeight.Bold,
+                        color = PremiumNavy,
+                        fontSize = 16.sp
+                    )
+
+                    // Formatted dates with "Active" for null endDate
+                    Text(
+                        text = formatCycleDates(cycle.cycle.startDate, cycle.cycle.endDate),
+                        color = PremiumNavy,
+                        fontSize = 14.sp
+                    )
+
+                    // Cycle ID in faded color
+                    Text(
+                        text = "ID: ${cycle.cycle.cycleId}",
+                        color = Color.Gray.copy(alpha = 0.7f),
+                        fontSize = 12.sp
+                    )
+                }
 
                 IconButton(
                     onClick = { expanded = !expanded },
@@ -318,3 +337,17 @@ fun RemainingMemberItem(member: Member, modifier: Modifier = Modifier) {
 }
 
 fun horizontalGradient(colors: List<Color>) = Brush.horizontalGradient(colors)
+
+@Composable
+fun formatCycleDates(start: Long, end: Long?): String {
+    val startDate = remember(start) {
+        SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(start))
+    }
+    val endDate = end?.let {
+        remember(it) {
+            SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it))
+        }
+    } ?: "Active"
+
+    return "$startDate - $endDate"
+}

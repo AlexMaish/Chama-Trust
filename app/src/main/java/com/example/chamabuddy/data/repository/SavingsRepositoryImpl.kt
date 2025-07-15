@@ -37,7 +37,6 @@ class SavingsRepositoryImpl @Inject constructor(
         groupId: String
     ) = withContext(dispatcher) {
         try {
-
             // 1. Check if cycle belongs to the group
             val cycle = cycleDao.getCycleById(cycleId)
                 ?: throw IllegalStateException("Cycle not found")
@@ -46,32 +45,16 @@ class SavingsRepositoryImpl @Inject constructor(
                 throw IllegalStateException("Cycle does not belong to this group")
             }
 
-            // 2. Check if group has active cycle
-            val activeCycle = cycleDao.getActiveCycleForGroup(groupId)
-                ?: throw IllegalStateException("No active cycle in this group")
-
-            // 3. Ensure saving is recorded in active cycle
-            if (cycle.cycleId != activeCycle.cycleId) {
-                throw IllegalStateException("Can only record savings in active cycle")
-            }
+            // 2. Validate member and recorder
             val recorder = memberDao.getMemberById(recordedBy)
-            if (recorder == null) {
-                throw IllegalStateException("Recorder (ID: $recordedBy) is not a valid group member")
-            }
+                ?: throw IllegalStateException("Recorder (ID: $recordedBy) is not a valid group member")
 
             val member = memberDao.getMemberById(memberId)
-            if (member == null) {
-                throw IllegalStateException("Member (ID: $memberId) does not exist")
-            }
+                ?: throw IllegalStateException("Member (ID: $memberId) does not exist")
 
-
-            if (memberDao.getMemberById(memberId) == null) {
-                throw IllegalStateException("Member $memberId does not exist")
-            }
+            // 3. Get or create MonthlySaving record
             var saving = savingDao.getSavingForMonth(cycleId, monthYear)
             if (saving == null) {
-                val cycle = cycleDao.getCycleById(cycleId)
-                    ?: throw IllegalStateException("Cycle not found")
                 saving = MonthlySaving(
                     savingId = UUID.randomUUID().toString(),
                     cycleId = cycleId,
@@ -81,6 +64,8 @@ class SavingsRepositoryImpl @Inject constructor(
                 )
                 savingDao.insert(saving)
             }
+
+            // 4. Create and insert new saving entry
             val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
             val targetDate = monthFormat.parse(monthYear)
             val calendar = Calendar.getInstance().apply {
@@ -100,17 +85,16 @@ class SavingsRepositoryImpl @Inject constructor(
                 )
             )
 
+            // 5. Update total saved
             val total = savingEntryDao.getEntriesForSaving(saving.savingId)
                 .first().sumOf { it.amount }
             savingDao.update(saving.copy(actualAmount = total))
 
-            val monthlyTarget = saving.targetAmount
-            val currentTotal = savingEntryDao.getEntriesForSaving(saving.savingId)
-                .first().sumOf { it.amount } + amount
-
-            if (currentTotal >= monthlyTarget) {
+            // 6. Optionally auto-create next month if target met
+            val currentTotal = total
+            if (currentTotal >= saving.targetAmount) {
                 val nextMonth = calculateNextMonth(monthYear)
-                createMissingMonthlyEntries(cycleId, nextMonth, monthlyTarget, groupId)
+                createMissingMonthlyEntries(cycleId, nextMonth, saving.targetAmount, groupId)
             }
 
             Result.success(Unit)
@@ -244,12 +228,18 @@ class SavingsRepositoryImpl @Inject constructor(
         monthlyTarget: Int,
         groupId: String
     ) = withContext(dispatcher) {
-        val months = generateMonthsBetweenDates(startDate, endDate)
+        // Extend end date by 2 months
+        val calendar = Calendar.getInstance().apply {
+            time = Date(endDate)
+            add(Calendar.MONTH, 2)
+        }
+        val extendedEndDate = calendar.timeInMillis
+
+        val months = generateMonthsBetweenDates(startDate, extendedEndDate)
         months.forEach { month ->
             ensureMonthExists(cycleId, month, monthlyTarget, groupId)
         }
     }
-
     private fun generateMonthsBetweenDates(start: Long, end: Long): List<String> {
         val format = SimpleDateFormat("MM/yyyy", Locale.getDefault())
         val months = mutableListOf<String>()
@@ -269,6 +259,12 @@ class SavingsRepositoryImpl @Inject constructor(
         }
 
         return months
+    }
+    override suspend fun getMemberSavingsTotalInGroup(
+        groupId: String,
+        memberId: String
+    ): Int = withContext(dispatcher) {
+        savingEntryDao.getMemberSavingsTotalInGroup(groupId, memberId)
     }
 
 

@@ -59,5 +59,8 @@ interface CycleDao {
     @Query("SELECT * FROM cycle WHERE group_id = :groupId")
     suspend fun getCyclesByGroup(groupId: String): List<Cycle>
 
+
+    @Query("SELECT * FROM cycle WHERE group_id= :groupId ORDER BY start_date DESC LIMIT 1")
+    suspend fun getLastCycleByGroupId(groupId: String): Cycle?
 }
 

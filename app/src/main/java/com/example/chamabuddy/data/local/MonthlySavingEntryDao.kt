@@ -90,4 +90,14 @@ interface MonthlySavingEntryDao {
 
     @Query("SELECT COALESCE(SUM(amount), 0) FROM MonthlySavingEntry WHERE group_id = :groupId")
     suspend fun getTotalSavingsByGroup(groupId: String): Int
+
+
+
+    @Query("""
+        SELECT COALESCE(SUM(amount), 0) 
+        FROM MonthlySavingEntry 
+        WHERE member_id = :memberId 
+        AND group_id = :groupId
+    """)
+    suspend fun getMemberSavingsTotalInGroup(groupId: String, memberId: String): Int
 }

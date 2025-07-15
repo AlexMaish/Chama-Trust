@@ -193,3 +193,4 @@ fun BeneficiaryDetailScreen(
         }
     }
 }
+

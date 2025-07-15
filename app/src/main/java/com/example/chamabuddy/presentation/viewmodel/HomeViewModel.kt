@@ -1,7 +1,5 @@
 package com.example.chamabuddy.presentation.viewmodel
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Cycle
@@ -66,6 +64,16 @@ class HomeViewModel @Inject constructor(
     private val _snackbarMessage = MutableStateFlow("")
     val snackbarMessage: StateFlow<String> = _snackbarMessage.asStateFlow()
 
+
+    private val _allCyclesForGroup = MutableStateFlow<List<Cycle>>(emptyList())
+    val allCyclesForGroup: StateFlow<List<Cycle>> = _allCyclesForGroup.asStateFlow()
+
+    fun loadAllCyclesForGroup(groupId: String) {
+        viewModelScope.launch {
+            _allCyclesForGroup.value = cycleRepository.getCyclesByGroupId(groupId)
+                .sortedByDescending { it.cycleId }
+        }
+    }
     fun setSnackbarMessage(message: String) {
         _snackbarMessage.value = message
     }
@@ -109,6 +117,7 @@ class HomeViewModel @Inject constructor(
     init {
         loadUserGroups()
     }
+
 
     fun loadCyclesForGroup(groupId: String) {
         viewModelScope.launch {
@@ -212,29 +221,48 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-
     private fun startNewCycle(event: CycleEvent.StartNewCycle) {
         viewModelScope.launch {
             _state.value = CycleState.Loading
+
             try {
-                val result = cycleRepository.startNewCycle(
-                    event.weeklyAmount,
-                    event.monthlyAmount,
-                    event.totalMembers,
-                    event.startDate,
-                    event.groupId,
-                    event.beneficiariesPerMeeting // Pass the new parameter
-                )
-                if (result.isSuccess) {
-                    _activeCycle.value = result.getOrNull()
-                    _state.value = CycleState.ActiveCycle(result.getOrNull()!!)
-                } else {
-                    _state.value = CycleState.Error(
-                        result.exceptionOrNull()?.message ?: "Failed to start new cycle"
+                val now = System.currentTimeMillis()
+
+                // 1. End current cycle with timestamp
+                val currentActiveCycle = cycleRepository.getActiveCycleForGroup(event.groupId)
+                currentActiveCycle?.let { activeCycle ->
+                    cycleRepository.endCurrentCycle(activeCycle.cycleId, now)
+
+                    // 2. Create incomplete savings months for the ended cycle
+                    savingsRepository.createIncompleteMonths(
+                        cycleId = activeCycle.cycleId,
+                        startDate = activeCycle.startDate,
+                        endDate = now,
+                        monthlyTarget = activeCycle.monthlySavingsAmount,
+                        groupId = activeCycle.groupId
                     )
                 }
+
+                // 3. Start the new cycle
+                val result = cycleRepository.startNewCycle(
+                    weeklyAmount = event.weeklyAmount,
+                    monthlyAmount = event.monthlyAmount,
+                    totalMembers = event.totalMembers,
+                    startDate = now,
+                    groupId = event.groupId,
+                    beneficiariesPerMeeting = event.beneficiariesPerMeeting
+                )
+
+                if (result.isSuccess) {
+                    // 4. Refresh data after new cycle creation
+                    loadCyclesForGroup(event.groupId)
+                    loadGroupData(event.groupId)
+                } else {
+                    _state.value = CycleState.Error(result.exceptionOrNull()?.message ?: "Failed to start new cycle")
+                }
+
             } catch (e: Exception) {
-                _state.value = CycleState.Error(e.message ?: "Failed to start new cycle")
+                _state.value = CycleState.Error(e.message ?: "An unexpected error occurred")
             }
         }
     }
@@ -246,41 +274,42 @@ class HomeViewModel @Inject constructor(
                 // Get the current active cycle before ending it
                 val endedCycle = cycleRepository.getActiveCycle()
 
-                // End the current cycle
-                val endResult = cycleRepository.endCurrentCycle()
-                if (endResult.isSuccess) {
-                    // Create incomplete months for the ended cycle
-                    endedCycle?.let {
+                // End the current cycle if exists
+                endedCycle?.let { cycle ->
+                    val endResult = cycleRepository.endCurrentCycle(cycle.cycleId)
+                    if (endResult.isSuccess) {
+                        // Create incomplete months for the ended cycle
                         savingsRepository.createIncompleteMonths(
-                            it.cycleId,
-                            it.startDate,
+                            cycle.cycleId,
+                            cycle.startDate,
                             System.currentTimeMillis(),
-                            it.monthlySavingsAmount,
-                            it.groupId
+                            cycle.monthlySavingsAmount,
+                            cycle.groupId
                         )
-                    }
-
-                    // Start new cycle with adjusted parameters
-                    val newCycleResult = cycleRepository.startNewCycle(
-                        event.weeklyAmount,
-                        event.monthlyAmount,
-                        event.totalMembers,
-                        event.startDate,
-                        event.groupId,
-                        event.beneficiariesPerMeeting // Pass the new parameter
-                    )
-
-                    if (newCycleResult.isSuccess) {
-                        _activeCycle.value = newCycleResult.getOrNull()
-                        _state.value = CycleState.ActiveCycle(newCycleResult.getOrNull()!!)
                     } else {
                         _state.value = CycleState.Error(
-                            newCycleResult.exceptionOrNull()?.message ?: "Failed to start new cycle"
+                            endResult.exceptionOrNull()?.message ?: "Failed to end cycle"
                         )
+                        return@launch
                     }
+                }
+
+                // Start new cycle with adjusted parameters
+                val newCycleResult = cycleRepository.startNewCycle(
+                    event.weeklyAmount,
+                    event.monthlyAmount,
+                    event.totalMembers,
+                    event.startDate,
+                    event.groupId,
+                    event.beneficiariesPerMeeting
+                )
+
+                if (newCycleResult.isSuccess) {
+                    _activeCycle.value = newCycleResult.getOrNull()
+                    _state.value = CycleState.ActiveCycle(newCycleResult.getOrNull()!!)
                 } else {
                     _state.value = CycleState.Error(
-                        endResult.exceptionOrNull()?.message ?: "Failed to end cycle"
+                        newCycleResult.exceptionOrNull()?.message ?: "Failed to start new cycle"
                     )
                 }
             } catch (e: Exception) {

@@ -4,6 +4,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +58,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -81,9 +85,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -107,14 +113,16 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+
+val SoftGreen = Color(0xFF4CAF50)
+val CardSurface = Color(0xFFFFFFFF)
+val SearchBarGray = Color(0xFFF0F0F0)
 val PremiumNavy = Color(0xFF0A1D3A)
 val SoftOffWhite = Color(0xFFF8F9FA)
 val VibrantOrange = Color(0xFFFF6B35)
-val SoftGreen = Color(0xFF4CAF50)
-val CardSurface = Color(0xFFFFFFFF)
+val ActiveGreen = Color(0xFF4CAF50)
+val CompletedGray = Color(0xFF9E9E9E)
 val LightAccentBlue = Color(0xFFE3F2FD)
-val SearchBarGray = Color(0xFFF0F0F0)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -312,7 +320,7 @@ fun HomeScreen(
                         NavigationBarItem(
                             icon = { Icon(item.icon, contentDescription = item.title) },
                             label = { Text(item.title) },
-                            selected = false, // Simplified for this example
+                            selected = false,
                             onClick = {
                                 when (item.title) {
                                     "Beneficiaries" -> navController.navigate(
@@ -339,7 +347,7 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Background curve at the top
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -399,6 +407,16 @@ fun HomeScreen(
                     }
                     is CycleState.CycleHistory -> {
                         val cycles = (stateValue as CycleState.CycleHistory).cycles
+
+                        // Assign cycle numbers and sort descending
+                        val sortedCycles = remember(cycles) {
+                            cycles.sortedBy { it.startDate } // Oldest first
+                                .mapIndexed { index, cycle ->
+                                    cycle.copy(cycleNumber = index + 1)
+                                }
+                                .sortedByDescending { it.startDate } // Latest at top
+                        }
+
                         Surface(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -427,10 +445,13 @@ fun HomeScreen(
                                         state = listState,
                                         verticalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
-                                        items(cycles) { cycle ->
+                                        items(
+                                            items = sortedCycles,
+                                            key = { it.cycleId }
+                                        ) { cycle ->
                                             PremiumCycleCard(
                                                 cycle = cycle,
-                                                onClick = { navigateToCycleDetails(cycle.cycleId) }
+                                                onViewDetailsClick = { navigateToCycleDetails(cycle.cycleId) }
                                             )
                                         }
                                     }
@@ -477,101 +498,218 @@ fun HomeScreen(
     }
 }
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PremiumCycleCard(cycle: Cycle, onClick: () -> Unit) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-    val statusColor = if (cycle.endDate == null) SoftGreen else Color(0xFF9E9E9E)
-    val statusText = if (cycle.endDate == null) "Active" else "Completed"
+fun PremiumCycleCard(
+    cycle: Cycle,
+    onViewDetailsClick: () -> Unit,
+    onEndCycleClick: (() -> Unit)? = null, // Optional: only needed for active cycles
+    modifier: Modifier = Modifier
+) {
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    var expanded by remember { mutableStateOf(false) }
+
+    val isActive = cycle.endDate == null
+    val statusText = if (isActive) "ACTIVE" else "COMPLETED"
+    val statusColor = if (isActive) ActiveGreen else CompletedGray
+    val endDateDisplay = cycle.endDate?.let { dateFormat.format(it) } ?: "Present"
 
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardSurface),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+            .padding(vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            // Title Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Cycle #${cycle.cycleId.takeLast(4)}",
+                    text = "Cycle ${cycle.cycleNumber}",
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
                     color = PremiumNavy
                 )
-                Badge(
-                    containerColor = statusColor.copy(alpha = 0.2f),
-                    contentColor = statusColor
+
+                Box(
+                    modifier = Modifier
+                        .background(statusColor.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    Text(statusText, fontWeight = FontWeight.Medium)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("Start Date", fontSize = 12.sp, color = PremiumNavy.copy(alpha = 0.6f))
                     Text(
-                        dateFormat.format(cycle.startDate),
+                        text = statusText,
+                        color = statusColor,
                         fontWeight = FontWeight.Medium,
-                        color = PremiumNavy
+                        fontSize = 12.sp
                     )
                 }
-                cycle.endDate?.let {
-                    Column {
-                        Text("End Date", fontSize = 12.sp, color = PremiumNavy.copy(alpha = 0.6f))
-                        Text(
-                            dateFormat.format(it),
-                            fontWeight = FontWeight.Medium,
-                            color = PremiumNavy
-                        )
-                    }
-                }
             }
+
+            Text(
+                text = "ID: ${cycle.cycleId.takeLast(6)}",
+                color = PremiumNavy.copy(alpha = 0.4f),
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            Text(
+                text = "${dateFormat.format(cycle.startDate)} - $endDateDisplay",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Divider(color = LightAccentBlue, thickness = 1.dp)
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // Key Metrics Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(LightAccentBlue.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                    .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
-                    Text("Total Saved", fontSize = 12.sp, color = PremiumNavy.copy(alpha = 0.6f))
-                    Text(
-                        "KES ${cycle.totalSavings}",
-                        fontWeight = FontWeight.Bold,
-                        color = PremiumNavy
-                    )
-                }
-                Column {
-                    Text("Members", fontSize = 12.sp, color = PremiumNavy.copy(alpha = 0.6f))
-                    Text(
-                        "${cycle.totalMembers}",
-                        fontWeight = FontWeight.Bold,
-                        color = PremiumNavy
-                    )
+                FinancialMetric(label = "Total Savings", value = "KES ${cycle.totalSavings}", isPrimary = true)
+                FinancialMetric(label = "Members", value = "${cycle.totalMembers}", isPrimary = true)
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(LightAccentBlue.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        FinancialMetric("Monthly", "KES ${cycle.monthlySavingsAmount}", true)
+                        FinancialMetric("Weekly", "KES ${cycle.weeklyAmount}", true)
+                        FinancialMetric("Beneficiaries", "${cycle.beneficiariesPerMeeting}/meeting", true)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = onViewDetailsClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PremiumNavy.copy(alpha = 0.05f),
+                            contentColor = PremiumNavy
+                        )
+                    ) {
+                        Text("View Full Details", fontWeight = FontWeight.SemiBold)
+                    }
+
+                    if (isActive && onEndCycleClick != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = onEndCycleClick,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VibrantOrange),
+                            border = BorderStroke(1.dp, VibrantOrange)
+                        ) {
+                            Text("End Current Cycle", fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+
+@Composable
+fun FinancialMetric(
+    label: String,
+    value: String,
+    isPrimary: Boolean
+) {
+    Column {
+        Text(
+            text = value,
+            fontWeight = if (isPrimary) FontWeight.Bold else FontWeight.Medium,
+            color = PremiumNavy,
+            fontSize = if (isPrimary) 16.sp else 14.sp
+        )
+        Text(
+            text = label,
+            color = PremiumNavy.copy(alpha = 0.6f),
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+fun MetricItem(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    valueFontSize: androidx.compose.ui.unit.TextUnit,
+    labelFontSize: androidx.compose.ui.unit.TextUnit,
+    spacing: Dp
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 4.dp)
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = PremiumNavy.copy(alpha = 0.7f),
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.height(spacing))
+        Text(
+            text = value,
+            fontWeight = FontWeight.Bold,
+            color = PremiumNavy,
+            fontSize = valueFontSize
+        )
+        Text(
+            text = label,
+            color = PremiumNavy.copy(alpha = 0.6f),
+            fontSize = labelFontSize
+        )
+    }
+}
+
+@Composable
+fun DetailItem(
+    label: String,
+    value: String,
+    fontSize: androidx.compose.ui.unit.TextUnit
+) {
+    Column {
+        Text(
+            text = label,
+            color = PremiumNavy.copy(alpha = 0.6f),
+            fontSize = fontSize
+        )
+        Text(
+            text = value,
+            fontWeight = FontWeight.Medium,
+            color = PremiumNavy,
+            fontSize = (fontSize.value + 2).sp
+        )
+    }
+}
 @Composable
 fun EmptyDashboard(onCreateClick: () -> Unit) {
     Column(
@@ -810,50 +948,3 @@ data class TabItem(
 )
 
 
-@Composable
-fun BottomBar(
-    navController: NavHostController,
-    items: List<TabItem>,
-    currentGroupId: String,
-    currentMemberId: String? // Add current member ID parameter
-) {
-    NavigationBar {
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentDestination = navBackStackEntry?.destination
-
-        items.forEach { item ->
-            NavigationBarItem(
-                icon = { Icon(item.icon, contentDescription = item.title) },
-                label = { Text(item.title) },
-                selected = currentDestination?.hierarchy?.any {
-                    it.route?.substringBefore('/') == item.destination.route
-                } == true,
-                onClick = {
-                    when (item.destination) {
-                        HomeDestination ->
-                            navController.navigate("${HomeDestination.route}/$currentGroupId")
-
-                        BeneficiaryGroupDestination ->  // Add this case
-                            navController.navigate("${BeneficiaryGroupDestination.route}/$currentGroupId")
-
-                        SavingsDestination ->
-                            navController.navigate("${SavingsDestination.route}/$currentGroupId")
-
-                        MembersDestination ->
-                            navController.navigate("${MembersDestination.route}/$currentGroupId")
-
-                        ProfileDestination -> {
-                            if (currentMemberId != null) {
-                                navController.navigate(
-                                    "${ProfileDestination.route}/$currentGroupId/$currentMemberId"
-                                )
-                            }
-                        }
-                    }
-                }
-            )
-        }
-
-
-    }
-}

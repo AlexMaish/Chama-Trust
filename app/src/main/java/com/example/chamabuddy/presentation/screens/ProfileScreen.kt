@@ -1,5 +1,6 @@
 package com.example.chamabuddy.presentation.screens
 
+import android.R.interpolator.cycle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -137,15 +138,18 @@ fun ProfileScreen(
     // Function to determine the target month
     fun determineSavingsMonth(): String {
         if (allMemberCycles.isEmpty() || activeCycle == null) {
-            return SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(Calendar.getInstance().time)
+            return SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(Date())
         }
 
         val currentDate = Calendar.getInstance()
         val currentMonth = SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(currentDate.time)
 
         // Get the active cycle
-        val activeCycleWithSavings = allMemberCycles.find { it.cycle.cycleId == activeCycle?.cycleId }
-            ?: return currentMonth
+        val activeCycleWithSavings = allMemberCycles
+            .sortedByDescending { it.cycle.cycleId }
+            .firstOrNull { it.cycle.cycleId == activeCycle?.cycleId }
+            ?: return SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(Date())
+
 
         val monthlyTarget = activeCycleWithSavings.cycle.monthlySavingsAmount
 
@@ -207,10 +211,19 @@ fun ProfileScreen(
         is MemberState.MemberDetails -> (memberState as MemberState.MemberDetails).member
         else -> null
     }
+    val allCycles by homeViewModel.allCyclesForGroup.collectAsState()
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scrollState = rememberLazyListState()
 
+    LaunchedEffect(groupId) {
+        savingsViewModel.handleEvent(SavingsEvent.GetAllMemberCycles(memberId))
+        homeViewModel.loadAllCyclesForGroup(groupId) // Load all cycles for group
+    }
+
+//    LaunchedEffect(groupId) {
+//        homeViewModel.loadAllCyclesForGroup(groupId)
+//    }
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
@@ -443,28 +456,28 @@ fun ProfileScreen(
                 onAmountChange = { amount = it },
                 month = selectedMonth,
                 onMonthChange = { selectedMonth = it },
-                monthlyTarget = activeCycle?.monthlySavingsAmount ?: 0,
+                cycles = allCycles,
                 onDismiss = { showAddSavingsDialog = false },
-                getCurrentTotal = { monthInput ->
-                    // Calculate current total for the month from all cycles
+                getCurrentTotal = { cycleId, monthInput ->
+                    // Calculate current total for specific cycle and month
                     val displayMonth = convertToDisplayFormat(monthInput)
-                    allMemberCycles.flatMap { it.savingsEntries }
-                        .filter {
+                    allMemberCycles.find { it.cycle.cycleId == cycleId }?.savingsEntries
+                        ?.filter {
                             try {
                                 val date = Date(it.entryDate.toLong())
                                 SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date) == displayMonth
                             } catch (e: Exception) { false }
                         }
-                        .sumOf { it.amount }
+                        ?.sumOf { it.amount } ?: 0
                 },
-                onSave = {
+                onSave = { cycleId ->
                     scope.launch {
                         try {
-                            // VALIDATION: Check active cycle exists and belongs to group
-                            val activeCycle = homeViewModel.activeCycle.value
-                                ?: throw Exception("No active cycle in this group")
+                            // VALIDATION: Check cycle exists
+                            val cycle = allCycles.find { it.cycleId == cycleId }
+                                ?: throw Exception("Selected cycle not found")
 
-                            if (activeCycle.groupId != groupId) {
+                            if (cycle.groupId != groupId) {
                                 throw Exception("Cycle does not belong to this group")
                             }
 
@@ -479,17 +492,17 @@ fun ProfileScreen(
                             val amountValue = amount.toIntOrNull() ?: 0
                             val displayMonth = convertToDisplayFormat(targetMonth)
 
-                            // Calculate remaining target
-                            val currentTotalForMonth = allMemberCycles.flatMap { it.savingsEntries }
-                                .filter {
+                            // Calculate remaining target for selected cycle
+                            val currentTotalForMonth = allMemberCycles.find { it.cycle.cycleId == cycleId }?.savingsEntries
+                                ?.filter {
                                     try {
                                         val date = Date(it.entryDate.toLong())
                                         SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date) == displayMonth
                                     } catch (e: Exception) { false }
                                 }
-                                .sumOf { it.amount }
+                                ?.sumOf { it.amount } ?: 0
 
-                            val remaining = (activeCycle.monthlySavingsAmount ?: 0) - currentTotalForMonth
+                            val remaining = cycle.monthlySavingsAmount - currentTotalForMonth
 
                             if (amountValue > remaining) {
                                 snackbarHostState.showSnackbar("Amount exceeds remaining target! Max: KES $remaining")
@@ -499,7 +512,7 @@ fun ProfileScreen(
                             // Record savings
                             savingsViewModel.handleEvent(
                                 SavingsEvent.RecordSavings(
-                                    cycleId = activeCycle.cycleId,
+                                    cycleId = cycleId,
                                     monthYear = targetMonth,
                                     memberId = memberId,
                                     amount = amountValue,
@@ -523,29 +536,46 @@ fun ProfileScreen(
 
 private fun convertToDisplayFormat(inputMonth: String): String {
     return try {
-        val parsedDate = SimpleDateFormat("MM/yyyy", Locale.getDefault()).parse(inputMonth)
+        // Handle both "MM/yyyy" and "MMM yyyy" formats
+        val parsedDate = if (inputMonth.contains("/")) {
+            SimpleDateFormat("MM/yyyy", Locale.getDefault()).parse(inputMonth)
+        } else {
+            SimpleDateFormat("MMM yyyy", Locale.getDefault()).parse(inputMonth)
+        }
         SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(parsedDate)
     } catch (e: Exception) {
-        inputMonth
+        inputMonth // Fallback to original
     }
 }
-
 @Composable
 fun AddSavingsDialog(
     amount: String,
     onAmountChange: (String) -> Unit,
     month: String,
     onMonthChange: (String) -> Unit,
-    monthlyTarget: Int,
+    cycles: List<Cycle>,
     onDismiss: () -> Unit,
-    onSave: () -> Unit,
+    onSave: (String) -> Unit,
     determinedMonth: String,
-    getCurrentTotal: (String) -> Int
+    getCurrentTotal: (String, String) -> Int
 ) {
-    val currentTotalForMonth = remember(month) { getCurrentTotal(month) }
+
+
+    var selectedCycle by remember { mutableStateOf<Cycle?>(null) }
+    val monthlyTarget = selectedCycle?.monthlySavingsAmount ?: 0
+
+    val currentTotalForMonth = remember(month, selectedCycle) {
+        selectedCycle?.let { cycle ->
+            getCurrentTotal(cycle.cycleId, month)
+        } ?: 0
+    }
+
     val remaining = remember(amount, currentTotalForMonth) {
         val entered = amount.toIntOrNull() ?: 0
         monthlyTarget - currentTotalForMonth - entered
+    }
+    val sortedCycles = remember(cycles) {
+        cycles
     }
 
     AlertDialog(
@@ -553,6 +583,19 @@ fun AddSavingsDialog(
         title = { Text("Add Savings") },
         text = {
             Column {
+
+                // Cycle dropdown
+                Text("Select Cycle:", color = PremiumNavy, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                CycleDropdown(
+                    cycles = cycles.sortedByDescending { it.startDate },
+                    selectedCycle = selectedCycle,
+                    onCycleSelected = { selectedCycle = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(16.dp))
+
                 Text(
                     text = "Auto-selected month: $determinedMonth",
                     color = PremiumNavy,
@@ -595,7 +638,12 @@ fun AddSavingsDialog(
         },
         confirmButton = {
             Button(
-                onClick = onSave,
+                onClick = {
+                    if (selectedCycle != null) {
+                        onSave(selectedCycle!!.cycleId)
+                    }
+                },
+                enabled = selectedCycle != null,
                 colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
             ) {
                 Text("Save")
@@ -608,7 +656,71 @@ fun AddSavingsDialog(
         }
     )
 }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CycleDropdown(
+    cycles: List<Cycle>,
+    selectedCycle: Cycle?,
+    onCycleSelected: (Cycle) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
 
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedCycle?.let {
+                val dateRange = "${formatDateShort(it.startDate)} - ${it.endDate?.let { end -> formatDateShort(end) } ?: "Active"}"
+                // ADDED CYCLE NUMBER HERE
+                "Cycle ${it.cycleNumber} (ID: ${it.cycleId.takeLast(6)}): $dateRange"
+            } ?: "Select Cycle",
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                containerColor = Color.White,
+                focusedBorderColor = PremiumNavy,
+                unfocusedBorderColor = PremiumNavy.copy(alpha = 0.5f)
+            )
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            cycles.forEach { cycle ->
+                DropdownMenuItem(
+                    text = {
+                        // ADDED CYCLE NUMBER HERE
+                        Text(
+                            text = "Cycle ${cycle.cycleNumber} (ID: ${cycle.cycleId.takeLast(6)}): ${
+                                formatDateShort(cycle.startDate)
+                            } - ${
+                                cycle.endDate?.let { formatDateShort(it) } ?: "Active"
+                            }"
+                        )
+                    },
+                    onClick = {
+                        onCycleSelected(cycle)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+// Helper function for date formatting
+private fun formatDateShort(timestamp: Long): String {
+    return SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Date(timestamp))
+}
 @Composable
 fun MonthlySavingsCard(
     month: String,
@@ -722,7 +834,6 @@ private fun convertMonthToInputFormat(displayMonth: String): String {
         ""
     }
 }
-
 @Composable
 fun CycleSection(
     cycleWithSavings: CycleWithSavings,
@@ -737,6 +848,65 @@ fun CycleSection(
     val cycle = cycleWithSavings.cycle
     val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
+    // Get distinct months from savings entries
+    val months = cycleWithSavings.savingsEntries
+        .mapNotNull { entry ->
+            try {
+                val date = Date(entry.entryDate.toLong())
+                dateFormat.format(date)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        .distinct()
+        .sortedBy { dateString ->
+            dateFormat.parse(dateString)?.time ?: 0L
+        }
+
+    // Get cycle dates
+    val startDate = formatDateShort(cycle.startDate)
+    val endDate = cycle.endDate?.let { formatDateShort(it) } ?: "Active"
+    val cycleIdShort = cycle.cycleId.takeLast(6)
+
+    CycleDropdownItem(
+        cycleNumber = "Cycle $cycleIdShort",
+        cycleId = cycle.cycleId,
+        startDate = startDate,
+        endDate = endDate,
+        expanded = expanded,
+        onExpandToggle = onExpandToggle,
+        monthlyTarget = cycle.monthlySavingsAmount,
+        months = months,
+        cycleWithSavings = cycleWithSavings,
+        recorderNames = recorderNames,
+        memberId = memberId,
+        onAddSavings = onAddSavings,
+        isActiveCycle = isActiveCycle,
+        determinedMonthDisplay = determinedMonthDisplay
+    )
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CycleDropdownItem(
+    cycleNumber: String,
+    cycleId: String,
+    startDate: String,
+    endDate: String,
+    expanded: Boolean,
+    onExpandToggle: (String) -> Unit,
+    monthlyTarget: Int,
+    months: List<String>,
+    cycleWithSavings: CycleWithSavings,
+    recorderNames: Map<String, String>,
+    memberId: String,
+    onAddSavings: (String, Int) -> Unit,
+    isActiveCycle: Boolean,
+    determinedMonthDisplay: String
+) {
+    val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -745,33 +915,28 @@ fun CycleSection(
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column {
-            // Cycle header
+            // Cycle header with dropdown toggle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onExpandToggle(cycle.cycleId) }
+                    .clickable { onExpandToggle(cycleId) }
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text(
-                        "Cycle: ${cycle.cycleId.takeLast(6)}",
+                        cycleNumber,
                         fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
                         color = PremiumNavy
                     )
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        "Started: ${dateFormat.format(Date(cycle.startDate))}",
+                        "$startDate - $endDate",
                         fontSize = 14.sp,
                         color = PremiumNavy.copy(alpha = 0.7f)
                     )
-                    if (cycle.endDate != null) {
-                        Text(
-                            "Ended: ${dateFormat.format(Date(cycle.endDate))}",
-                            fontSize = 14.sp,
-                            color = PremiumNavy.copy(alpha = 0.7f)
-                        )
-                    }
                 }
 
                 Icon(
@@ -781,51 +946,44 @@ fun CycleSection(
                 )
             }
 
-            // Cycle content
+            // Monthly target
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Monthly Target:",
+                    fontWeight = FontWeight.Medium,
+                    color = PremiumNavy
+                )
+                Text(
+                    "KES $monthlyTarget",
+                    fontWeight = FontWeight.Bold,
+                    color = PremiumNavy
+                )
+            }
+
+            // Monthly savings (collapsible)
             AnimatedVisibility(visible = expanded) {
                 Column {
-                    // Monthly targets section
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            "Monthly Target:",
-                            fontWeight = FontWeight.Medium,
-                            color = PremiumNavy
-                        )
-                        Text(
-                            "KES ${cycle.monthlySavingsAmount}",
-                            fontWeight = FontWeight.Bold,
-                            color = PremiumNavy
-                        )
-                    }
-
-                    // Monthly savings cards
-                    val months = if (isActiveCycle) {
-                        generateMonthsUntilFuture(cycle.startDate, 2) // Current + 2 future months
-                    } else {
-                        generateMonthsForCompletedCycle(cycle)
-                    }
-
                     months.forEach { month ->
                         val monthEntries = cycleWithSavings.savingsEntries.filter {
                             try {
                                 val date = Date(it.entryDate.toLong())
-                                SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date) == month
+                                dateFormat.format(date) == month
                             } catch (e: Exception) { false }
                         }
 
                         val isCurrentMonth = month == determinedMonthDisplay && isActiveCycle
                         val isFuture = isFutureMonth(month)
-                        val isComplete = monthEntries.sumOf { it.amount } >= cycle.monthlySavingsAmount
+                        val isComplete = monthEntries.sumOf { it.amount } >= monthlyTarget
 
                         MonthlySavingsCard(
                             month = month,
                             entries = monthEntries,
-                            monthlyTarget = cycle.monthlySavingsAmount,
+                            monthlyTarget = monthlyTarget,
                             onClick = {
                                 if (!isFuture && !isComplete) {
                                     val inputFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
@@ -834,7 +992,7 @@ fun CycleSection(
                                     } catch (e: Exception) {
                                         ""
                                     }
-                                    onAddSavings(monthKey, cycle.monthlySavingsAmount - monthEntries.sumOf { it.amount })
+                                    onAddSavings(monthKey, monthlyTarget - monthEntries.sumOf { it.amount })
                                 }
                             },
                             isCurrentMonth = isCurrentMonth,
@@ -850,27 +1008,31 @@ fun CycleSection(
     }
 }
 
-// Helper functions
-private fun generateMonthsUntilFuture(startDate: Long, futureMonths: Int): List<String> {
+
+private fun generateMonthsUntilFuture(cycle: Cycle, futureMonths: Int): List<String> {
     val format = SimpleDateFormat("MMM yyyy", Locale.getDefault())
     val months = mutableListOf<String>()
     val calendar = Calendar.getInstance().apply {
-        time = Date(startDate)
+        time = Date(cycle.startDate)
         set(Calendar.DAY_OF_MONTH, 1)
     }
 
-    val futureCalendar = Calendar.getInstance().apply {
+    val future = Calendar.getInstance().apply {
         add(Calendar.MONTH, futureMonths)
+        // Access endDate from the cycle parameter
+        cycle.endDate?.let { endDate ->
+            val endCal = Calendar.getInstance().apply { time = Date(endDate) }
+            if (after(endCal)) time = endCal.time
+        }
     }
 
-    while (!calendar.after(futureCalendar)) {
+    while (!calendar.after(future)) {
         months.add(format.format(calendar.time))
         calendar.add(Calendar.MONTH, 1)
     }
 
     return months
 }
-
 private fun generateMonthsForCompletedCycle(cycle: Cycle): List<String> {
     val format = SimpleDateFormat("MMM yyyy", Locale.getDefault())
     val months = mutableListOf<String>()

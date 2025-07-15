@@ -37,30 +37,27 @@ class CycleRepositoryImpl @Inject constructor(
         beneficiariesPerMeeting: Int
     ): Result<Cycle> = withContext(dispatcher) {
         try {
-            // Get actual member count
-            val groupWithMembers = groupRepository.getGroupWithMembers(groupId)
-            val actualMemberCount = groupWithMembers?.members?.size ?: 0
-
-            // End any active cycle in this group
-            cycleDao.getActiveCycleByGroupId(groupId)?.let {
-                cycleDao.endCycle(it.cycleId)
+            // 1. End current active cycle (if exists)
+            cycleDao.getActiveCycleByGroupId(groupId)?.let { activeCycle ->
+                endCurrentCycle(activeCycle.cycleId, System.currentTimeMillis())
             }
 
+            // 2. Create new active cycle (endDate = null)
             val newCycle = Cycle(
+                cycleId = UUID.randomUUID().toString(),
                 isActive = true,
                 startDate = startDate,
+                endDate = null, // New cycles have no end date
                 weeklyAmount = weeklyAmount,
                 monthlySavingsAmount = monthlyAmount,
-                totalMembers = actualMemberCount,
+                totalMembers = totalMembers,
                 groupId = groupId,
-                cycleId = UUID.randomUUID().toString(),
                 totalSavings = 0,
-                beneficiariesPerMeeting = beneficiariesPerMeeting
+                beneficiariesPerMeeting = beneficiariesPerMeeting,
+                cycleNumber = calculateNextCycleNumber(groupId)
             )
 
             cycleDao.insertCycle(newCycle)
-            println("Created cycle: $newCycle")
-
             Result.success(newCycle)
         } catch (e: Exception) {
             Result.failure(e)
@@ -69,23 +66,40 @@ class CycleRepositoryImpl @Inject constructor(
 
 
 
-    override suspend fun endCurrentCycle(): Result<Unit> = withContext(dispatcher) {
-        try {
-            val activeCycle = cycleDao.getActiveCycle()
-                ?: return@withContext Result.failure(IllegalStateException("No active cycle found"))
+//    override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Unit> = withContext(dispatcher) {
+//        try {
+//            val activeCycle = cycleDao.getActiveCycle()
+//                ?: return@withContext Result.failure(IllegalStateException("No active cycle found"))
+//
+//            if (activeCycle.cycleId != cycleId) {
+//                return@withContext Result.failure(IllegalArgumentException("Mismatched cycle ID"))
+//            }
+//
+//            cycleDao.updateCycle(
+//                activeCycle.copy(
+//                    endDate = endDate,
+//                    isActive = false
+//                )
+//            )
+//            Result.success(Unit)
+//        } catch (e: Exception) {
+//            Result.failure(e)
+//        }
+//    }
+override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Unit> {
+    val cycle = getCycleById(cycleId) ?: return Result.failure(IllegalStateException("Cycle not found"))
+    val updatedCycle = cycle.copy(
+        isActive = false,
+        endDate = endDate // Set end date when completing
+    )
+    cycleDao.updateCycle(updatedCycle)
+    return Result.success(Unit)
+}
 
-            cycleDao.updateCycle(
-                activeCycle.copy(
-                    endDate = System.currentTimeMillis(),
-                    isActive = false
-                )
-            )
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    private suspend fun calculateNextCycleNumber(groupId: String): Int {
+        val lastCycle = cycleDao.getLastCycleByGroupId(groupId)
+        return (lastCycle?.cycleNumber ?: 0) + 1
     }
-
 
     override suspend fun getCyclesByGroup(groupId: String): List<Cycle> {
         return cycleDao.getCyclesByGroup(groupId)

@@ -14,13 +14,7 @@ interface MonthlySavingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMonthlySaving(saving: MonthlySaving)
 
-    @Query(
-        """
-        SELECT * FROM MonthlySaving
-        WHERE cycle_id = :cycleId
-        ORDER BY month_year DESC
-    """
-    )
+    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId ORDER BY month_year DESC")
     fun getSavingsForCycle(cycleId: String): Flow<List<MonthlySaving>>
 
     @Query(
