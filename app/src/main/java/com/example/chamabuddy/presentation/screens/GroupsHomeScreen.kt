@@ -35,7 +35,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.chamabuddy.R
 import com.example.chamabuddy.domain.model.Group
+import com.example.chamabuddy.domain.model.User
 import com.example.chamabuddy.presentation.navigation.GroupsHomeDestination
+import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.GroupHomeViewModel
 import kotlinx.coroutines.launch
 
@@ -52,7 +54,8 @@ fun GroupsHomeScreen(
     val showDialog by remember(uiState.showCreateGroupDialog) {
         derivedStateOf { uiState.showCreateGroupDialog }
     }
-
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val currentUser by authViewModel.currentUser.collectAsState()
     // Drawer state
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -70,6 +73,7 @@ fun GroupsHomeScreen(
         drawerContent = {
             Box(modifier = Modifier.width(280.dp)) {
                 GroupsHomeDrawerContent(
+                    currentUser = currentUser, // Pass current user here
                     onClose = { scope.launch { drawerState.close() } },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -252,6 +256,7 @@ fun GroupsHomeScreen(
 
 @Composable
 fun GroupsHomeDrawerContent(
+    currentUser: User?,  // Add currentUser parameter
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -276,16 +281,26 @@ fun GroupsHomeDrawerContent(
                     .border(2.dp, Color.White, CircleShape)
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                "Alex Maina",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White
-            )
-            Text(
-                "alexdemaish@gmail.com",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f)
-            )
+            if (currentUser == null) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .align(Alignment.CenterHorizontally),
+                    color = Color.White
+                )
+            } else {
+                // Display user info as shown above
+                Text(
+                    currentUser.username,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                )
+                Text(
+                    currentUser.phoneNumber,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            }
         }
 
         Divider(color = Color.White.copy(alpha = 0.2f), thickness = 1.dp)

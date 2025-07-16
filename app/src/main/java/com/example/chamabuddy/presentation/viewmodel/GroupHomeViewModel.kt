@@ -21,6 +21,7 @@ class GroupHomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(GroupHomeUiState())
     val uiState: StateFlow<GroupHomeUiState> = _uiState.asStateFlow()
 
+
     init {
         loadUserGroups()
     }
