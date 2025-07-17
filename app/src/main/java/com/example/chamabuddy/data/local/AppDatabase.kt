@@ -21,9 +21,13 @@ import java.util.Date
         Group::class,
         User::class,
         UserGroup::class,
-        GroupMember::class
+        GroupMember::class,
+        Penalty::class,
+        ExpenseEntity::class,
+        BenefitEntity::class
+
     ],
-    version = 14,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -39,7 +43,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun userGroupDao(): UserGroupDao
     abstract fun groupMemberDao(): GroupMemberDao
-
+    abstract fun penaltyDao():PenaltyDao
+    abstract fun expenseDao(): ExpenseDao
+    abstract fun benefitDao(): BenefitDao
     suspend fun <T> runInTransaction(block: suspend () -> T): T {
         return withContext(Dispatchers.IO) {
             runInTransaction(block)

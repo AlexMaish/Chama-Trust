@@ -36,10 +36,12 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Money
+import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
@@ -100,15 +102,21 @@ import com.example.chamabuddy.R
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.Group
 import com.example.chamabuddy.presentation.navigation.BeneficiaryGroupDestination
+import com.example.chamabuddy.presentation.navigation.BenefitDestination
+import com.example.chamabuddy.presentation.navigation.ExpenseDestination
 import com.example.chamabuddy.presentation.navigation.HomeDestination
 import com.example.chamabuddy.presentation.navigation.MembersDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
+import com.example.chamabuddy.presentation.navigation.PenaltyDestination
 import com.example.chamabuddy.presentation.navigation.ProfileDestination
 import com.example.chamabuddy.presentation.navigation.SavingsDestination
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
+import com.example.chamabuddy.presentation.viewmodel.BenefitViewModel
 import com.example.chamabuddy.presentation.viewmodel.CycleEvent
 import com.example.chamabuddy.presentation.viewmodel.CycleState
+import com.example.chamabuddy.presentation.viewmodel.ExpenseViewModel
 import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
+import com.example.chamabuddy.presentation.viewmodel.PenaltyViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -155,6 +163,24 @@ fun HomeScreen(
 
     val authViewModel: AuthViewModel = hiltViewModel()
     val currentMemberId by authViewModel.currentMemberId.collectAsState()
+
+
+    val expenseViewModel: ExpenseViewModel = hiltViewModel()
+    val benefitViewModel: BenefitViewModel = hiltViewModel()
+    val penaltyViewModel: PenaltyViewModel = hiltViewModel()
+
+
+    LaunchedEffect(groupId) {
+        if (groupId.isNotEmpty()) {
+            expenseViewModel.loadData(groupId)
+            benefitViewModel.loadData(groupId)
+            penaltyViewModel.loadData(groupId)
+        }
+    }
+    val expenseTotal by expenseViewModel.total.collectAsState()
+    val benefitTotal by benefitViewModel.total.collectAsState()
+    val penaltyTotal by penaltyViewModel.total.collectAsState()
+
 
     LaunchedEffect(groupId) {
         if (groupId.isNotEmpty()) {
@@ -239,10 +265,25 @@ fun HomeScreen(
         drawerContent = {
             Box(modifier = Modifier.width(280.dp)) {
                 SideNavigationDrawerContent(
+                    currentGroupId = groupId,
+                    penaltyTotal = penaltyTotal,
+                    expenseTotal = expenseTotal,
+                    benefitTotal =  benefitTotal,
                     groups = userGroups,
                     onGroupSelected = { /* Handle group selection */ },
                     onCreateGroup = { navigateToGroupManagement() },
                     onClose = { scope.launch { drawerState.close() } },
+                    onNavToPenalty = {
+                        navController.navigate("${PenaltyDestination.route}/$groupId")
+                    },
+                    onNavToBenefit= {
+                        navController.navigate("${BenefitDestination.route}/$groupId")
+                    },
+                onNavToExpense= {
+                    navController.navigate("${ExpenseDestination.route}/$groupId")
+                    },
+
+
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -753,6 +794,13 @@ fun EmptyDashboard(onCreateClick: () -> Unit) {
 
 @Composable
 fun SideNavigationDrawerContent(
+    currentGroupId: String,
+    penaltyTotal: Double,
+    expenseTotal : Double,
+    benefitTotal : Double,
+    onNavToPenalty: () -> Unit,
+    onNavToBenefit: () -> Unit,
+    onNavToExpense: () -> Unit,
     groups: List<Group>,
     onGroupSelected: (Group) -> Unit,
     onCreateGroup: () -> Unit,
@@ -819,7 +867,7 @@ fun SideNavigationDrawerContent(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(150.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0x44FFFFFF))
                     .padding(8.dp)
@@ -831,7 +879,33 @@ fun SideNavigationDrawerContent(
         }
 
         Spacer(modifier = Modifier.weight(1f))
-
+        DrawerItem(
+            icon = Icons.Default.MoneyOff,
+            text = "Penalties   Ksh${"%.2f".format(penaltyTotal)}",
+            onClick = {
+                onNavToPenalty()
+                onClose()
+            }
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        DrawerItem(
+            icon = Icons.Default.MonetizationOn,
+            text = "Benefits   Ksh${"%.2f".format(benefitTotal)}",
+            onClick = {
+                onNavToBenefit()
+                onClose()
+            }
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        DrawerItem(
+            icon = Icons.Default.ShoppingCart,
+            text = "Expenses   Ksh${"%.2f".format(expenseTotal)}",
+            onClick = {
+                onNavToExpense()
+                onClose()
+            }
+        )
+        Spacer(modifier = Modifier.weight(1f))
         Column(
             modifier = Modifier
                 .fillMaxWidth()

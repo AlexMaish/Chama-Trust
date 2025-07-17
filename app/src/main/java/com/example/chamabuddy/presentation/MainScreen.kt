@@ -50,7 +50,10 @@ import com.example.chamabuddy.presentation.screens.ProfileScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen // Add this import
 import com.example.chamabuddy.presentation.navigation.SavingsDestination
 import com.example.chamabuddy.presentation.screens.BeneficiaryGroupScreen
+import com.example.chamabuddy.presentation.screens.BenefitScreen
+import com.example.chamabuddy.presentation.screens.ExpenseScreen
 import com.example.chamabuddy.presentation.screens.GroupsHomeScreen
+import com.example.chamabuddy.presentation.screens.PenaltyScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen
 @Composable
 fun MainScreen() {
@@ -375,6 +378,36 @@ fun MainNavHost(
 
 
         }
+
+
+
+        composable(
+            route = PenaltyDestination.routeWithArgs,
+            arguments = listOf(navArgument(PenaltyDestination.groupIdArg) { type = NavType.StringType }
+            ) ){ backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString(PenaltyDestination.groupIdArg) ?: ""
+                PenaltyScreen(groupId = groupId)
+            }
+
+
+        composable(
+            route = ExpenseDestination.routeWithArgs,
+            arguments = listOf(navArgument(ExpenseDestination.groupIdArg) { type = NavType.StringType }
+            ) ){ backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString(ExpenseDestination.groupIdArg) ?: ""
+                ExpenseScreen(groupId = groupId)
+            }
+
+
+        composable(
+            route = BenefitDestination.routeWithArgs,
+            arguments = listOf(navArgument(BenefitDestination.groupIdArg) { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString(BenefitDestination.groupIdArg) ?: return@composable
+            BenefitScreen(groupId)
+        }
+
+
     }
 
 }

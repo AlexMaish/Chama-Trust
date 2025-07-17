@@ -41,6 +41,13 @@ object AppModule {
     @Provides fun provideUserGroupDao(db: AppDatabase): UserGroupDao = db.userGroupDao()
     @Provides fun provideGroupMemberDao(db: AppDatabase): GroupMemberDao = db.groupMemberDao()
 
+    @Provides fun provideExpenseDao(db: AppDatabase): ExpenseDao = db.expenseDao()
+    @Provides fun provideBenefitDao(db: AppDatabase): BenefitDao = db.benefitDao()
+    @Provides
+    fun providePenaltyDao(database: AppDatabase): PenaltyDao = database.penaltyDao()
+
+
+
     /** DISPATCHER **/
     @Provides
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
@@ -156,4 +163,27 @@ object AppModule {
         userRepository = userRepository,
         groupMemberDao = groupMemberDao
     )
+
+    @Provides
+    @Singleton
+    fun provideBenfitRepository(
+        benefitDao: BenefitDao
+    ): BenefitRepository = BenefitRepositoryImpl (benefitDao)
+
+
+    @Provides
+    @Singleton
+    fun providePenaltyRepository(
+        penaltyDao: PenaltyDao
+    ): PenaltyRepository = PenaltyRepositoryImpl(penaltyDao)
+
+
+
+    @Provides
+    @Singleton
+    fun provideExpenseRepository(
+        expenseDao: ExpenseDao
+    ): ExpenseRepository = ExpenseRepositoryImpl(expenseDao)
+
+
 }
