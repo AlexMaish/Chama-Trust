@@ -66,6 +66,7 @@ class SavingsRepositoryImpl @Inject constructor(
             }
 
             // 4. Create and insert new saving entry
+            val currentTimeMillis = System.currentTimeMillis()
             val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
             val targetDate = monthFormat.parse(monthYear)
             val calendar = Calendar.getInstance().apply {
@@ -284,4 +285,18 @@ class SavingsRepositoryImpl @Inject constructor(
     override suspend fun getTotalGroupSavings(groupId: String): Int {
         return savingEntryDao.getTotalSavingsByGroup(groupId) ?: 0
     }
+
+    override suspend fun deleteSavingsEntry(entryId: String) {
+        savingEntryDao.deleteEntry(entryId)
+    }
+
+    override suspend fun deleteSavingsForMonth(cycleId: String, monthYear: String, groupId: String) {
+        val saving = savingDao.getSavingForMonth(cycleId, monthYear)
+        saving?.let {
+            savingDao.deleteSaving(it.savingId)
+        }
+    }
+
+
+
 }

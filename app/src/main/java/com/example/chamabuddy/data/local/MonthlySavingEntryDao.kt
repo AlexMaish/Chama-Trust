@@ -100,4 +100,14 @@ interface MonthlySavingEntryDao {
         AND group_id = :groupId
     """)
     suspend fun getMemberSavingsTotalInGroup(groupId: String, memberId: String): Int
+
+
+
+    @Query("DELETE FROM MonthlySavingEntry WHERE entry_id = :entryId")
+    suspend fun deleteEntry(entryId: String)
+
+
+
+
+
 }

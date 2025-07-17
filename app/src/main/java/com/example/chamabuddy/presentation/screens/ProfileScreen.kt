@@ -1,28 +1,28 @@
 package com.example.chamabuddy.presentation.screens
 
 import android.R.interpolator.cycle
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.LightGray
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,24 +33,10 @@ import androidx.navigation.NavHostController
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.MonthlySavingEntry
 import com.example.chamabuddy.presentation.navigation.AuthDestination
-import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
-import com.example.chamabuddy.presentation.viewmodel.CycleEvent
-import com.example.chamabuddy.presentation.viewmodel.CycleWithSavings
-import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
-import com.example.chamabuddy.presentation.viewmodel.MemberEvent
-import com.example.chamabuddy.presentation.viewmodel.MemberState
-import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
-import com.example.chamabuddy.presentation.viewmodel.SavingsEvent
-import com.example.chamabuddy.presentation.viewmodel.SavingsState
-import com.example.chamabuddy.presentation.viewmodel.SavingsViewModel
+import com.example.chamabuddy.presentation.viewmodel.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-
-// Define colors to match home screen
-//val PremiumNavy = Color(0xFF0A1D3A)
-//val SoftOffWhite = Color(0xFFF8F9FA)
-//val VibrantOrange = Color(0xFFFF6B35)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalAnimationApi::class)
 @Composable
@@ -67,11 +53,15 @@ fun ProfileScreen(
     // Get current user for 'recorded by' functionality
     val currentUser by authViewModel.currentUser.collectAsState()
     val currentUserPhone = currentUser?.phoneNumber
-    val currentMember = remember {
-        derivedStateOf {
-            savingsViewModel.members.value.values.find { it.phoneNumber == currentUserPhone }
-        }
-    }
+    val members by savingsViewModel.members.collectAsState()
+    // FIXED: Properly initialize currentMember using memberId
+//    val currentMember = remember(memberId) {
+//        members.values.find { it.memberId == memberId }
+//    }
+
+    val currentMember = members[memberId]  // More efficient than find()
+    val isAdmin = currentMember?.isAdmin ?: false
+
     val currentMemberId by authViewModel.currentMemberId.collectAsState()
     var loadingMemberId by remember { mutableStateOf(false) }
     LaunchedEffect(groupId) {
@@ -82,12 +72,23 @@ fun ProfileScreen(
     val memberTotals by savingsViewModel.memberTotals.collectAsState()
     val savingsState by savingsViewModel.state.collectAsState()
     val memberState by memberViewModel.state.collectAsState()
-    val activeCycle by homeViewModel.activeCycle.collectAsState()
+    val activeCycle by savingsViewModel.activeCycle.collectAsState()
+
+    LaunchedEffect(groupId) {
+        savingsViewModel.initializeGroupId(groupId)
+        homeViewModel.handleEvent(CycleEvent.GetActiveCycle) // Force refresh
+    }
 
     var showAddSavingsDialog by remember { mutableStateOf(false) }
     var selectedMonth by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var determinedMonth by remember { mutableStateOf("") }
+
+    // State for deletion
+    var showDeleteEntryDialog by remember { mutableStateOf(false) }
+    var showDeleteMonthDialog by remember { mutableStateOf(false) }
+    var entryToDelete by remember { mutableStateOf<MonthlySavingEntry?>(null) }
+    var monthToDelete by remember { mutableStateOf<Pair<String, String>?>(null) } // (cycleId, monthYear)
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -97,12 +98,13 @@ fun ProfileScreen(
         allMemberCycles.flatMap { it.savingsEntries }.sumOf { it.amount }
     }
 
+    // Admin check - FIXED: Use proper initialization
+
     // State for expanded/collapsed cycles
     val expandedCycles = remember { mutableStateMapOf<String, Boolean>() }
 
     LaunchedEffect(memberId) {
         savingsViewModel.handleEvent(SavingsEvent.GetAllMemberCycles(memberId))
-        // Expand all cycles by default
         allMemberCycles.forEach {
             expandedCycles[it.cycle.cycleId] = true
         }
@@ -121,12 +123,10 @@ fun ProfileScreen(
             .mapNotNull { it.recordedBy }
             .distinct()
 
-        // Add current member's name to recorderNames
-        currentMember.value?.let { member ->
+        currentMember?.let { member ->
             recorderNames[member.memberId] = member.name
         }
 
-        // Fetch other recorder names
         uniqueRecorderIds.forEach { id ->
             if (!recorderNames.containsKey(id)) {
                 memberViewModel.getMemberNameById(id)?.let { name ->
@@ -135,6 +135,25 @@ fun ProfileScreen(
             }
         }
     }
+
+    // Handle deletion states
+    when (savingsState) {
+        is SavingsState.EntryDeleted -> {
+            LaunchedEffect(Unit) {
+                snackbarHostState.showSnackbar("Entry deleted")
+                savingsViewModel.handleEvent(SavingsEvent.ResetSavingsState)
+            }
+        }
+        is SavingsState.MonthDeleted -> {
+            LaunchedEffect(Unit) {
+                snackbarHostState.showSnackbar("Month's savings deleted")
+                savingsViewModel.handleEvent(SavingsEvent.ResetSavingsState)
+                savingsViewModel.handleEvent(SavingsEvent.GetAllMemberCycles(memberId))
+            }
+        }
+        else -> {}
+    }
+
     // Function to determine the target month
     fun determineSavingsMonth(): String {
         if (allMemberCycles.isEmpty() || activeCycle == null) {
@@ -144,16 +163,13 @@ fun ProfileScreen(
         val currentDate = Calendar.getInstance()
         val currentMonth = SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(currentDate.time)
 
-        // Get the active cycle
         val activeCycleWithSavings = allMemberCycles
             .sortedByDescending { it.cycle.cycleId }
             .firstOrNull { it.cycle.cycleId == activeCycle?.cycleId }
             ?: return SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(Date())
 
-
         val monthlyTarget = activeCycleWithSavings.cycle.monthlySavingsAmount
 
-        // Group savings by month for the active cycle
         val savingsByMonth = activeCycleWithSavings.savingsEntries.groupBy { entry ->
             try {
                 SimpleDateFormat("MM/yyyy", Locale.getDefault())
@@ -166,16 +182,13 @@ fun ProfileScreen(
         val cycleStartDate = Date(activeCycle!!.startDate)
         val calendar = Calendar.getInstance().apply { time = cycleStartDate }
 
-        // Iterate from cycle start to current month
         while (!calendar.after(currentDate)) {
             val monthKey = SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(calendar.time)
 
-            // Skip future months
             if (calendar.after(currentDate)) break
 
             val monthlyTotal = savingsByMonth[monthKey]?.sumOf { it.amount } ?: 0
 
-            // Found an incomplete month
             if (monthlyTotal < monthlyTarget) {
                 return monthKey
             }
@@ -183,7 +196,6 @@ fun ProfileScreen(
             calendar.add(Calendar.MONTH, 1)
         }
 
-        // All previous months are complete, return current month
         return currentMonth
     }
 
@@ -191,22 +203,18 @@ fun ProfileScreen(
         convertToDisplayFormat(determinedMonth)
     }
 
-    // Get active cycle
     LaunchedEffect(Unit) {
         homeViewModel.handleEvent(CycleEvent.GetActiveCycle)
     }
 
-    // Fetch member details
     LaunchedEffect(memberId) {
         memberViewModel.handleEvent(MemberEvent.GetMemberDetails(memberId))
     }
 
-    // Update determined month when dependencies change
     LaunchedEffect(allMemberCycles, activeCycle) {
         determinedMonth = determineSavingsMonth()
     }
 
-    // Get member details
     val member = when (memberState) {
         is MemberState.MemberDetails -> (memberState as MemberState.MemberDetails).member
         else -> null
@@ -218,18 +226,16 @@ fun ProfileScreen(
 
     LaunchedEffect(groupId) {
         savingsViewModel.handleEvent(SavingsEvent.GetAllMemberCycles(memberId))
-        homeViewModel.loadAllCyclesForGroup(groupId) // Load all cycles for group
+        homeViewModel.loadAllCyclesForGroup(groupId)
     }
-
-//    LaunchedEffect(groupId) {
-//        homeViewModel.loadAllCyclesForGroup(groupId)
-//    }
+    if (currentMember == null) {
+        Log.e("ProfileScreen", "Member $memberId not found in group")
+    }
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
                 title = {
-                    // Collapsed title
                     Text(
                         member?.name ?: "Member Profile",
                         maxLines = 1,
@@ -281,7 +287,8 @@ fun ProfileScreen(
             }
         },
         floatingActionButton = {
-            if (activeCycle != null) {
+            Log.d("ProfileScreen", "Showing FAB for admin: $isAdmin, activeCycle: ${activeCycle?.cycleId}")
+            if (isAdmin && activeCycle != null)  {
                 FloatingActionButton(
                     onClick = {
                         amount = activeCycle?.monthlySavingsAmount?.toString() ?: ""
@@ -296,9 +303,13 @@ fun ProfileScreen(
                         tint = Color.White
                     )
                 }
+            } else {
+//                null
+                Log.d("ProfileScreen", "FAB hidden. Admin: $isAdmin, ActiveCycle: $activeCycle")
             }
         }
-    ) { innerPadding ->
+    )
+     { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -334,7 +345,6 @@ fun ProfileScreen(
                 contentPadding = PaddingValues(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Profile Header
                 item {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -378,14 +388,12 @@ fun ProfileScreen(
                                 color = VibrantOrange
                             )
                         } else {
-                            // Loading state
                             CircularProgressIndicator(color = PremiumNavy)
                         }
                         Spacer(Modifier.height(24.dp))
                     }
                 }
 
-                // Title section
                 item {
                     Column(
                         Modifier
@@ -404,7 +412,6 @@ fun ProfileScreen(
                     }
                 }
 
-                // Savings list
                 if (allMemberCycles.isEmpty()) {
                     item {
                         Box(Modifier.fillMaxWidth(), Alignment.Center) {
@@ -431,7 +438,16 @@ fun ProfileScreen(
                                     showAddSavingsDialog = true
                                 },
                                 isActiveCycle = cycleWithSavings.cycle.cycleId == activeCycle?.cycleId,
-                                determinedMonthDisplay = determinedMonthDisplay
+                                determinedMonthDisplay = determinedMonthDisplay,
+                                isAdmin = isAdmin,
+                                onDeleteEntry = { entry ->
+                                    entryToDelete = entry
+                                    showDeleteEntryDialog = true
+                                },
+                                onDeleteMonth = { cycleId, monthKey ->
+                                    monthToDelete = Pair(cycleId, monthKey)
+                                    showDeleteMonthDialog = true
+                                }
                             )
                         }
 
@@ -449,8 +465,7 @@ fun ProfileScreen(
             }
         }
 
-        // Savings dialog
-        if (showAddSavingsDialog) {
+        if (showAddSavingsDialog && isAdmin) {
             AddSavingsDialog(
                 amount = amount,
                 onAmountChange = { amount = it },
@@ -459,7 +474,6 @@ fun ProfileScreen(
                 cycles = allCycles,
                 onDismiss = { showAddSavingsDialog = false },
                 getCurrentTotal = { cycleId, monthInput ->
-                    // Calculate current total for specific cycle and month
                     val displayMonth = convertToDisplayFormat(monthInput)
                     allMemberCycles.find { it.cycle.cycleId == cycleId }?.savingsEntries
                         ?.filter {
@@ -473,7 +487,6 @@ fun ProfileScreen(
                 onSave = { cycleId ->
                     scope.launch {
                         try {
-                            // VALIDATION: Check cycle exists
                             val cycle = allCycles.find { it.cycleId == cycleId }
                                 ?: throw Exception("Selected cycle not found")
 
@@ -481,7 +494,6 @@ fun ProfileScreen(
                                 throw Exception("Cycle does not belong to this group")
                             }
 
-                            // Get current member ID
                             val recordedById = if (!loadingMemberId) {
                                 currentMemberId ?: throw Exception("Member ID not found")
                             } else {
@@ -492,7 +504,6 @@ fun ProfileScreen(
                             val amountValue = amount.toIntOrNull() ?: 0
                             val displayMonth = convertToDisplayFormat(targetMonth)
 
-                            // Calculate remaining target for selected cycle
                             val currentTotalForMonth = allMemberCycles.find { it.cycle.cycleId == cycleId }?.savingsEntries
                                 ?.filter {
                                     try {
@@ -509,7 +520,6 @@ fun ProfileScreen(
                                 return@launch
                             }
 
-                            // Record savings
                             savingsViewModel.handleEvent(
                                 SavingsEvent.RecordSavings(
                                     cycleId = cycleId,
@@ -531,12 +541,42 @@ fun ProfileScreen(
                 determinedMonth = determinedMonth
             )
         }
+
+        // Deletion dialogs
+        if (showDeleteEntryDialog) {
+            DeleteConfirmationDialog(
+                title = "Delete Entry",
+                message = "Are you sure you want to delete this savings entry?",
+                onConfirm = {
+                    entryToDelete?.let {
+                        savingsViewModel.handleEvent(SavingsEvent.DeleteEntry(it.entryId))
+                    }
+                    showDeleteEntryDialog = false
+                },
+                onDismiss = { showDeleteEntryDialog = false }
+            )
+        }
+
+        if (showDeleteMonthDialog) {
+            DeleteConfirmationDialog(
+                title = "Delete Month",
+                message = "Are you sure you want to delete all entries for this month?",
+                onConfirm = {
+                    monthToDelete?.let { (cycleId, monthYear) ->
+                        savingsViewModel.handleEvent(
+                            SavingsEvent.DeleteMonth(cycleId, monthYear, groupId)
+                        )
+                    }
+                    showDeleteMonthDialog = false
+                },
+                onDismiss = { showDeleteMonthDialog = false }
+            )
+        }
     }
 }
 
 private fun convertToDisplayFormat(inputMonth: String): String {
     return try {
-        // Handle both "MM/yyyy" and "MMM yyyy" formats
         val parsedDate = if (inputMonth.contains("/")) {
             SimpleDateFormat("MM/yyyy", Locale.getDefault()).parse(inputMonth)
         } else {
@@ -544,9 +584,10 @@ private fun convertToDisplayFormat(inputMonth: String): String {
         }
         SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(parsedDate)
     } catch (e: Exception) {
-        inputMonth // Fallback to original
+        inputMonth
     }
 }
+
 @Composable
 fun AddSavingsDialog(
     amount: String,
@@ -559,8 +600,6 @@ fun AddSavingsDialog(
     determinedMonth: String,
     getCurrentTotal: (String, String) -> Int
 ) {
-
-
     var selectedCycle by remember { mutableStateOf<Cycle?>(null) }
     val monthlyTarget = selectedCycle?.monthlySavingsAmount ?: 0
 
@@ -574,17 +613,12 @@ fun AddSavingsDialog(
         val entered = amount.toIntOrNull() ?: 0
         monthlyTarget - currentTotalForMonth - entered
     }
-    val sortedCycles = remember(cycles) {
-        cycles
-    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Savings") },
         text = {
             Column {
-
-                // Cycle dropdown
                 Text("Select Cycle:", color = PremiumNavy, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
                 CycleDropdown(
@@ -656,6 +690,7 @@ fun AddSavingsDialog(
         }
     )
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CycleDropdown(
@@ -674,7 +709,6 @@ fun CycleDropdown(
         OutlinedTextField(
             value = selectedCycle?.let {
                 val dateRange = "${formatDateShort(it.startDate)} - ${it.endDate?.let { end -> formatDateShort(end) } ?: "Active"}"
-                // ADDED CYCLE NUMBER HERE
                 "Cycle ${it.cycleNumber} (ID: ${it.cycleId.takeLast(6)}): $dateRange"
             } ?: "Select Cycle",
             onValueChange = {},
@@ -699,7 +733,6 @@ fun CycleDropdown(
             cycles.forEach { cycle ->
                 DropdownMenuItem(
                     text = {
-                        // ADDED CYCLE NUMBER HERE
                         Text(
                             text = "Cycle ${cycle.cycleNumber} (ID: ${cycle.cycleId.takeLast(6)}): ${
                                 formatDateShort(cycle.startDate)
@@ -717,10 +750,11 @@ fun CycleDropdown(
         }
     }
 }
-// Helper function for date formatting
+
 private fun formatDateShort(timestamp: Long): String {
     return SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Date(timestamp))
 }
+
 @Composable
 fun MonthlySavingsCard(
     month: String,
@@ -731,6 +765,9 @@ fun MonthlySavingsCard(
     recorderNames: Map<String, String>,
     isFuture: Boolean,
     isComplete: Boolean,
+    isAdmin: Boolean,
+    onDeleteEntry: (MonthlySavingEntry) -> Unit,
+    onDeleteMonth: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val totalSavings = entries.sumOf { it.amount }
@@ -738,10 +775,27 @@ fun MonthlySavingsCard(
     val progress = remember(totalSavings, monthlyTarget) {
         if (monthlyTarget > 0) totalSavings.toFloat() / monthlyTarget else 1f
     }
-
+    var isLongPressed by remember { mutableStateOf(false) }
     Card(
-        modifier = modifier.fillMaxWidth(),
-        onClick = { if (isCurrentMonth && !isComplete) onClick() }
+        modifier = modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        if (isAdmin && isCurrentMonth && !isComplete) onClick()
+                    },
+                    onLongPress = {
+                        if (isAdmin) {
+                            isLongPressed = true
+                            onDeleteMonth()
+                        }
+                    }
+                )
+            }
+            .background(
+                if (isLongPressed) LightGray.copy(alpha = 0.3f)
+                else Color.Transparent
+            )
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
@@ -782,29 +836,43 @@ fun MonthlySavingsCard(
             if (entries.isNotEmpty()) {
                 val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
                 entries.forEach { entry ->
-                    Column(
-                        Modifier
+                    Row(
+                        modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
+                            .then(if (isAdmin) Modifier.clickable { onDeleteEntry(entry) } else Modifier),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            Arrangement.SpaceBetween
-                        ) {
-                            val date = try {
-                                Date(entry.entryDate.toLong())
-                            } catch (e: Exception) {
-                                Date()
-                            }
-                            Text(dateFormat.format(date), color = PremiumNavy)
-                            Text("KES ${entry.amount}", fontWeight = FontWeight.Medium, color = PremiumNavy)
+                        if (isAdmin) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete entry",
+                                tint = Color.Red,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(end = 8.dp)
+                            )
                         }
-                        Text(
-                            "Recorded by: ${recorderNames[entry.recordedBy] ?: "Unknown"}",
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                        Column(Modifier.weight(1f)) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                Arrangement.SpaceBetween
+                            ) {
+                                val date = try {
+                                    Date(entry.entryDate.toLong())
+                                } catch (e: Exception) {
+                                    Date()
+                                }
+                                Text(dateFormat.format(date), color = PremiumNavy)
+                                Text("KES ${entry.amount}", fontWeight = FontWeight.Medium, color = PremiumNavy)
+                            }
+                            Text(
+                                "Recorded by: ${recorderNames[entry.recordedBy] ?: "Unknown"}",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
                 Divider(Modifier.padding(vertical = 8.dp), color = PremiumNavy.copy(alpha = 0.1f))
@@ -826,14 +894,6 @@ fun MonthlySavingsCard(
     }
 }
 
-private fun convertMonthToInputFormat(displayMonth: String): String {
-    return try {
-        val parsedDate = SimpleDateFormat("MMM yyyy", Locale.getDefault()).parse(displayMonth)
-        SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(parsedDate)
-    } catch (e: Exception) {
-        ""
-    }
-}
 @Composable
 fun CycleSection(
     cycleWithSavings: CycleWithSavings,
@@ -843,12 +903,14 @@ fun CycleSection(
     memberId: String,
     onAddSavings: (String, Int) -> Unit,
     isActiveCycle: Boolean,
-    determinedMonthDisplay: String
+    determinedMonthDisplay: String,
+    isAdmin: Boolean,
+    onDeleteEntry: (MonthlySavingEntry) -> Unit,
+    onDeleteMonth: (cycleId: String, monthKey: String) -> Unit
 ) {
     val cycle = cycleWithSavings.cycle
     val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
-    // Get distinct months from savings entries
     val months = cycleWithSavings.savingsEntries
         .mapNotNull { entry ->
             try {
@@ -863,49 +925,9 @@ fun CycleSection(
             dateFormat.parse(dateString)?.time ?: 0L
         }
 
-    // Get cycle dates
     val startDate = formatDateShort(cycle.startDate)
     val endDate = cycle.endDate?.let { formatDateShort(it) } ?: "Active"
     val cycleIdShort = cycle.cycleId.takeLast(6)
-
-    CycleDropdownItem(
-        cycleNumber = "Cycle $cycleIdShort",
-        cycleId = cycle.cycleId,
-        startDate = startDate,
-        endDate = endDate,
-        expanded = expanded,
-        onExpandToggle = onExpandToggle,
-        monthlyTarget = cycle.monthlySavingsAmount,
-        months = months,
-        cycleWithSavings = cycleWithSavings,
-        recorderNames = recorderNames,
-        memberId = memberId,
-        onAddSavings = onAddSavings,
-        isActiveCycle = isActiveCycle,
-        determinedMonthDisplay = determinedMonthDisplay
-    )
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CycleDropdownItem(
-    cycleNumber: String,
-    cycleId: String,
-    startDate: String,
-    endDate: String,
-    expanded: Boolean,
-    onExpandToggle: (String) -> Unit,
-    monthlyTarget: Int,
-    months: List<String>,
-    cycleWithSavings: CycleWithSavings,
-    recorderNames: Map<String, String>,
-    memberId: String,
-    onAddSavings: (String, Int) -> Unit,
-    isActiveCycle: Boolean,
-    determinedMonthDisplay: String
-) {
-    val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
     Card(
         modifier = Modifier
@@ -915,18 +937,17 @@ fun CycleDropdownItem(
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column {
-            // Cycle header with dropdown toggle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onExpandToggle(cycleId) }
+                    .clickable { onExpandToggle(cycle.cycleId) }
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        cycleNumber,
+                        "Cycle $cycleIdShort",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = PremiumNavy
@@ -946,7 +967,6 @@ fun CycleDropdownItem(
                 )
             }
 
-            // Monthly target
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -959,13 +979,12 @@ fun CycleDropdownItem(
                     color = PremiumNavy
                 )
                 Text(
-                    "KES $monthlyTarget",
+                    "KES ${cycle.monthlySavingsAmount}",
                     fontWeight = FontWeight.Bold,
                     color = PremiumNavy
                 )
             }
 
-            // Monthly savings (collapsible)
             AnimatedVisibility(visible = expanded) {
                 Column {
                     months.forEach { month ->
@@ -978,12 +997,12 @@ fun CycleDropdownItem(
 
                         val isCurrentMonth = month == determinedMonthDisplay && isActiveCycle
                         val isFuture = isFutureMonth(month)
-                        val isComplete = monthEntries.sumOf { it.amount } >= monthlyTarget
+                        val isComplete = monthEntries.sumOf { it.amount } >= cycle.monthlySavingsAmount
 
                         MonthlySavingsCard(
                             month = month,
                             entries = monthEntries,
-                            monthlyTarget = monthlyTarget,
+                            monthlyTarget = cycle.monthlySavingsAmount,
                             onClick = {
                                 if (!isFuture && !isComplete) {
                                     val inputFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
@@ -992,13 +1011,16 @@ fun CycleDropdownItem(
                                     } catch (e: Exception) {
                                         ""
                                     }
-                                    onAddSavings(monthKey, monthlyTarget - monthEntries.sumOf { it.amount })
+                                    onAddSavings(monthKey, cycle.monthlySavingsAmount - monthEntries.sumOf { it.amount })
                                 }
                             },
                             isCurrentMonth = isCurrentMonth,
                             recorderNames = recorderNames,
                             isFuture = isFuture,
                             isComplete = isComplete,
+                            isAdmin = isAdmin,
+                            onDeleteEntry = onDeleteEntry,
+                            onDeleteMonth = { onDeleteMonth(cycle.cycleId, month) },
                             modifier = Modifier.padding(8.dp)
                         )
                     }
@@ -1006,57 +1028,6 @@ fun CycleDropdownItem(
             }
         }
     }
-}
-
-
-private fun generateMonthsUntilFuture(cycle: Cycle, futureMonths: Int): List<String> {
-    val format = SimpleDateFormat("MMM yyyy", Locale.getDefault())
-    val months = mutableListOf<String>()
-    val calendar = Calendar.getInstance().apply {
-        time = Date(cycle.startDate)
-        set(Calendar.DAY_OF_MONTH, 1)
-    }
-
-    val future = Calendar.getInstance().apply {
-        add(Calendar.MONTH, futureMonths)
-        // Access endDate from the cycle parameter
-        cycle.endDate?.let { endDate ->
-            val endCal = Calendar.getInstance().apply { time = Date(endDate) }
-            if (after(endCal)) time = endCal.time
-        }
-    }
-
-    while (!calendar.after(future)) {
-        months.add(format.format(calendar.time))
-        calendar.add(Calendar.MONTH, 1)
-    }
-
-    return months
-}
-private fun generateMonthsForCompletedCycle(cycle: Cycle): List<String> {
-    val format = SimpleDateFormat("MMM yyyy", Locale.getDefault())
-    val months = mutableListOf<String>()
-    val calendar = Calendar.getInstance().apply {
-        time = Date(cycle.startDate)
-        set(Calendar.DAY_OF_MONTH, 1)
-    }
-
-    val endCalendar = if (cycle.endDate != null) {
-        Calendar.getInstance().apply {
-            time = Date(cycle.endDate)
-            set(Calendar.DAY_OF_MONTH, 1)
-        }
-    } else {
-        // Shouldn't happen for completed cycle, but handle gracefully
-        Calendar.getInstance()
-    }
-
-    while (!calendar.after(endCalendar)) {
-        months.add(format.format(calendar.time))
-        calendar.add(Calendar.MONTH, 1)
-    }
-
-    return months
 }
 
 private fun isFutureMonth(monthName: String): Boolean {
@@ -1067,4 +1038,31 @@ private fun isFutureMonth(monthName: String): Boolean {
     } catch (e: Exception) {
         false
     }
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    title: String,
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+            ) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

@@ -53,5 +53,8 @@ interface MonthlySavingDao {
     suspend fun getSavingsForMemberInCycle(memberId: String, cycleId: String): List<MonthlySavingEntry>
 
 
+    @Query("DELETE FROM MonthlySaving WHERE saving_id = :savingId")
+    suspend fun deleteSaving(savingId: String)
+
 
 }

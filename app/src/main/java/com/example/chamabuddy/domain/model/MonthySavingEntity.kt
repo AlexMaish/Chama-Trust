@@ -60,7 +60,7 @@ data class MonthlySavingEntry(
 
 
     @ColumnInfo(name = "isPlaceholder")
-    val isPlaceholder: Boolean = false,
+    val isPlaceholder: Boolean = false
 
 
     )

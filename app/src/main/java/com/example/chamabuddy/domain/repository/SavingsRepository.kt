@@ -30,6 +30,8 @@ interface SavingsRepository {
     suspend fun getTotalSavingsByCycle(cycleId: String): Int
     suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String): Int
     suspend fun getMonthlySavingsProgress(cycleId: String, monthYear: String): SavingsProgress
+    suspend fun deleteSavingsEntry(entryId: String)
+    suspend fun deleteSavingsForMonth(cycleId: String, monthYear: String, groupId: String)
 
     suspend fun createMissingMonthlyEntries(
         cycleId: String,
