@@ -1,6 +1,8 @@
 package com.example.chamabuddy.presentation.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,6 +39,9 @@ import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
 @Composable
 fun MembersScreen(
     groupId: String,
+    currentUserId: String,
+    currentUserIsAdmin: Boolean,
+    currentUserIsOwner: Boolean,
     navigateBack: () -> Unit,
     navigateToProfile: (String) -> Unit,
     viewModel: MemberViewModel = hiltViewModel()
@@ -46,6 +51,17 @@ fun MembersScreen(
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+
+    var showActionsDialog by remember { mutableStateOf(false) }
+    var selectedMember by remember { mutableStateOf<Member?>(null) }
+
+    LaunchedEffect(groupId, currentUserId) {
+        if (currentUserId.isNotEmpty()) {
+            viewModel.loadCurrentUserRole(groupId, currentUserId)
+        }
+    }
+
 
     LaunchedEffect(snackbarMessage) {
         snackbarMessage?.let { message ->
@@ -119,9 +135,45 @@ fun MembersScreen(
                 is MemberState.MembersLoaded -> {
                     MemberListContent(
                         members = (state as MemberState.MembersLoaded).members,
-                        onItemClick = navigateToProfile
+                        onItemClick = navigateToProfile,
+                        onLongPress = { member ->
+                            selectedMember = member
+                            showActionsDialog = true
+                        }
                     )
+
+                    if (showActionsDialog && selectedMember != null) {
+                        MemberActionsDialog(
+                            member = selectedMember!!,
+                            currentUserId = currentUserId,
+                            currentUserIsAdmin = currentUserIsAdmin,
+                            currentUserIsOwner = currentUserIsOwner,
+                            onDismiss = { showActionsDialog = false },
+                            onDelete = {
+                                viewModel.handleEvent(MemberEvent.DeleteMember(selectedMember!!))
+                                showActionsDialog = false
+                            },
+                            onPromote = {
+                                viewModel.handleEvent(MemberEvent.PromoteToAdmin(selectedMember!!.memberId))
+                                showActionsDialog = false
+                            },
+                            onDemote = {
+                                viewModel.handleEvent(MemberEvent.DemoteToMember(selectedMember!!.memberId))
+                                showActionsDialog = false
+                            },
+                            onDeactivate = {
+                                viewModel.handleEvent(MemberEvent.DeactivateMember(selectedMember!!.memberId))
+                                showActionsDialog = false
+                            },
+                            onReactivate = {
+                                viewModel.handleEvent(MemberEvent.ReactivateMember(selectedMember!!.memberId))
+                                showActionsDialog = false
+                            }
+                        )
+                    }
                 }
+
+
                 is MemberState.Empty -> {
                     EmptyState(message = (state as MemberState.Empty).message)
                 }
@@ -145,22 +197,16 @@ fun MembersScreen(
 @Composable
 private fun MemberListContent(
     members: List<Member>,
-    onItemClick: (String) -> Unit
+    onItemClick: (String) -> Unit,
+    onLongPress: (Member) -> Unit // Add long press handler
 ) {
-    if (members.isEmpty()) {
-        EmptyState(message = "No members found")
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(members) { member ->
-                MemberListItem(
-                    member = member,
-                    onClick = { onItemClick(member.memberId) }
-                )
-            }
+    LazyColumn {
+        items(members) { member ->
+            MemberListItem(
+                member = member,
+                onClick = { onItemClick(member.memberId) },
+                onLongPress = { onLongPress(member) } // Pass long press
+            )
         }
     }
 }
@@ -202,17 +248,26 @@ private fun EmptyState(message: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MemberListItem(
     member: Member,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongPress: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = CardSurface),
-        onClick = onClick
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
+            )
+
+
     ) {
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -239,6 +294,17 @@ fun MemberListItem(
 
             RoleBadge(isAdmin = member.isAdmin)
         }
+
+        if (!member.isActive) {
+            Badge(
+                containerColor = Color.Gray,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Inactive", color = Color.White)
+            }
+        }
+
+
     }
 }
 
@@ -378,6 +444,102 @@ fun AddMemberDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel", color = PremiumNavy)
+            }
+        }
+    )
+}
+
+
+
+@Composable
+fun MemberActionsDialog(
+    member: Member,
+    currentUserId: String,
+    currentUserIsAdmin: Boolean,
+    currentUserIsOwner: Boolean,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit,
+    onPromote: () -> Unit,
+    onDemote: () -> Unit,
+    onDeactivate: () -> Unit,
+    onReactivate: () -> Unit
+) {
+    val isCurrentUser = member.userId == currentUserId
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Member Actions") },
+        text = {
+            Column {
+                Text("${member.name}", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+
+                if (isCurrentUser) {
+                    Text("You can't modify your own status", color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            Column {
+                // Delete option
+                if (currentUserIsOwner || (currentUserIsAdmin && !member.isOwner)) {
+                    Button(
+                        onClick = onDelete,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        enabled = !isCurrentUser
+                    ) {
+                        Text("Delete Member")
+                    }
+                }else {
+                    Text("Only admins can perform these actions",
+                        color = MaterialTheme.colorScheme.error)
+                }
+                Button(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+                // Promotion/Demotion
+                if (currentUserIsAdmin && !isCurrentUser) {
+                    if (member.isAdmin) {
+                        Button(
+                            onClick = onDemote,
+                            enabled = !isCurrentUser
+                        ) {
+                            Text("Demote to Member")
+                        }
+                    } else {
+                        Button(
+                            onClick = onPromote,
+                            enabled = !isCurrentUser
+                        ) {
+                            Text("Promote to Admin")
+                        }
+                    }
+                }
+
+                // Activation/Deactivation
+                if (currentUserIsAdmin && !isCurrentUser) {
+                    if (member.isActive) {
+                        Button(
+                            onClick = onDeactivate,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                            enabled = !isCurrentUser
+                        ) {
+                            Text("Deactivate Member")
+                        }
+                    } else {
+                        Button(
+                            onClick = onReactivate,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                            enabled = !isCurrentUser
+                        ) {
+                            Text("Reactivate Member")
+                        }
+                    }
+                }
+
+                Button(onClick = onDismiss) {
+                    Text("Cancel")
+                }
             }
         }
     )

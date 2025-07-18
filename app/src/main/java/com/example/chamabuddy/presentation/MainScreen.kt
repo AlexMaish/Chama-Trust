@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -55,6 +56,9 @@ import com.example.chamabuddy.presentation.screens.ExpenseScreen
 import com.example.chamabuddy.presentation.screens.GroupsHomeScreen
 import com.example.chamabuddy.presentation.screens.PenaltyScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen
+import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
+import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
+
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
@@ -301,7 +305,6 @@ fun MainNavHost(
         }
 
 
-
         composable(
             route = MembersDestination.routeWithArgs,
             arguments = listOf(
@@ -309,8 +312,26 @@ fun MainNavHost(
             )
         ) { backStackEntry ->
             val groupId = backStackEntry.arguments?.getString(MembersDestination.groupIdArg) ?: ""
+            val authViewModel: AuthViewModel = hiltViewModel()
+            val memberViewModel: MemberViewModel = hiltViewModel()
+
+            // Fixed: Collect the User object first
+            val currentUser by authViewModel.currentUser.collectAsState()
+            val currentUserId = currentUser?.userId ?: "" // Then access userId
+
+            LaunchedEffect(groupId, currentUserId) {
+                if (currentUserId.isNotEmpty()) {
+                    memberViewModel.loadCurrentUserRole(groupId, currentUserId)
+                }
+            }
+            val currentUserIsAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
+            val currentUserIsOwner by memberViewModel.currentUserIsOwner.collectAsState()
+
             MembersScreen(
                 groupId = groupId,
+                currentUserId = currentUserId,
+                currentUserIsAdmin = currentUserIsAdmin,
+                currentUserIsOwner = currentUserIsOwner,
                 navigateBack = { navController.popBackStack() },
                 navigateToProfile = { memberId ->
                     navController.navigate("${ProfileDestination.route}/$groupId/$memberId")

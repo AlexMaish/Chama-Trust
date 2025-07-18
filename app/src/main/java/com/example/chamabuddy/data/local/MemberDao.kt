@@ -77,4 +77,16 @@ interface MemberDao {
 
     @Query("SELECT * FROM member WHERE group_id = :groupId AND is_active = 1")
     suspend fun getActiveMembersByGroup(groupId: String): List<Member>
+
+
+    @Query("SELECT COUNT(*) FROM member WHERE group_id = :groupId AND is_admin = 1")
+    suspend fun getAdminCount(groupId: String): Int
+
+
+    @Query("UPDATE member SET is_admin = :isAdmin WHERE member_id = :memberId")
+    suspend fun updateAdminStatus(memberId: String, isAdmin: Boolean)
+
+    @Query("UPDATE member SET is_active = :isActive WHERE member_id = :memberId")
+    suspend fun updateActiveStatus(memberId: String, isActive: Boolean)
+
 }

@@ -132,4 +132,27 @@ class MemberRepositoryImpl @Inject constructor(
         return memberDao.getActiveMembersByGroup(groupId)
     }
 
+
+    override suspend fun getAdminCount(groupId: String): Int {
+        return withContext(Dispatchers.IO) {
+            memberDao.getAdminCount(groupId)
+        }
+    }
+
+    override suspend fun updateAdminStatus(memberId: String, isAdmin: Boolean) {
+        withContext(Dispatchers.IO) {
+            memberDao.updateAdminStatus(memberId, isAdmin)
+        }
+    }
+
+    override suspend fun updateActiveStatus(memberId: String, isActive: Boolean) {
+        withContext(Dispatchers.IO) {
+            memberDao.updateActiveStatus(memberId, isActive)
+        }
+    }
+
+
+
+
+
 }

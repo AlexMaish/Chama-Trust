@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.MemberRepository
+import com.example.chamabuddy.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MemberViewModel @Inject constructor(
     private val groupRepository: GroupRepository,
-    private val memberRepository: MemberRepository
+    private val memberRepository: MemberRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private var currentGroupId: String by mutableStateOf("")
@@ -41,6 +43,31 @@ class MemberViewModel @Inject constructor(
     private val _snackbarMessage = MutableStateFlow<String?>(null)
     val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
 
+    private var currentUserId: String by mutableStateOf("")
+//    private var currentUserIsAdmin: Boolean by mutableStateOf(false)
+//    private var currentUserIsOwner: Boolean by mutableStateOf(false)
+
+    fun setCurrentUser(userId: String) {
+        currentUserId = userId
+    }
+    private val _currentUserIsAdmin = MutableStateFlow(false)
+    val currentUserIsAdmin: StateFlow<Boolean> = _currentUserIsAdmin.asStateFlow()
+
+    private val _currentUserIsOwner = MutableStateFlow(false)
+    val currentUserIsOwner: StateFlow<Boolean> = _currentUserIsOwner.asStateFlow()
+
+    fun loadCurrentUserRole(groupId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                val member = memberRepository.getMemberByUserId(userId, groupId)
+                _currentUserIsAdmin.value = member?.isAdmin ?: false
+                _currentUserIsOwner.value = member?.isOwner ?: false
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
     fun handleEvent(event: MemberEvent) {
         when (event) {
             is MemberEvent.LoadMembersForGroup -> loadMembersForGroup(event.groupId)
@@ -55,8 +82,81 @@ class MemberViewModel @Inject constructor(
 
             is MemberEvent.ChangePhoneNumber -> changePhoneNumber(event.memberId, event.newNumber)
             MemberEvent.ResetMemberState -> resetState()
+
+            is MemberEvent.PromoteToAdmin -> promoteToAdmin(event.memberId)
+            is MemberEvent.DemoteToMember -> demoteToMember(event.memberId)
+            is MemberEvent.DeactivateMember -> deactivateMember(event.memberId)
+            is MemberEvent.ReactivateMember -> reactivateMember(event.memberId)
         }
     }
+
+
+    private fun promoteToAdmin(memberId: String) {
+        viewModelScope.launch {
+            try {
+                memberRepository.updateAdminStatus(memberId, true)
+                loadMembersForGroup(currentGroupId)
+                _snackbarMessage.value = "Member promoted to admin"
+            } catch (e: Exception) {
+                _state.value = MemberState.Error("Promotion failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    private fun demoteToMember(memberId: String) {
+        viewModelScope.launch {
+            try {
+                // Check admin count
+                val adminCount = memberRepository.getAdminCount(currentGroupId)
+                if (adminCount <= 1) {
+                    throw IllegalStateException("Cannot demote the last admin")
+                }
+
+                memberRepository.updateAdminStatus(memberId, false)
+                loadMembersForGroup(currentGroupId)
+                _snackbarMessage.value = "Admin demoted to member"
+            } catch (e: Exception) {
+                _state.value = MemberState.Error("Demotion failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    private fun deactivateMember(memberId: String) {
+        viewModelScope.launch {
+            try {
+                val member = memberRepository.getMemberById(memberId)
+                    ?: throw Exception("Member not found")
+
+                if (member.userId == currentUserId) {
+                    throw IllegalStateException("You cannot deactivate yourself")
+                }
+
+                memberRepository.updateActiveStatus(memberId, false)
+                loadMembersForGroup(currentGroupId)
+                _snackbarMessage.value = "Member deactivated"
+            } catch (e: Exception) {
+                _state.value = MemberState.Error("Deactivation failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    private fun reactivateMember(memberId: String) {
+        viewModelScope.launch {
+            try {
+                memberRepository.updateActiveStatus(memberId, true)
+                loadMembersForGroup(currentGroupId)
+                _snackbarMessage.value = "Member reactivated"
+            } catch (e: Exception) {
+                _state.value = MemberState.Error("Reactivation failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+
+
+
+
+
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
@@ -197,4 +297,12 @@ sealed class MemberEvent {
         val memberId: String,
         val newNumber: String
     ) : MemberEvent()
+
+
+    data class PromoteToAdmin(val memberId: String) : MemberEvent()
+    data class DemoteToMember(val memberId: String) : MemberEvent()
+    data class DeactivateMember(val memberId: String) : MemberEvent()
+    data class ReactivateMember(val memberId: String) : MemberEvent()
+
+
 }

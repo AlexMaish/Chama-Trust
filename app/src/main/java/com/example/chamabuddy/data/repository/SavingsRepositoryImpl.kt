@@ -66,7 +66,6 @@ class SavingsRepositoryImpl @Inject constructor(
             }
 
             // 4. Create and insert new saving entry
-            val currentTimeMillis = System.currentTimeMillis()
             val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
             val targetDate = monthFormat.parse(monthYear)
             val calendar = Calendar.getInstance().apply {

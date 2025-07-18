@@ -23,4 +23,16 @@ interface MemberRepository {
     suspend fun getMemberByPhoneForGroup(phone: String, groupId: String): Member?
 
     suspend fun getActiveMembersByGroup(groupId: String): List<Member>
+
+    suspend fun getAdminCount(groupId: String): Int
+
+    suspend fun updateAdminStatus(memberId: String, isAdmin: Boolean)
+
+    suspend fun updateActiveStatus(memberId: String, isActive: Boolean)
+
+
+
 }
+
+
+

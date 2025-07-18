@@ -38,7 +38,11 @@ data class Member(
     val userId: String? = null, // Tracks associated user account
 
     @ColumnInfo(name = "group_id")
-    val groupId: String
+    val groupId: String,
+
+
+    @ColumnInfo(name = "is_owner")
+    val isOwner: Boolean = false,
 
 
 
