@@ -1,51 +1,69 @@
 package com.example.chamabuddy.presentation.screens
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.chamabuddy.domain.model.Member
+import com.example.chamabuddy.presentation.navigation.ContributionDestination
 import com.example.chamabuddy.presentation.navigation.CycleDetailDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
+import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.MeetingEvent
 import com.example.chamabuddy.presentation.viewmodel.MeetingState
 import com.example.chamabuddy.presentation.viewmodel.MeetingViewModel
+import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
 import kotlinx.coroutines.launch
 
-object ContributionDestination : NavigationDestination {
-    override val route = "contribution"
-    override val title = "Record Contributions"
-    const val meetingIdArg = "meetingId"
-    val routeWithArgs = "$route/{$meetingIdArg}"
-}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContributionScreen(
     meetingId: String,
+    groupId: String,
     navigateToBeneficiarySelection: () -> Unit,
-    navigateBack: () -> Unit,
     navController: NavHostController,
-    viewModel: MeetingViewModel = hiltViewModel()
+    viewModel: MeetingViewModel = hiltViewModel(),
+    memberViewModel: MemberViewModel = hiltViewModel()
 ) {
     val state by viewModel.contributionState.collectAsState()
     val meetingState by viewModel.state.collectAsState()
     val isNextEnabled = state.members.isNotEmpty() && !state.isLoading && state.error == null
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val isAdmin by viewModel.currentUserIsAdmin.collectAsState()
+
+    Log.d("ContributionScreen", "Rendering as admin: $isAdmin")
+    Log.d("ContributionScreen", "Rendering as admin: $isAdmin")
+
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val currentUserId = currentUser?.userId ?: ""
+
+    // Load admin status using the groupId from parameters
+    LaunchedEffect(groupId, currentUserId) {
+        if (currentUserId.isNotEmpty()) {
+            memberViewModel.loadCurrentUserRole(groupId, currentUserId)
+        }
+    }
+
+
 
     fun navigateToCycleDetail(groupId: String, cycleId: String) {
         navController.navigate("${CycleDetailDestination.route}/$groupId/$cycleId") {
@@ -53,17 +71,31 @@ fun ContributionScreen(
         }
     }
 
+    // Handle meeting deletion
+    LaunchedEffect(meetingState) {
+        when (val s = meetingState) {
+            is MeetingState.MeetingDeleted -> {
+                if (s.success) {
+                    state.meeting?.let { meeting ->
+                        navigateToCycleDetail(meeting.groupId, meeting.cycleId)
+                    }
+                    snackbarHostState.showSnackbar("Meeting deleted successfully")
+                }
+            }
+            else -> {}
+        }
+    }
+
+    // Existing state handling
     LaunchedEffect(meetingState) {
         when (val s = meetingState) {
             is MeetingState.ContributionRecorded -> {
                 if (s.success) {
                     val status = viewModel.getMeetingStatus(meetingId)
-
                     if (!status.beneficiariesSelected) {
                         snackbarHostState.showSnackbar("Select beneficiaries to complete meeting")
                         navigateToBeneficiarySelection()
                     } else {
-                        // Get meeting details for navigation
                         state.meeting?.let { meeting ->
                             navigateToCycleDetail(meeting.groupId, meeting.cycleId)
                         }
@@ -82,20 +114,21 @@ fun ContributionScreen(
         viewModel.handleEvent(MeetingEvent.GetContributionsForMeeting(meetingId))
     }
 
-    val backHandler = BackHandler {
-        coroutineScope.launch {
-            viewModel.saveContributionState(state.contributions)
-            navigateBack()
-        }
-    }
-    backHandler
-
-    // Function to handle back action with state saving
     fun handleBack() {
         coroutineScope.launch {
             viewModel.saveContributionState(state.contributions)
-            navigateBack()
+            state.meeting?.let { meeting ->
+                navController.navigate("${CycleDetailDestination.route}/${meeting.groupId}/${meeting.cycleId}") {
+                    popUpTo(ContributionDestination.route) { inclusive = true }
+                }
+            } ?: run {
+                navController.popBackStack()
+            }
         }
+    }
+
+    BackHandler {
+        handleBack()
     }
 
     LaunchedEffect(Unit) {
@@ -112,15 +145,23 @@ fun ContributionScreen(
             TopAppBar(
                 title = { Text(ContributionDestination.title) },
                 navigationIcon = {
-                    IconButton(onClick = { handleBack() }) {  // Modified back button
+                    IconButton(onClick = { handleBack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
+                    // Delete button for admins
+                    if (isAdmin) {
+                        IconButton(
+                            onClick = { showDeleteDialog = true }
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete Meeting")
+                        }
+                    }
+
                     Button(
                         onClick = {
                             coroutineScope.launch {
-                                // Save state before navigation
                                 viewModel.saveContributionState(state.contributions)
                                 navigateToBeneficiarySelection()
                             }
@@ -129,21 +170,11 @@ fun ContributionScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 4.dp,
-                            pressedElevation = 8.dp
                         )
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.CheckCircle,
-                                contentDescription = "Select Beneficiaries",
-                                modifier = Modifier.size(18.dp)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null)
+                            Spacer(Modifier.width(4.dp))
                             Text("Select Beneficiaries")
                         }
                     }
@@ -153,15 +184,26 @@ fun ContributionScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
-                    coroutineScope.launch {
-                        // Save contributions first
-                        viewModel.handleEvent(
-                            MeetingEvent.RecordContributions(
-                                meetingId = meetingId,
-                                contributions = state.contributions
-                            )
-                        )
-                    }
+                    viewModel.validateAdminAction(
+                        action = {
+                            coroutineScope.launch {
+                                viewModel.handleEvent(
+                                    MeetingEvent.RecordContributions(
+                                        meetingId = meetingId,
+                                        contributions = state.contributions
+                                    )
+                                )
+                            }
+                        },
+                        onError = {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(
+                                    "Only admins can perform this action",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        }
+                    )
                 },
                 icon = { Icon(Icons.Default.Check, contentDescription = "Save") },
                 text = { Text("Save Meeting") }
@@ -192,6 +234,32 @@ fun ContributionScreen(
             .padding(paddingValues)
             .fillMaxSize()
         ) {
+            // Delete Confirmation Dialog
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = { Text("Delete Meeting") },
+                    text = { Text("Are you sure you want to delete this meeting? This action cannot be undone.") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDeleteDialog = false
+                                viewModel.handleEvent(MeetingEvent.DeleteMeeting(meetingId))
+                            }
+                        ) {
+                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showDeleteDialog = false }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
             when {
                 state.isLoading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -220,9 +288,16 @@ fun ContributionScreen(
                                 member = member,
                                 amount = state.weeklyAmount,
                                 hasContributed = state.contributions[member.memberId] ?: false,
+                                enabled = member.isActive,
                                 onContributionChange = { contributed ->
                                     coroutineScope.launch {
                                         viewModel.updateContributionStatus(member.memberId, contributed)
+                                    }
+                                },
+                                // Add long press to delete
+                                onLongPress = {
+                                    if (isAdmin) {
+                                        showDeleteDialog = true
                                     }
                                 }
                             )
@@ -239,8 +314,10 @@ fun ContributionScreen(
 fun ContributionItem(
     member: Member,
     amount: Int,
+    enabled: Boolean,
     hasContributed: Boolean,
-    onContributionChange: (Boolean) -> Unit
+    onContributionChange: (Boolean) -> Unit,
+    onLongPress: () -> Unit = {} // New long-press parameter
 ) {
     val containerColor = when {
         !member.isActive -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
@@ -249,7 +326,13 @@ fun ContributionItem(
     }
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = { onLongPress() }
+                )
+            },
         colors = CardDefaults.elevatedCardColors(containerColor = containerColor),
         elevation = CardDefaults.elevatedCardElevation(4.dp)
     ) {
@@ -277,11 +360,10 @@ fun ContributionItem(
                 )
             }
 
-            // Checkbox positioned at the end right of the card
             Checkbox(
                 checked = hasContributed,
-                onCheckedChange = if (member.isActive) onContributionChange else null,
-                enabled = member.isActive,
+                onCheckedChange = if (enabled) onContributionChange else null,
+                enabled = enabled,
                 colors = CheckboxDefaults.colors(
                     checkedColor = MaterialTheme.colorScheme.primary,
                     uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -290,4 +372,11 @@ fun ContributionItem(
             )
         }
     }
+}
+
+private suspend fun SnackbarHostState.showAdminError() {
+    showSnackbar(
+        message = "Only admins can perform this action",
+        duration = SnackbarDuration.Short
+    )
 }

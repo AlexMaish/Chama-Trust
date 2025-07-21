@@ -129,3 +129,18 @@ object BenefitDestination : NavigationDestination {
     const val groupIdArg = "groupId"
     val routeWithArgs = "$route/{$groupIdArg}"
 }
+
+
+object ContributionSummaryDestination : NavigationDestination {
+    override val route = "contribution-summary"
+    override val title = "Contribution Summary"
+    const val meetingIdArg = "meetingId"
+    val routeWithArgs = "$route/{$meetingIdArg}"
+}
+object ContributionDestination : NavigationDestination {
+    override val route = "contribution"
+    override val title = "Contribution"
+    const val groupIdArg = "groupId"
+    const val meetingIdArg = "meetingId"
+    val routeWithArgs = "$route/{$groupIdArg}/{$meetingIdArg}"
+}

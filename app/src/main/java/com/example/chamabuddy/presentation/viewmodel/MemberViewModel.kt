@@ -1,6 +1,7 @@
 package com.example.chamabuddy.presentation.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -8,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.repository.GroupRepository
+import com.example.chamabuddy.domain.repository.MeetingRepository
 import com.example.chamabuddy.domain.repository.MemberRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,7 +23,8 @@ import javax.inject.Inject
 class MemberViewModel @Inject constructor(
     private val groupRepository: GroupRepository,
     private val memberRepository: MemberRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val meetingRepository: MeetingRepository
 ) : ViewModel() {
 
     private var currentGroupId: String by mutableStateOf("")
@@ -34,6 +37,14 @@ class MemberViewModel @Inject constructor(
 
     private val _selectedMember = MutableStateFlow<Member?>(null)
     val selectedMember: StateFlow<Member?> = _selectedMember.asStateFlow()
+
+
+
+    private val _currentUserIsAdmin = MutableStateFlow(false)
+    val currentUserIsAdmin: StateFlow<Boolean> = _currentUserIsAdmin.asStateFlow()
+
+    private val _currentUserIsOwner = MutableStateFlow(false)
+    val currentUserIsOwner: StateFlow<Boolean> = _currentUserIsOwner.asStateFlow()
 
     fun setGroupId(groupId: String) {
         currentGroupId = groupId
@@ -50,22 +61,16 @@ class MemberViewModel @Inject constructor(
     fun setCurrentUser(userId: String) {
         currentUserId = userId
     }
-    private val _currentUserIsAdmin = MutableStateFlow(false)
-    val currentUserIsAdmin: StateFlow<Boolean> = _currentUserIsAdmin.asStateFlow()
-
-    private val _currentUserIsOwner = MutableStateFlow(false)
-    val currentUserIsOwner: StateFlow<Boolean> = _currentUserIsOwner.asStateFlow()
 
     fun loadCurrentUserRole(groupId: String, userId: String) {
         viewModelScope.launch {
             try {
                 val member = memberRepository.getMemberByUserId(userId, groupId)
                 _currentUserIsAdmin.value = member?.isAdmin ?: false
-                _currentUserIsOwner.value = member?.isOwner ?: false
+                Log.d("MemberVM", "Admin status loaded: ${_currentUserIsAdmin.value}")
             } catch (e: Exception) {
-                // Reset on error
+                Log.e("MemberVM", "Error loading admin status", e)
                 _currentUserIsAdmin.value = false
-                _currentUserIsOwner.value = false
             }
         }
     }
@@ -91,7 +96,26 @@ class MemberViewModel @Inject constructor(
             is MemberEvent.ReactivateMember -> reactivateMember(event.memberId)
         }
     }
-
+    suspend fun getGroupIdForMeeting(meetingId: String): String? {
+        return meetingRepository.getMeetingById(meetingId)?.groupId
+    }
+    fun loadCurrentUserRoleForMeeting(meetingId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                val groupId = getGroupIdForMeeting(meetingId)
+                if (groupId != null) {
+                    val member = memberRepository.getMemberByUserId(userId, groupId)
+                    _currentUserIsAdmin.value = member?.isAdmin ?: false
+                    _currentUserIsOwner.value = member?.isOwner ?: false
+                    Log.d("MemberVM", "Role loaded: isAdmin=${_currentUserIsAdmin.value}, isOwner=${_currentUserIsOwner.value}")
+                } else {
+                    Log.e("MemberVM", "Group ID not found for meeting: $meetingId")
+                }
+            } catch (e: Exception) {
+                Log.e("MemberVM", "Error loading user role", e)
+            }
+        }
+    }
 
     private fun promoteToAdmin(memberId: String) {
         viewModelScope.launch {

@@ -192,8 +192,9 @@ fun GroupsHomeScreen(
                             ) {
                                 GroupList(
                                     groups = uiState.groups,
-                                    onGroupClick = { navigateToGroupCycles(it.groupId) },
-                                    modifier = Modifier.fillMaxSize()
+                                    onGroupClick = { group ->
+                                        navigateToGroupCycles(group.groupId)
+                                    }
                                 )
                             }
                         }

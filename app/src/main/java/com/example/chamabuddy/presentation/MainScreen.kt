@@ -1,6 +1,7 @@
 package com.example.chamabuddy.presentation
 
 import android.R.attr.type
+import android.util.Log
 import androidx.compose.foundation.lazy.rememberLazyListState
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.drop
@@ -41,7 +42,6 @@ import com.example.chamabuddy.presentation.navigation.*
 import com.example.chamabuddy.presentation.screens.BeneficiaryDetailScreen
 import com.example.chamabuddy.presentation.screens.BeneficiarySelectionDestination
 import com.example.chamabuddy.presentation.screens.BeneficiarySelectionScreen
-import com.example.chamabuddy.presentation.screens.ContributionDestination
 import com.example.chamabuddy.presentation.screens.ContributionScreen
 import com.example.chamabuddy.presentation.screens.CreateCycleScreen
 import com.example.chamabuddy.presentation.screens.CycleDetailScreenForMeetings
@@ -52,11 +52,13 @@ import com.example.chamabuddy.presentation.screens.SavingsScreen // Add this imp
 import com.example.chamabuddy.presentation.navigation.SavingsDestination
 import com.example.chamabuddy.presentation.screens.BeneficiaryGroupScreen
 import com.example.chamabuddy.presentation.screens.BenefitScreen
+import com.example.chamabuddy.presentation.screens.ContributionSummaryScreen
 import com.example.chamabuddy.presentation.screens.ExpenseScreen
 import com.example.chamabuddy.presentation.screens.GroupsHomeScreen
 import com.example.chamabuddy.presentation.screens.PenaltyScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
+import com.example.chamabuddy.presentation.viewmodel.MeetingViewModel
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
 
 @Composable
@@ -71,7 +73,7 @@ fun MainScreen() {
             onGroupSelected = { groupId ->
                 currentGroupId = groupId
                 navController.navigate("${HomeDestination.route}/$groupId") {
-                    popUpTo(GroupsHomeDestination.route) { inclusive = true }
+//                    popUpTo(GroupsHomeDestination.route) { inclusive = true }
                 }
             },
             currentGroupId = currentGroupId
@@ -247,10 +249,9 @@ fun MainNavHost(
                 navArgument(CycleDetailDestination.cycleIdArg) { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val groupId =
-                backStackEntry.arguments?.getString(CycleDetailDestination.groupIdArg) ?: ""
-            val cycleId =
-                backStackEntry.arguments?.getString(CycleDetailDestination.cycleIdArg) ?: ""
+            val groupId = backStackEntry.arguments?.getString(CycleDetailDestination.groupIdArg) ?: ""
+            val cycleId = backStackEntry.arguments?.getString(CycleDetailDestination.cycleIdArg) ?: ""
+
             CycleDetailScreenForMeetings(
                 navController = navController,
                 groupId = groupId,
@@ -259,29 +260,62 @@ fun MainNavHost(
                     navController.navigate("${MeetingDetailDestination.route}/$meetingId")
                 },
                 navigateToContribution = { meetingId ->
-                    navController.navigate("${ContributionDestination.route}/$meetingId")
+                    navController.navigate("${ContributionDestination.route}/$groupId/$meetingId")
                 },
-                navigateBack = { navController.popBackStack() }
+                navigateBack = {
+                    // New navigation to HomeDestination
+                    navController.navigate("${HomeDestination.route}/$groupId") {
+                        popUpTo(CycleDetailDestination.route) { inclusive = true }
+                    }
+                }
             )
         }
 
-
+        // In MainNavHost
         composable(
             route = ContributionDestination.routeWithArgs,
-            arguments = listOf(navArgument(ContributionDestination.meetingIdArg) { type = NavType.StringType }
-            ) ){ entry ->
-                val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
+            arguments = listOf(
+                navArgument(ContributionDestination.groupIdArg) { type = NavType.StringType },
+                navArgument(ContributionDestination.meetingIdArg) { type = NavType.StringType }
+            )
+        ) { entry ->
+            val groupId = entry.arguments?.getString(ContributionDestination.groupIdArg)!!
+            val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
+
+            val authViewModel: AuthViewModel = hiltViewModel()
+            val memberViewModel: MemberViewModel = hiltViewModel()
+            val currentUser by authViewModel.currentUser.collectAsState()
+            val currentUserId = currentUser?.userId ?: ""
+
+            // Use remember to persist the ViewModel instance
+            val viewModel = remember { memberViewModel }
+
+            LaunchedEffect(groupId, currentUserId) {
+                if (currentUserId.isNotEmpty()) {
+                    viewModel.loadCurrentUserRole(groupId, currentUserId)
+                }
+            }
+
+            val isAdmin by viewModel.currentUserIsAdmin.collectAsState()
+
+            Log.d("ContributionFlow", "Rendering as admin: $isAdmin")
+
+            if (isAdmin) {
                 ContributionScreen(
                     meetingId = meetingId,
+                    groupId = groupId, // Pass groupId to screen
                     navigateToBeneficiarySelection = {
                         navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
                     },
-                    navigateBack = { navController.popBackStack() },
-                    navController = navController // Pass navController here
+                    navController = navController
+                )
+            } else {
+                ContributionSummaryScreen(
+                    meetingId = meetingId,
+                    navigateBack = { navController.popBackStack() }
                 )
             }
-
-
+        }
         composable(BeneficiaryDetailDestination.routeWithArgs) { backStackEntry ->
             val beneficiaryId = backStackEntry.arguments?.getString("beneficiaryId") ?: ""
             BeneficiaryDetailScreen(
@@ -374,34 +408,51 @@ fun MainNavHost(
                 )
             }
 
-        composable(route = GroupsHomeDestination.route) {
-            GroupsHomeScreen(
-                navigateToGroupCycles = { groupId ->
-                    // Navigate to HomeScreen with group ID parameter
-                    navController.navigate("${HomeDestination.route}/$groupId")
-                }
-            )
 
-
-                }
         composable(
-            route = CreateCycleDestination.routeWithArgs, // This uses routeWithArgs
-            arguments = listOf(navArgument(CreateCycleDestination.groupIdArg) {
-                type = NavType.StringType
-            }
-            )) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString(CreateCycleDestination.groupIdArg) ?: ""
-            CreateCycleScreen(
-                navController = navController,
-                navigateBack = { navController.popBackStack() },
-                groupId = groupId
+            route = ContributionDestination.routeWithArgs,
+            arguments = listOf(
+                navArgument(ContributionDestination.groupIdArg) { type = NavType.StringType },
+                navArgument(ContributionDestination.meetingIdArg) { type = NavType.StringType }
             )
+        ) { entry ->
+            val groupId = entry.arguments?.getString(ContributionDestination.groupIdArg)!!
+            val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
+            val authViewModel: AuthViewModel = hiltViewModel()
+            val memberViewModel: MemberViewModel = hiltViewModel()
+            val meetingViewModel: MeetingViewModel = hiltViewModel()
 
+            val currentUser by authViewModel.currentUser.collectAsState()
+            val currentUserId = currentUser?.userId ?: ""
 
+            // Load user role for this meeting
+            LaunchedEffect(meetingId, currentUserId) {
+                if (currentUserId.isNotEmpty()) {
+                    memberViewModel.loadCurrentUserRoleForMeeting(meetingId, currentUserId)
+                }
+            }
+
+            val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
+
+            // Debug state
+            Log.d("ContributionFlow", "Meeting: $meetingId | User: $currentUserId | Admin: $isAdmin")
+
+            if (isAdmin) {
+                ContributionScreen(
+                    meetingId = meetingId,
+                    navigateToBeneficiarySelection = {
+                        navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
+                    },
+                    navController = navController,
+                    groupId =  groupId
+                )
+            } else {
+                ContributionSummaryScreen(
+                    meetingId = meetingId,
+                    navigateBack = { navController.popBackStack() }
+                )
+            }
         }
-
-
-
         composable(
             route = PenaltyDestination.routeWithArgs,
             arguments = listOf(navArgument(PenaltyDestination.groupIdArg) { type = NavType.StringType }

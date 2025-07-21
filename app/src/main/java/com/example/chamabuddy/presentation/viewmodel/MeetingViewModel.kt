@@ -21,6 +21,7 @@ class MeetingViewModel @Inject constructor(
     private val beneficiaryRepository: BeneficiaryRepository,
     private val cycleDao: CycleDao
 ) : ViewModel() {
+    private var currentCycleId: String? = null
 
     private val _state = MutableStateFlow<MeetingState>(MeetingState.Idle)
     val state: StateFlow<MeetingState> = _state.asStateFlow()
@@ -36,6 +37,13 @@ class MeetingViewModel @Inject constructor(
     fun saveContributionState(contributions: Map<String, Boolean>) {
         _savedContributionState.value = contributions
     }
+
+
+    private val _currentUserIsAdmin = MutableStateFlow(false)
+    val currentUserIsAdmin: StateFlow<Boolean> = _currentUserIsAdmin.asStateFlow()
+
+    private val _currentUserIsOwner = MutableStateFlow(false)
+    val currentUserIsOwner: StateFlow<Boolean> = _currentUserIsOwner.asStateFlow()
 
     fun loadSavedContributionState(): Map<String, Boolean>? {
         return _savedContributionState.value?.also {
@@ -58,6 +66,45 @@ class MeetingViewModel @Inject constructor(
             )
             is MeetingEvent.LoadBeneficiaryDetails -> loadBeneficiaryDetails(event.beneficiaryId)
             MeetingEvent.ResetMeetingState -> resetState()
+            is MeetingEvent.DeleteMeeting -> deleteMeeting(event.meetingId)
+
+        }
+    }
+
+
+    private fun deleteMeeting(meetingId: String) {
+        viewModelScope.launch {
+            _state.value = MeetingState.Loading
+            try {
+                meetingRepository.deleteMeeting(meetingId)
+                // Reload meetings after deletion using current view model instance
+                currentCycleId?.let { cycleId ->
+                    getMeetingsForCycle(MeetingEvent.GetMeetingsForCycle(cycleId))
+                }
+                _state.value = MeetingState.MeetingDeleted(true)
+            } catch (e: Exception) {
+                _state.value = MeetingState.Error(e.message ?: "Failed to delete meeting")
+            }
+        }
+    }
+    fun validateAdminAction(action: () -> Unit, onError: () -> Unit) {
+        if (currentUserIsAdmin.value) {
+            action()
+        } else {
+            onError()
+        }
+    }
+
+    fun loadUserPermissions(groupId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                val member = memberRepository.getMemberByUserId(userId, groupId)
+                _currentUserIsAdmin.value = member?.isAdmin ?: false
+                _currentUserIsOwner.value = member?.isOwner ?: false
+            } catch (e: Exception) {
+                _currentUserIsAdmin.value = false
+                _currentUserIsOwner.value = false
+            }
         }
     }
 
@@ -322,6 +369,7 @@ class MeetingViewModel @Inject constructor(
     }
 
     private fun getMeetingsForCycle(event: MeetingEvent.GetMeetingsForCycle) {
+        currentCycleId = event.cycleId
         viewModelScope.launch {
             _state.value = MeetingState.Loading
             try {
@@ -332,7 +380,6 @@ class MeetingViewModel @Inject constructor(
             }
         }
     }
-
     private fun resetState() {
         _state.value = MeetingState.Idle
     }
@@ -379,6 +426,9 @@ sealed class MeetingState {
         val member: Member,
         val meeting: WeeklyMeeting? = null
     ) : MeetingState()
+
+    data class MeetingDeleted(val success: Boolean) : MeetingState()
+
 }
 
 sealed class MeetingEvent {
@@ -393,6 +443,7 @@ sealed class MeetingEvent {
         val meetingId: String,
         val beneficiaryIds: List<String>
     ) : MeetingEvent()
+    data class DeleteMeeting(val meetingId: String) : MeetingEvent()
     data class LoadBeneficiaryDetails(val beneficiaryId: String) : MeetingEvent()
     data class UpdateBeneficiaryAmount(val beneficiaryId: String, val newAmount: Int) : MeetingEvent()
     object ResetMeetingState : MeetingEvent()

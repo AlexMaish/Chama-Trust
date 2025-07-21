@@ -78,6 +78,22 @@ class MeetingRepositoryImpl @Inject constructor(
             )
         }
 
+
+
+    override suspend fun deleteMeeting(meetingId: String) {
+        withContext(dispatcher) {
+            try {
+                // First delete related contributions and beneficiaries
+                contributionDao.deleteContributionsForMeeting(meetingId)
+                beneficiaryDao.deleteBeneficiariesForMeeting(meetingId)
+                // Then delete the meeting
+                meetingDao.deleteMeeting(meetingId)
+            } catch (e: Exception) {
+                throw Exception("Failed to delete meeting: ${e.message}")
+            }
+        }
+    }
+
     override fun getMeetingsForCycle(cycleId: String): Flow<List<MeetingWithDetails>> =
         meetingDao.getMeetingsForCycle(cycleId).map { meetings ->
             meetings.map { meeting ->

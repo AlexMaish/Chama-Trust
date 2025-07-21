@@ -1,5 +1,6 @@
 package com.example.chamabuddy.presentation.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -106,6 +107,7 @@ import com.example.chamabuddy.domain.model.Group
 import com.example.chamabuddy.presentation.navigation.BeneficiaryGroupDestination
 import com.example.chamabuddy.presentation.navigation.BenefitDestination
 import com.example.chamabuddy.presentation.navigation.ExpenseDestination
+import com.example.chamabuddy.presentation.navigation.GroupsHomeDestination
 import com.example.chamabuddy.presentation.navigation.HomeDestination
 import com.example.chamabuddy.presentation.navigation.MembersDestination
 import com.example.chamabuddy.presentation.navigation.NavigationDestination
@@ -175,6 +177,32 @@ fun HomeScreen(
     val benefitViewModel: BenefitViewModel = hiltViewModel()
     val penaltyViewModel: PenaltyViewModel = hiltViewModel()
 
+
+
+
+    LaunchedEffect(groupId) {
+        if (groupId.isNotEmpty()) {
+            authViewModel.loadCurrentMemberId(groupId)
+        }
+    }
+
+    BackHandler {
+        navController.navigate(GroupsHomeDestination.route) {
+            // Clear back stack up to Groups Home
+            popUpTo(GroupsHomeDestination.route) { inclusive = true }
+        }
+    }
+
+    val currentUserId by authViewModel.currentUserId.collectAsState()
+
+    LaunchedEffect(groupId, currentUserId) {
+        if (groupId.isNotEmpty() && currentUserId != null) {
+            val userId = currentUserId!!
+            memberViewModel.loadCurrentUserRole(groupId, userId)
+        }
+    }
+
+
     LaunchedEffect(groupId) {
         if (groupId.isNotEmpty()) {
             expenseViewModel.loadData(groupId)
@@ -186,11 +214,6 @@ fun HomeScreen(
     val benefitTotal by benefitViewModel.total.collectAsState()
     val penaltyTotal by penaltyViewModel.total.collectAsState()
 
-    LaunchedEffect(groupId) {
-        if (groupId.isNotEmpty()) {
-            authViewModel.loadCurrentMemberId(groupId)
-        }
-    }
 
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.get<Boolean>("cycle_created")?.let { created ->
@@ -249,12 +272,6 @@ fun HomeScreen(
             }
     }
 
-    // Load user role
-    LaunchedEffect(groupId, currentMemberId) {
-        if (groupId.isNotEmpty() && currentMemberId != null) {
-            memberViewModel.loadCurrentUserRole(groupId, currentMemberId!!)
-        }
-    }
 
     val stateValue by viewModel.state.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -267,15 +284,6 @@ fun HomeScreen(
         TabItem(icon = Icons.Default.AccountCircle, title = "Profile", destination = ProfileDestination)
     )
 
-
-    val currentUserId by authViewModel.currentUserId.collectAsState()
-
-    LaunchedEffect(groupId, currentUserId) {
-        if (groupId.isNotEmpty() && currentUserId != null) {
-            val userId = currentUserId!!
-            memberViewModel.loadCurrentUserRole(groupId, userId)
-        }
-    }
 
 
 

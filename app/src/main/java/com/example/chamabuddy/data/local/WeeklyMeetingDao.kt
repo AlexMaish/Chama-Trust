@@ -40,6 +40,11 @@ interface WeeklyMeetingDao {
     @Transaction
     @Query("SELECT * FROM WeeklyMeeting WHERE meeting_id = :meetingId")
     suspend fun getMeetingWithCycle(meetingId: String): WeeklyMeetingWithCycle?
+
+
+
+    @Query("DELETE FROM WeeklyMeeting WHERE meeting_id = :meetingId")
+    suspend fun deleteMeeting(meetingId: String)
 }
 
 
@@ -64,39 +69,3 @@ interface WeeklyMeetingDao {
 
 
 
-
-
-//@Dao
-//interface WeeklyMeetingDao {
-//
-//
-//    @Delete
-//    suspend fun deleteMeeting(meeting: WeeklyMeeting)
-//
-//    @Insert(onConflict = OnConflictStrategy.REPLACE)
-//    suspend fun insertMeeting(meeting: WeeklyMeeting): Long
-//
-//    @Update
-//    suspend fun updateMeeting(meeting: WeeklyMeeting)
-//
-//    @Query("SELECT * FROM WeeklyMeeting WHERE cycle_id = :cycleId ORDER BY meeting_date DESC")
-//    fun getMeetingsForCycle(cycleId: String): Flow<List<WeeklyMeeting>>
-//
-//    @Query("SELECT * FROM WeeklyMeeting WHERE meeting_id = :meetingId")
-//    suspend fun getMeetingById(meetingId: String): WeeklyMeeting?
-//
-//    @Query("""
-//        SELECT * FROM WeeklyMeeting
-//        WHERE cycle_id = :cycleId
-//        ORDER BY meeting_date DESC
-//        LIMIT 1
-//    """)
-//    suspend fun getLatestMeetingForCycle(cycleId: String): WeeklyMeeting?
-//
-//    @Query("SELECT SUM(total_collected) FROM WeeklyMeeting WHERE cycle_id = :cycleId")
-//    suspend fun getTotalCollectedForCycle(cycleId: String): Int?
-//
-//
-//
-//
-//}
