@@ -159,7 +159,20 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-
+    fun deleteCycle(cycleId: String) {
+        viewModelScope.launch {
+            try {
+                cycleRepository.deleteCycle(cycleId)
+                // Refresh cycles after deletion
+                _currentGroupId.value?.let { loadCyclesForGroup(it) }
+                setSnackbarMessage("Cycle deleted successfully")
+                showSnackbar()
+            } catch (e: Exception) {
+                setSnackbarMessage("Failed to delete cycle: ${e.message}")
+                showSnackbar()
+            }
+        }
+    }
     fun showGroupRequiredMessage() {
         _snackbarMessage.value = "Create a group or join one first using the navigation menu"
         _showSnackbar.value = true

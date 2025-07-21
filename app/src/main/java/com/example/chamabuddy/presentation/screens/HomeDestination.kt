@@ -7,10 +7,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -116,11 +118,11 @@ import com.example.chamabuddy.presentation.viewmodel.CycleEvent
 import com.example.chamabuddy.presentation.viewmodel.CycleState
 import com.example.chamabuddy.presentation.viewmodel.ExpenseViewModel
 import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
+import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
 import com.example.chamabuddy.presentation.viewmodel.PenaltyViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
-
 
 val SoftGreen = Color(0xFF4CAF50)
 val CardSurface = Color(0xFFFFFFFF)
@@ -131,6 +133,7 @@ val VibrantOrange = Color(0xFFFF6B35)
 val ActiveGreen = Color(0xFF4CAF50)
 val CompletedGray = Color(0xFF9E9E9E)
 val LightAccentBlue = Color(0xFFE3F2FD)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -164,11 +167,13 @@ fun HomeScreen(
     val authViewModel: AuthViewModel = hiltViewModel()
     val currentMemberId by authViewModel.currentMemberId.collectAsState()
 
+    val memberViewModel: MemberViewModel = hiltViewModel()
+    val currentUserIsAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
+    val currentUserIsOwner by memberViewModel.currentUserIsOwner.collectAsState()
 
     val expenseViewModel: ExpenseViewModel = hiltViewModel()
     val benefitViewModel: BenefitViewModel = hiltViewModel()
     val penaltyViewModel: PenaltyViewModel = hiltViewModel()
-
 
     LaunchedEffect(groupId) {
         if (groupId.isNotEmpty()) {
@@ -180,7 +185,6 @@ fun HomeScreen(
     val expenseTotal by expenseViewModel.total.collectAsState()
     val benefitTotal by benefitViewModel.total.collectAsState()
     val penaltyTotal by penaltyViewModel.total.collectAsState()
-
 
     LaunchedEffect(groupId) {
         if (groupId.isNotEmpty()) {
@@ -199,7 +203,6 @@ fun HomeScreen(
 
     // Add refreshTrigger as key to reload cycles
     LaunchedEffect(groupId, refreshTrigger) {
-        println("Refreshing cycles for group: $groupId (trigger: $refreshTrigger)")
         if (groupId.isNotEmpty()) {
             viewModel.loadGroupData(groupId)
             viewModel.loadCyclesForGroup(groupId)
@@ -223,11 +226,8 @@ fun HomeScreen(
     }
 
     LaunchedEffect(groupId) {
-        println("HomeScreen groupId: $groupId")
         viewModel.loadUserGroups()
-
         if (groupId.isNotEmpty()) {
-            // Call the public loadGroupData function
             viewModel.loadGroupData(groupId)
             viewModel.loadCyclesForGroup(groupId)
         } else {
@@ -236,7 +236,7 @@ fun HomeScreen(
         }
     }
 
-    // Replace existing scroll detection with:
+    // Scroll detection
     LaunchedEffect(listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .collect { (index, offset) ->
@@ -249,9 +249,16 @@ fun HomeScreen(
             }
     }
 
-    val stateValue by viewModel.state.collectAsState()
+    // Load user role
+    LaunchedEffect(groupId, currentMemberId) {
+        if (groupId.isNotEmpty() && currentMemberId != null) {
+            memberViewModel.loadCurrentUserRole(groupId, currentMemberId!!)
+        }
+    }
 
+    val stateValue by viewModel.state.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     val bottomBarItems = listOf(
         TabItem(icon = Icons.Default.Home, title = "Home", destination = HomeDestination),
         TabItem(icon = Icons.Default.Person, title = "Beneficiaries", destination = BeneficiaryGroupDestination),
@@ -259,6 +266,22 @@ fun HomeScreen(
         TabItem(icon = Icons.Default.Group, title = "Members", destination = MembersDestination),
         TabItem(icon = Icons.Default.AccountCircle, title = "Profile", destination = ProfileDestination)
     )
+
+
+    val currentUserId by authViewModel.currentUserId.collectAsState()
+
+    LaunchedEffect(groupId, currentUserId) {
+        if (groupId.isNotEmpty() && currentUserId != null) {
+            val userId = currentUserId!!
+            memberViewModel.loadCurrentUserRole(groupId, userId)
+        }
+    }
+
+
+
+
+
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = true,
@@ -268,7 +291,7 @@ fun HomeScreen(
                     currentGroupId = groupId,
                     penaltyTotal = penaltyTotal,
                     expenseTotal = expenseTotal,
-                    benefitTotal =  benefitTotal,
+                    benefitTotal = benefitTotal,
                     groups = userGroups,
                     onGroupSelected = { /* Handle group selection */ },
                     onCreateGroup = { navigateToGroupManagement() },
@@ -276,14 +299,12 @@ fun HomeScreen(
                     onNavToPenalty = {
                         navController.navigate("${PenaltyDestination.route}/$groupId")
                     },
-                    onNavToBenefit= {
+                    onNavToBenefit = {
                         navController.navigate("${BenefitDestination.route}/$groupId")
                     },
-                onNavToExpense= {
-                    navController.navigate("${ExpenseDestination.route}/$groupId")
+                    onNavToExpense = {
+                        navController.navigate("${ExpenseDestination.route}/$groupId")
                     },
-
-
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -296,7 +317,6 @@ fun HomeScreen(
                 LargeTopAppBar(
                     title = {
                         Column {
-                            // FIXED: Use safe call and null coalescing
                             Text(
                                 text = groupData?.group?.name ?: "Loading...",
                                 fontWeight = FontWeight.Bold,
@@ -334,28 +354,29 @@ fun HomeScreen(
                 )
             },
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = {
-                        when {
-                            groupId.isEmpty() -> {
-                                viewModel.setSnackbarMessage("Please select a group first")
-                                viewModel.showSnackbar()
-                                navigateToGroupManagement()
+                if (currentUserIsAdmin || currentUserIsOwner) {
+                    FloatingActionButton(
+                        onClick = {
+                            when {
+                                groupId.isEmpty() -> {
+                                    viewModel.setSnackbarMessage("Please select a group first")
+                                    viewModel.showSnackbar()
+                                    navigateToGroupManagement()
+                                }
+                                userGroups.isEmpty() -> {
+                                    viewModel.setSnackbarMessage("No groups available")
+                                    viewModel.showSnackbar()
+                                }
+                                else -> showCreateDialog = true
                             }
-                            userGroups.isEmpty() -> {
-                                viewModel.setSnackbarMessage("No groups available")
-                                viewModel.showSnackbar()
-                            }
-                            else -> showCreateDialog = true
-                        }
-                    },
-                    containerColor = VibrantOrange
-                ) {
-                    Icon(Icons.Default.Add, "New Cycle", tint = Color.White)
+                        },
+                        containerColor = VibrantOrange
+                    ) {
+                        Icon(Icons.Default.Add, "New Cycle", tint = Color.White)
+                    }
                 }
             },
             bottomBar = {
-                // Bottom Navigation Bar
                 NavigationBar {
                     bottomBarItems.forEachIndexed { index, item ->
                         NavigationBarItem(
@@ -410,7 +431,6 @@ fun HomeScreen(
                 ) {
                     Spacer(modifier = Modifier.height(1.dp))
 
-                    // Greeting section
                     AnimatedVisibility(
                         visible = true,
                         enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessLow))
@@ -449,13 +469,12 @@ fun HomeScreen(
                     is CycleState.CycleHistory -> {
                         val cycles = (stateValue as CycleState.CycleHistory).cycles
 
-                        // Assign cycle numbers and sort descending
                         val sortedCycles = remember(cycles) {
-                            cycles.sortedBy { it.startDate } // Oldest first
+                            cycles.sortedBy { it.startDate }
                                 .mapIndexed { index, cycle ->
                                     cycle.copy(cycleNumber = index + 1)
                                 }
-                                .sortedByDescending { it.startDate } // Latest at top
+                                .sortedByDescending { it.startDate }
                         }
 
                         Surface(
@@ -492,7 +511,9 @@ fun HomeScreen(
                                         ) { cycle ->
                                             PremiumCycleCard(
                                                 cycle = cycle,
-                                                onViewDetailsClick = { navigateToCycleDetails(cycle.cycleId) }
+                                                onViewDetailsClick = { navigateToCycleDetails(cycle.cycleId) },
+                                                isAdmin = currentUserIsAdmin || currentUserIsOwner,
+                                                onDeleteCycle = { viewModel.deleteCycle(cycle.cycleId) }
                                             )
                                         }
                                     }
@@ -501,7 +522,6 @@ fun HomeScreen(
                         }
                     }
                     else -> {
-                        // Handle other states (like Idle) if needed
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -539,16 +559,19 @@ fun HomeScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PremiumCycleCard(
     cycle: Cycle,
+    onDeleteCycle: (() -> Unit)? = null,
+    isAdmin: Boolean,
     onViewDetailsClick: () -> Unit,
-    onEndCycleClick: (() -> Unit)? = null, // Optional: only needed for active cycles
     modifier: Modifier = Modifier
 ) {
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     var expanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isLongPressed by remember { mutableStateOf(false) }
 
     val isActive = cycle.endDate == null
     val statusText = if (isActive) "ACTIVE" else "COMPLETED"
@@ -558,15 +581,21 @@ fun PremiumCycleCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { expanded = !expanded }
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp)
+            .combinedClickable(
+                onClick = { expanded = !expanded },
+                onLongClick = {
+                    // FIX: Only show delete dialog if admin and callback provided
+                    if (isAdmin && onDeleteCycle != null) {
+                        showDeleteDialog = true
+                    }
+                }
+            ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-
-            // Title Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -609,7 +638,6 @@ fun PremiumCycleCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Key Metrics Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -617,8 +645,16 @@ fun PremiumCycleCard(
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                FinancialMetric(label = "Total Savings", value = "KES ${cycle.totalSavings}", isPrimary = true)
-                FinancialMetric(label = "Members", value = "${cycle.totalMembers}", isPrimary = true)
+                FinancialMetric(
+                    label = "Total Savings",
+                    value = "KES ${cycle.totalSavings}",
+                    isPrimary = true
+                )
+                FinancialMetric(
+                    label = "Members",
+                    value = "${cycle.totalMembers}",
+                    isPrimary = true
+                )
             }
 
             AnimatedVisibility(
@@ -634,13 +670,20 @@ fun PremiumCycleCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(LightAccentBlue.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                            .background(
+                                LightAccentBlue.copy(alpha = 0.1f),
+                                RoundedCornerShape(10.dp)
+                            )
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         FinancialMetric("Monthly", "KES ${cycle.monthlySavingsAmount}", true)
                         FinancialMetric("Weekly", "KES ${cycle.weeklyAmount}", true)
-                        FinancialMetric("Beneficiaries", "${cycle.beneficiariesPerMeeting}/meeting", true)
+                        FinancialMetric(
+                            "Beneficiaries",
+                            "${cycle.beneficiariesPerMeeting}/meeting",
+                            true
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -656,25 +699,41 @@ fun PremiumCycleCard(
                     ) {
                         Text("View Full Details", fontWeight = FontWeight.SemiBold)
                     }
-
-                    if (isActive && onEndCycleClick != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = onEndCycleClick,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VibrantOrange),
-                            border = BorderStroke(1.dp, VibrantOrange)
-                        ) {
-                            Text("End Current Cycle", fontWeight = FontWeight.Bold)
-                        }
-                    }
                 }
             }
         }
     }
-}
 
+    if (isAdmin && showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                isLongPressed = false
+            },
+            title = { Text("Delete Cycle?") },
+            text = { Text("Are you sure you want to permanently delete this cycle?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        isLongPressed = false
+                        onDeleteCycle?.invoke()
+                    }
+                ) {
+                    Text("Delete", color = VibrantOrange)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    isLongPressed = false
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
 
 @Composable
 fun FinancialMetric(
@@ -751,6 +810,7 @@ fun DetailItem(
         )
     }
 }
+
 @Composable
 fun EmptyDashboard(onCreateClick: () -> Unit) {
     Column(
@@ -796,8 +856,8 @@ fun EmptyDashboard(onCreateClick: () -> Unit) {
 fun SideNavigationDrawerContent(
     currentGroupId: String,
     penaltyTotal: Double,
-    expenseTotal : Double,
-    benefitTotal : Double,
+    expenseTotal: Double,
+    benefitTotal: Double,
     onNavToPenalty: () -> Unit,
     onNavToBenefit: () -> Unit,
     onNavToExpense: () -> Unit,
@@ -1015,10 +1075,36 @@ fun SocialIcon(iconRes: Int, description: String) {
     )
 }
 
+//@Composable
+//fun DrawerItem(
+//    icon: ImageVector,
+//    text: String,
+//    onClick: () -> Unit
+//) {
+//    Row(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .clickable(onClick = onClick)
+//            .padding(vertical = 12.dp, horizontal = 16.dp),
+//        verticalAlignment = Alignment.CenterVertically
+//    ) {
+//        Icon(
+//            icon,
+//            contentDescription = text,
+//            tint = Color.White,
+//            modifier = Modifier.size(24.dp)
+//        )
+//        Spacer(modifier = Modifier.width(16.dp))
+//        Text(
+//            text = text,
+//            color = Color.White,
+//            fontSize = 16.sp
+//        )
+//    }
+//}
+
 data class TabItem(
     val destination: NavigationDestination,
     val icon: ImageVector,
     val title: String
 )
-
-

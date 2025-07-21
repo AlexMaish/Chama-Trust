@@ -42,6 +42,14 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId
+
+    init {
+        viewModelScope.launch {
+            _currentUserId.value = userRepository.getCurrentUserId()
+        }
+    }
 
     suspend fun loadCurrentMemberId(groupId: String) {
         _currentMemberId.value = userRepository.getCurrentUserMemberId(groupId)

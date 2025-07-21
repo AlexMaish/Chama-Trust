@@ -26,6 +26,9 @@ interface CycleRepository {
     suspend fun getCyclesByGroupId(groupId: String): List<Cycle>
     suspend fun getCyclesByGroup(groupId: String): List<Cycle>
     suspend fun getCyclesWithBeneficiaries(groupId: String): List<CycleWithBeneficiaries>
+    suspend fun deleteCycle(cycleId: String)
+
+
 }
 
 data class CycleStats(

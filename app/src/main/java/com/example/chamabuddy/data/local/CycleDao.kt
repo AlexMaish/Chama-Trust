@@ -62,5 +62,10 @@ interface CycleDao {
 
     @Query("SELECT * FROM cycle WHERE group_id= :groupId ORDER BY start_date DESC LIMIT 1")
     suspend fun getLastCycleByGroupId(groupId: String): Cycle?
+
+    @Query("DELETE FROM Cycle WHERE cycle_id = :cycleId")
+    suspend fun deleteCycleById(cycleId: String)
+
+
 }
 

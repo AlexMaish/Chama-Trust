@@ -184,5 +184,9 @@ override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Uni
     }
 
 
+    override suspend fun deleteCycle(cycleId: String) {
+        cycleDao.deleteCycleById(cycleId)
+    }
+
 
 }

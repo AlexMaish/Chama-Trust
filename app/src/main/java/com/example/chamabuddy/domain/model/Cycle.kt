@@ -38,5 +38,8 @@ data class Cycle(
     val beneficiariesPerMeeting: Int = 2,
 
     @ColumnInfo(name = "cycleNumber ")
-    val cycleNumber : Int = 0
+    val cycleNumber : Int = 0,
+
+
+
 )

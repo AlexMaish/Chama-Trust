@@ -63,7 +63,9 @@ class MemberViewModel @Inject constructor(
                 _currentUserIsAdmin.value = member?.isAdmin ?: false
                 _currentUserIsOwner.value = member?.isOwner ?: false
             } catch (e: Exception) {
-                // Handle error
+                // Reset on error
+                _currentUserIsAdmin.value = false
+                _currentUserIsOwner.value = false
             }
         }
     }
