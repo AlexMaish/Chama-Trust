@@ -13,15 +13,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.chamabuddy.domain.model.Member
-import com.example.chamabuddy.presentation.navigation.NavigationDestination
 import com.example.chamabuddy.presentation.viewmodel.MeetingEvent
 import com.example.chamabuddy.presentation.viewmodel.MeetingViewModel
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,18 +33,26 @@ fun ContributionSummaryScreen(
 ) {
     val state by viewModel.contributionState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    Log.d("ContributionScreen", "Rendering as non-admin summary")
 
+    Log.d("ContributionScreen", "Rendering as non-admin summary")
 
     LaunchedEffect(meetingId) {
         viewModel.handleEvent(MeetingEvent.GetContributionsForMeeting(meetingId))
     }
 
     Scaffold(
+        containerColor = Color(0xFFF5F5F5),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Meeting Contributions") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White),
+                title = {
+                    Text(
+                        text = "Meeting Contributions",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -72,9 +81,10 @@ fun ContributionSummaryScreen(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier
-            .padding(paddingValues)
-            .fillMaxSize()
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
         ) {
             when {
                 state.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -130,10 +140,13 @@ fun ContributionSummaryItem(
         else -> MaterialTheme.colorScheme.surface
     }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(2.dp)
+    ElevatedCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .shadow(6.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = containerColor),
+        elevation = CardDefaults.elevatedCardElevation(4.dp)
     ) {
         Row(
             modifier = Modifier

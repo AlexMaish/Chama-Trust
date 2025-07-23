@@ -62,15 +62,17 @@ class MemberViewModel @Inject constructor(
         currentUserId = userId
     }
 
+
     fun loadCurrentUserRole(groupId: String, userId: String) {
         viewModelScope.launch {
             try {
                 val member = memberRepository.getMemberByUserId(userId, groupId)
                 _currentUserIsAdmin.value = member?.isAdmin ?: false
-                Log.d("MemberVM", "Admin status loaded: ${_currentUserIsAdmin.value}")
+                _currentUserIsOwner.value = member?.isOwner ?: false
             } catch (e: Exception) {
-                Log.e("MemberVM", "Error loading admin status", e)
+                // Reset on error
                 _currentUserIsAdmin.value = false
+                _currentUserIsOwner.value = false
             }
         }
     }
@@ -107,16 +109,15 @@ class MemberViewModel @Inject constructor(
                     val member = memberRepository.getMemberByUserId(userId, groupId)
                     _currentUserIsAdmin.value = member?.isAdmin ?: false
                     _currentUserIsOwner.value = member?.isOwner ?: false
-                    Log.d("MemberVM", "Role loaded: isAdmin=${_currentUserIsAdmin.value}, isOwner=${_currentUserIsOwner.value}")
-                } else {
-                    Log.e("MemberVM", "Group ID not found for meeting: $meetingId")
                 }
             } catch (e: Exception) {
                 Log.e("MemberVM", "Error loading user role", e)
+                // Reset on error
+                _currentUserIsAdmin.value = false
+                _currentUserIsOwner.value = false
             }
         }
     }
-
     private fun promoteToAdmin(memberId: String) {
         viewModelScope.launch {
             try {

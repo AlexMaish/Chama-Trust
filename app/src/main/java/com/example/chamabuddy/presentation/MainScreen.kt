@@ -42,6 +42,7 @@ import com.example.chamabuddy.presentation.navigation.*
 import com.example.chamabuddy.presentation.screens.BeneficiaryDetailScreen
 import com.example.chamabuddy.presentation.screens.BeneficiarySelectionDestination
 import com.example.chamabuddy.presentation.screens.BeneficiarySelectionScreen
+import com.example.chamabuddy.presentation.screens.ContributionDestination
 import com.example.chamabuddy.presentation.screens.ContributionScreen
 import com.example.chamabuddy.presentation.screens.CreateCycleScreen
 import com.example.chamabuddy.presentation.screens.CycleDetailScreenForMeetings
@@ -260,7 +261,7 @@ fun MainNavHost(
                     navController.navigate("${MeetingDetailDestination.route}/$meetingId")
                 },
                 navigateToContribution = { meetingId ->
-                    navController.navigate("${ContributionDestination.route}/$groupId/$meetingId")
+                    navController.navigate("${ContributionDestination.route}/$meetingId")
                 },
                 navigateBack = {
                     // New navigation to HomeDestination
@@ -271,51 +272,32 @@ fun MainNavHost(
             )
         }
 
-        // In MainNavHost
         composable(
             route = ContributionDestination.routeWithArgs,
-            arguments = listOf(
-                navArgument(ContributionDestination.groupIdArg) { type = NavType.StringType },
-                navArgument(ContributionDestination.meetingIdArg) { type = NavType.StringType }
-            )
-        ) { entry ->
-            val groupId = entry.arguments?.getString(ContributionDestination.groupIdArg)!!
-            val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
+            arguments = listOf(navArgument(ContributionDestination.meetingIdArg) {
+                type = NavType.StringType
+            }
+            )) { entry ->
+                val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
+                val memberViewModel: MemberViewModel = hiltViewModel()
+                val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
 
-            val authViewModel: AuthViewModel = hiltViewModel()
-            val memberViewModel: MemberViewModel = hiltViewModel()
-            val currentUser by authViewModel.currentUser.collectAsState()
-            val currentUserId = currentUser?.userId ?: ""
-
-            // Use remember to persist the ViewModel instance
-            val viewModel = remember { memberViewModel }
-
-            LaunchedEffect(groupId, currentUserId) {
-                if (currentUserId.isNotEmpty()) {
-                    viewModel.loadCurrentUserRole(groupId, currentUserId)
+                if (isAdmin) {
+                    ContributionScreen(
+                        meetingId = meetingId,
+                        navigateToBeneficiarySelection = {
+                            navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
+                        },
+                        navController = navController // Remove navigateBack
+                    )
+                } else {
+                    ContributionSummaryScreen(
+                        meetingId = meetingId,
+                        navigateBack = { navController.popBackStack() }
+                    )
                 }
             }
 
-            val isAdmin by viewModel.currentUserIsAdmin.collectAsState()
-
-            Log.d("ContributionFlow", "Rendering as admin: $isAdmin")
-
-            if (isAdmin) {
-                ContributionScreen(
-                    meetingId = meetingId,
-                    groupId = groupId, // Pass groupId to screen
-                    navigateToBeneficiarySelection = {
-                        navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
-                    },
-                    navController = navController
-                )
-            } else {
-                ContributionSummaryScreen(
-                    meetingId = meetingId,
-                    navigateBack = { navController.popBackStack() }
-                )
-            }
-        }
         composable(BeneficiaryDetailDestination.routeWithArgs) { backStackEntry ->
             val beneficiaryId = backStackEntry.arguments?.getString("beneficiaryId") ?: ""
             BeneficiaryDetailScreen(
@@ -411,12 +393,10 @@ fun MainNavHost(
 
         composable(
             route = ContributionDestination.routeWithArgs,
-            arguments = listOf(
-                navArgument(ContributionDestination.groupIdArg) { type = NavType.StringType },
-                navArgument(ContributionDestination.meetingIdArg) { type = NavType.StringType }
-            )
-        ) { entry ->
-            val groupId = entry.arguments?.getString(ContributionDestination.groupIdArg)!!
+            arguments = listOf(navArgument(ContributionDestination.meetingIdArg) {
+                type = NavType.StringType
+            }
+            )) { entry ->
             val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
             val authViewModel: AuthViewModel = hiltViewModel()
             val memberViewModel: MemberViewModel = hiltViewModel()
@@ -434,7 +414,7 @@ fun MainNavHost(
 
             val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
 
-            // Debug state
+
             Log.d("ContributionFlow", "Meeting: $meetingId | User: $currentUserId | Admin: $isAdmin")
 
             if (isAdmin) {
@@ -443,8 +423,7 @@ fun MainNavHost(
                     navigateToBeneficiarySelection = {
                         navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
                     },
-                    navController = navController,
-                    groupId =  groupId
+                    navController = navController
                 )
             } else {
                 ContributionSummaryScreen(
