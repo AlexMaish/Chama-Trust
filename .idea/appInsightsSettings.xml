@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.chamabuddy" />
+                  <option name="mobileSdkAppId" value="1:526001897784:android:d6e922fb8e4f5710c701cd" />
+                  <option name="projectId" value="chama-trust-app" />
+                  <option name="projectNumber" value="526001897784" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

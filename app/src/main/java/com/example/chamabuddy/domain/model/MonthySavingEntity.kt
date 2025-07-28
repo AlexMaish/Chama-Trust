@@ -64,6 +64,7 @@ data class MonthlySavingEntry(
 
 
 
-
+    @ColumnInfo(name = "month_year")
+    val monthYear: String
 
     )

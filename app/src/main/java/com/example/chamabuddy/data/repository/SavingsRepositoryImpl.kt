@@ -79,9 +79,10 @@ class SavingsRepositoryImpl @Inject constructor(
                     savingId = saving.savingId,
                     memberId = memberId,
                     amount = amount,
-                    entryDate = calendar.timeInMillis.toString(),
+                    entryDate = System.currentTimeMillis().toString(), // Current timestamp
                     recordedBy = recordedBy,
                     groupId = groupId,
+                    monthYear = monthYear  // Target month for grouping
                 )
             )
 

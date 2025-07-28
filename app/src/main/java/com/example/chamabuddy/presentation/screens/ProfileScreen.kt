@@ -834,7 +834,7 @@ fun MonthlySavingsCard(
             Spacer(Modifier.height(8.dp))
 
             if (entries.isNotEmpty()) {
-                val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
+                val entryDateFormat = remember { SimpleDateFormat("MMM dd yyyy", Locale.getDefault()) }
                 entries.forEach { entry ->
                     Row(
                         modifier = Modifier
@@ -863,7 +863,15 @@ fun MonthlySavingsCard(
                                 } catch (e: Exception) {
                                     Date()
                                 }
-                                Text(dateFormat.format(date), color = PremiumNavy)
+                                Text(
+                                    // Format actual entry date
+                                    text = try {
+                                        entryDateFormat.format(Date(entry.entryDate.toLong()))
+                                    } catch (e: Exception) {
+                                        "Unknown date"
+                                    },
+                                    color = PremiumNavy
+                                )
                                 Text("KES ${entry.amount}", fontWeight = FontWeight.Medium, color = PremiumNavy)
                             }
                             Text(
@@ -912,18 +920,15 @@ fun CycleSection(
     val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
     val months = cycleWithSavings.savingsEntries
-        .mapNotNull { entry ->
-            try {
-                val date = Date(entry.entryDate.toLong())
-                dateFormat.format(date)
-            } catch (e: Exception) {
-                null
-            }
-        }
+        .map { it.monthYear }  // Use target month for grouping
         .distinct()
-        .sortedBy { dateString ->
-            dateFormat.parse(dateString)?.time ?: 0L
+        .sortedBy { monthYear ->
+            try {
+                val format = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+                format.parse(monthYear)?.time ?: 0L
+            } catch (e: Exception) { 0L }
         }
+
 
     val startDate = formatDateShort(cycle.startDate)
     val endDate = cycle.endDate?.let { formatDateShort(it) } ?: "Active"
@@ -988,19 +993,15 @@ fun CycleSection(
             AnimatedVisibility(visible = expanded) {
                 Column {
                     months.forEach { month ->
-                        val monthEntries = cycleWithSavings.savingsEntries.filter {
-                            try {
-                                val date = Date(it.entryDate.toLong())
-                                dateFormat.format(date) == month
-                            } catch (e: Exception) { false }
-                        }
+                        val monthEntries = cycleWithSavings.savingsEntries.filter { it.monthYear == month }
+
 
                         val isCurrentMonth = month == determinedMonthDisplay && isActiveCycle
                         val isFuture = isFutureMonth(month)
                         val isComplete = monthEntries.sumOf { it.amount } >= cycle.monthlySavingsAmount
 
                         MonthlySavingsCard(
-                            month = month,
+                            month = convertToDisplayFormat(month),
                             entries = monthEntries,
                             monthlyTarget = cycle.monthlySavingsAmount,
                             onClick = {

@@ -27,7 +27,7 @@ import java.util.Date
         BenefitEntity::class
 
     ],
-    version = 22,
+    version = 26,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

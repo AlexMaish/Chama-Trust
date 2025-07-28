@@ -3,7 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
-    kotlin("kapt") // Apply without version
+    kotlin("kapt")
+    alias(libs.plugins.google.gms.google.services) // Apply without version
 }
 
 android {
@@ -88,6 +89,7 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     implementation(libs.protolite.well.known.types)
+    implementation(libs.firebase.database)
     kapt(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
 
