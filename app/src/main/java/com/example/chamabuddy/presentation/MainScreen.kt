@@ -213,6 +213,23 @@ fun MainNavHost(
 //        }
 
         composable(
+            route = CreateCycleDestination.routeWithArgs,
+            arguments = listOf(navArgument(CreateCycleDestination.groupIdArg) {
+                type = NavType.StringType
+            }
+            )){ backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString(CreateCycleDestination.groupIdArg) ?: ""
+                CreateCycleScreen(
+                    navController = navController,
+                    navigateBack = { navController.popBackStack() },
+                    groupId = groupId
+                )
+            }
+
+
+
+
+        composable(
             route = BeneficiaryGroupDestination.routeWithArgs,
             arguments = listOf(navArgument(BeneficiaryGroupDestination.groupIdArg) {
                 type = NavType.StringType

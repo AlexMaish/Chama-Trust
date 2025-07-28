@@ -1,14 +1,14 @@
-
 package com.example.chamabuddy.presentation.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,15 +48,11 @@ fun CycleDetailScreenForMeetings(
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-
-
     val authViewModel: AuthViewModel = hiltViewModel()
     val memberViewModel: MemberViewModel = hiltViewModel()
     val currentUser by authViewModel.currentUser.collectAsState()
     val currentUserId = currentUser?.userId ?: ""
     val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
-
-
 
     BackHandler {
         navController.navigate("${HomeDestination.route}/$groupId") {
@@ -70,8 +66,6 @@ fun CycleDetailScreenForMeetings(
         }
     }
 
-
-
     DisposableEffect(lifecycleOwner, cycleId) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
@@ -83,10 +77,12 @@ fun CycleDetailScreenForMeetings(
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
+
     if (groupId.isBlank() || cycleId.isBlank()) {
         Text("Error: Missing group or cycle ID")
         return
     }
+
     LaunchedEffect(cycleId) {
         viewModel.handleEvent(MeetingEvent.GetMeetingsForCycle(cycleId))
     }
@@ -105,7 +101,6 @@ fun CycleDetailScreenForMeetings(
                 title = { Text("Cycle Details") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        // Navigate to HomeDestination
                         navController.navigate("${HomeDestination.route}/$groupId") {
                             popUpTo(CycleDetailDestination.route) { inclusive = true }
                         }
@@ -134,7 +129,7 @@ fun CycleDetailScreenForMeetings(
                 }
             }
         }
-    ){ innerPadding ->
+    ) { innerPadding ->
         when (state) {
             is MeetingState.Loading -> LoadingContent(innerPadding)
             is MeetingState.Error -> ErrorContent(((state as MeetingState.Error).message), innerPadding)
@@ -180,8 +175,8 @@ private fun ErrorContent(message: String, innerPadding: PaddingValues) {
 private fun MeetingsList(
     meetings: List<MeetingWithDetails>,
     innerPadding: PaddingValues,
-    isAdmin: Boolean, // Add isAdmin parameter
-    onDeleteMeeting: (String) -> Unit, // Add delete handler
+    isAdmin: Boolean,
+    onDeleteMeeting: (String) -> Unit,
     onClick: (MeetingWithDetails) -> Unit
 ) {
     if (meetings.isEmpty()) {
@@ -217,6 +212,7 @@ private fun MeetingsList(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MeetingCard(
     meeting: MeetingWithDetails,
@@ -224,24 +220,50 @@ private fun MeetingCard(
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showConfirmationDialog by remember { mutableStateOf(false) }
 
-    var showConfirmation by remember { mutableStateOf(false) }
-
-    if (showConfirmation) {
+    // Handle delete flow
+    if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = { showConfirmation = false },
+            onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Meeting") },
-            text = { Text("Are you sure you want to delete this meeting? This action cannot be undone.") },
+            text = { Text("Are you sure you want to delete this meeting?") },
             confirmButton = {
-                TextButton(onClick = {
-                    showConfirmation = false
-                    onDelete()
-                }) {
-                    Text("Delete", color = Color.Red)
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        showConfirmationDialog = true
+                    }
+                ) {
+                    Text("Delete")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmation = false }) {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmationDialog = false },
+            title = { Text("Confirm Deletion") },
+            text = { Text("This will permanently delete the meeting and all its data. This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirmationDialog = false
+                        onDelete()
+                    }
+                ) {
+                    Text("Confirm", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmationDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -250,8 +272,12 @@ private fun MeetingCard(
 
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { if (isAdmin) showDeleteDialog = true }
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
@@ -259,24 +285,6 @@ private fun MeetingCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-
-            if (isAdmin) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Delete meeting",
-                            tint = Color.Red
-                        )
-                    }
-                }
-            }
             if (meeting.beneficiaries.isNotEmpty()) {
                 Text(
                     text = "Beneficiaries",
@@ -317,5 +325,3 @@ private fun MeetingCard(
         }
     }
 }
-
-

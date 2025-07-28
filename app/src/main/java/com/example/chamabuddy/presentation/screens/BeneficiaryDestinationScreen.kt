@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.chamabuddy.presentation.navigation.BeneficiaryDestination
 import com.example.chamabuddy.presentation.navigation.BeneficiaryDetailDestination
 import com.example.chamabuddy.presentation.viewmodel.BeneficiaryState
 import com.example.chamabuddy.presentation.viewmodel.BeneficiaryViewModel
