@@ -152,7 +152,23 @@ class MemberRepositoryImpl @Inject constructor(
     }
 
 
+    override suspend fun getUnsyncedMembers(): List<Member> =
+        withContext(Dispatchers.IO) {
+            memberDao.getUnsyncedMembers()
+        }
+
+    override suspend fun markMemberSynced(member: Member) {
+        withContext(Dispatchers.IO) {
+            memberDao.markAsSynced(member.memberId)
+        }
+    }
 
 
+    override suspend fun syncMember(member: Member) {
+        withContext(Dispatchers.IO) {
+            // Direct insert/update without business logic checks
+            memberDao.insertMember(member.copy(isSynced = true))
+        }
+    }
 
 }

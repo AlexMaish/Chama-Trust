@@ -79,7 +79,7 @@ class SavingsRepositoryImpl @Inject constructor(
                     savingId = saving.savingId,
                     memberId = memberId,
                     amount = amount,
-                    entryDate = System.currentTimeMillis().toString(), // Current timestamp
+                    entryDate = System.currentTimeMillis(), // Current timestamp
                     recordedBy = recordedBy,
                     groupId = groupId,
                     monthYear = monthYear  // Target month for grouping
@@ -299,4 +299,26 @@ class SavingsRepositoryImpl @Inject constructor(
 
 
 
+
+    override suspend fun getUnsyncedSavings(): List<MonthlySaving> =
+        withContext(dispatcher) {
+            savingDao.getUnsyncedSavings()
+        }
+
+    override suspend fun getUnsyncedEntries(): List<MonthlySavingEntry> =
+        withContext(dispatcher) {
+            savingEntryDao.getUnsyncedEntries()
+        }
+
+    override suspend fun markSavingSynced(saving: MonthlySaving) {
+        withContext(dispatcher) {
+            savingDao.markAsSynced(saving.savingId)
+        }
+    }
+
+    override suspend fun markEntrySynced(entry: MonthlySavingEntry) {
+        withContext(dispatcher) {
+            savingEntryDao.markAsSynced(entry.entryId)
+        }
+    }
 }

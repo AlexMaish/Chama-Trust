@@ -26,5 +26,12 @@ data class Group(
     val createdAt: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "total_savings")
-    val totalSavings: Double = 0.0
+    val totalSavings: Double = 0.0,
+
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 )

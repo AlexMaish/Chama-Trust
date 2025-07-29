@@ -129,4 +129,15 @@ interface BeneficiaryDao {
 
 //    @Query("SELECT COUNT(*) FROM beneficiaries WHERE member_id = :memberId AND cycle_id = :cycleId")
 //    suspend fun hasReceivedInCycle(memberId: String, cycleId: String): Int
+
+
+    @Query("UPDATE beneficiaries SET is_synced = 1 WHERE beneficiary_id = :beneficiaryId")
+    suspend fun markAsSynced(beneficiaryId: String)
+
+    @Query("SELECT * FROM beneficiaries WHERE is_synced = 0")
+    suspend fun getUnsyncedBeneficiaries(): List<Beneficiary>
+
+
+
+
 }

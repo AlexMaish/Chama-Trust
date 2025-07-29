@@ -11,4 +11,12 @@ class BenefitRepositoryImpl @Inject constructor(
     override suspend fun addBenefit(benefit: BenefitEntity) = benefitDao.insert(benefit)
     override fun getBenefits(groupId: String) = benefitDao.getBenefits(groupId)
     override fun getTotal(groupId: String) = benefitDao.getTotal(groupId)
+
+    override suspend fun getUnsyncedBenefits(): List<BenefitEntity> =
+        benefitDao.getUnsyncedBenefits()
+
+    override suspend fun markBenefitSynced(benefit: BenefitEntity) {
+        benefitDao.markAsSynced(benefit.benefitId)
+    }
+
 }

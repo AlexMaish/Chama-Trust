@@ -28,5 +28,12 @@ data class GroupMember(
     val isAdmin: Boolean = false,
 
     @ColumnInfo(name = "joined_at")
-    val joinedAt: Long = System.currentTimeMillis()
+    val joinedAt: Long = System.currentTimeMillis(),
+
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 )

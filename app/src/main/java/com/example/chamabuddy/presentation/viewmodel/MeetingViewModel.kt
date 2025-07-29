@@ -303,7 +303,7 @@ class MeetingViewModel @Inject constructor(
                         cycleId = meeting.cycleId,
                         meetingId = meetingId,
                         amountReceived = amountPerBeneficiary,
-                        dateAwarded = Date(),
+                        dateAwarded = Date().time,
                         paymentOrder = index + 1,
                         groupId = meeting.groupId
                     )

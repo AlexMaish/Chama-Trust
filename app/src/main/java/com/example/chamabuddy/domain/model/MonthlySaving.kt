@@ -38,5 +38,13 @@ data class MonthlySaving(
     val actualAmount: Int = 0,
 
     @ColumnInfo(name = "group_id")
-    val groupId: String
+    val groupId: String,
+
+
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 )

@@ -37,4 +37,13 @@ interface UserGroupDao {
     @Query("SELECT * FROM `groups` WHERE group_id IN " +
             "(SELECT group_id FROM user_groups WHERE user_id = :userId)")
     suspend fun getUserGroupsWithDetails(userId: String): List<Group>
+
+
+    @Query("UPDATE user_groups SET is_synced = 1 WHERE user_id = :userId AND group_id = :groupId")
+    suspend fun markAsSynced(userId: String, groupId: String)
+
+    @Query("SELECT * FROM user_groups WHERE is_synced = 0")
+    suspend fun getUnsyncedUserGroups(): List<UserGroup>
+
+
 }

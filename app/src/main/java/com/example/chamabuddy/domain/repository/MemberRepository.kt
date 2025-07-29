@@ -30,7 +30,11 @@ interface MemberRepository {
 
     suspend fun updateActiveStatus(memberId: String, isActive: Boolean)
 
+    suspend fun getUnsyncedMembers(): List<Member>
+    suspend fun markMemberSynced(member: Member)
 
+
+    suspend fun syncMember(member: Member)
 
 }
 

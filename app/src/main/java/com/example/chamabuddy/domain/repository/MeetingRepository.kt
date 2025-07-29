@@ -36,4 +36,8 @@ interface MeetingRepository {
     suspend fun getMeetingWithCycle(meetingId: String): WeeklyMeetingWithCycle?
     suspend fun getCyclesByGroup(groupId: String): List<Cycle>
     suspend fun deleteMeeting(meetingId: String)
+
+    suspend fun getUnsyncedMeetings(): List<WeeklyMeeting>
+    suspend fun markMeetingSynced(meeting: WeeklyMeeting)
+
 }

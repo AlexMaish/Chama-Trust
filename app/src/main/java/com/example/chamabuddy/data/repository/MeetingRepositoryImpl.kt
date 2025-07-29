@@ -6,7 +6,6 @@ import com.example.chamabuddy.domain.repository.*
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.*
@@ -33,7 +32,7 @@ class MeetingRepositoryImpl @Inject constructor(
             val meeting = WeeklyMeeting(
                 meetingId = UUID.randomUUID().toString(),
                 cycleId = cycleId,
-                meetingDate = meetingDate,
+                meetingDate = meetingDate.time,
                 totalCollected = 0,
                 recordedBy = recordedBy,
                 groupId = groupId
@@ -152,7 +151,7 @@ class MeetingRepositoryImpl @Inject constructor(
                             meetingId = meetingId,
                             memberId = memberId,
                             amountContributed = cycle.weeklyAmount,
-                            contributionDate = Date().toString(),
+                            contributionDate = System.currentTimeMillis(),
                             isLate = false,
                             groupId = meeting.groupId
                         )
@@ -197,7 +196,7 @@ class MeetingRepositoryImpl @Inject constructor(
                         amountReceived = cycle.weeklyAmount,
                         paymentOrder = index + 1,
                         cycleId = cycle.cycleId,
-                        dateAwarded = Date(),
+                        dateAwarded = System.currentTimeMillis(),
                         groupId = meeting.groupId
                     )
                 )
@@ -277,5 +276,18 @@ class MeetingRepositoryImpl @Inject constructor(
     }
     override suspend fun getBeneficiariesByCycle(cycleId: String): List<Beneficiary> {
         return beneficiaryDao.getBeneficiariesByCycle(cycleId)
+    }
+
+
+
+    override suspend fun getUnsyncedMeetings(): List<WeeklyMeeting> =
+        withContext(dispatcher) {
+            meetingDao.getUnsyncedMeetings()
+        }
+
+    override suspend fun markMeetingSynced(meeting: WeeklyMeeting) {
+        withContext(dispatcher) {
+            meetingDao.markAsSynced(meeting.meetingId)
+        }
     }
 }

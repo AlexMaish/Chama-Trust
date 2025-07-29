@@ -11,4 +11,13 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun addExpense(expense: ExpenseEntity) = expenseDao.insert(expense)
     override fun getExpenses(groupId: String) = expenseDao.getExpenses(groupId)
     override fun getTotal(groupId: String) = expenseDao.getTotal(groupId)
+
+
+
+    override suspend fun getUnsyncedExpenses(): List<ExpenseEntity> =
+        expenseDao.getUnsyncedExpenses()
+
+    override suspend fun markExpenseSynced(expense: ExpenseEntity) {
+        expenseDao.markAsSynced(expense.expenseId)
+    }
 }

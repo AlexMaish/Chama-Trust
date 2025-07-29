@@ -89,4 +89,11 @@ interface MemberDao {
     @Query("UPDATE member SET is_active = :isActive WHERE member_id = :memberId")
     suspend fun updateActiveStatus(memberId: String, isActive: Boolean)
 
+
+    @Query("UPDATE member SET is_synced = 1 WHERE member_id = :memberId")
+    suspend fun markAsSynced(memberId: String)
+
+    @Query("SELECT * FROM member WHERE is_synced = 0")
+    suspend fun getUnsyncedMembers(): List<Member>
+
 }

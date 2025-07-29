@@ -65,4 +65,11 @@ interface MemberContributionDao {
     suspend fun deleteContributionsForMeeting(meetingId: String)
 
 
+    @Query("UPDATE MemberContribution SET is_synced = 1 WHERE contribution_id = :contributionId")
+    suspend fun markAsSynced(contributionId: String)
+
+    @Query("SELECT * FROM MemberContribution WHERE is_synced = 0")
+    suspend fun getUnsyncedContributions(): List<MemberContribution>
+
+
 }

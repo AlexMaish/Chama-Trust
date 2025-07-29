@@ -25,17 +25,19 @@ interface GroupDao {
     @Query("SELECT * FROM `groups`")
     suspend fun getAllGroups(): List<Group>
 
-
     @Query("SELECT * FROM `groups` WHERE group_id IN (:ids)")
     suspend fun getGroupsByIds(ids: List<String>): List<Group>
 
-    @Query("SELECT * FROM 'groups' WHERE name = :name AND admin_id = :userId")
+    @Query("SELECT * FROM `groups` WHERE name = :name AND admin_id = :userId")
     suspend fun findGroupByName(name: String, userId: String): Group?
 
-
-
     @Transaction
-    @Query("SELECT * FROM 'groups'  WHERE group_id = :groupId")
+    @Query("SELECT * FROM `groups` WHERE group_id = :groupId")
     suspend fun getGroupWithMembers(groupId: String): GroupWithMembers?
-}
 
+    @Query("UPDATE `groups` SET is_synced = 1 WHERE group_id = :groupId")
+    suspend fun markAsSynced(groupId: String)
+
+    @Query("SELECT * FROM `groups`WHERE is_synced = 0")
+    suspend fun getUnsyncedGroups(): List<Group>
+}

@@ -62,4 +62,17 @@ class BeneficiaryRepositoryImpl @Inject constructor(
         }
 
 
+    override suspend fun getUnsyncedBeneficiaries(): List<Beneficiary> =
+        withContext(dispatcher) {
+            beneficiaryDao.getUnsyncedBeneficiaries()
+        }
+
+    override suspend fun markBeneficiarySynced(beneficiary: Beneficiary) {
+        withContext(dispatcher) {
+            beneficiaryDao.markAsSynced(beneficiary.beneficiaryId)
+        }
+    }
+
+
+
 }

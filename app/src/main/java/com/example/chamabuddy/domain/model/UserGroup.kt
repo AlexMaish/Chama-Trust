@@ -28,5 +28,11 @@ data class UserGroup(
     @ColumnInfo(name = "user_id") val userId: String,
     @ColumnInfo(name = "group_id") val groupId: String,
     @ColumnInfo(name = "is_owner") val isOwner: Boolean = false,
-    @ColumnInfo(name = "joined_at") val joinedAt: Long = System.currentTimeMillis()
+    @ColumnInfo(name = "joined_at") val joinedAt: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 )

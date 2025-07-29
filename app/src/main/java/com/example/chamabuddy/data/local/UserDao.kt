@@ -21,9 +21,13 @@ interface UserDao {
     suspend fun getUserName(userId: String): String?
 
 
-        @Query("SELECT * FROM users WHERE user_id = :userId")
-        suspend fun getUserById(userId: String): User?
+    @Query("SELECT * FROM users WHERE user_id = :userId")
+    suspend fun getUserById(userId: String): User?
 
 
+    @Query("UPDATE users SET is_synced = 1 WHERE user_id = :userId")
+    suspend fun markAsSynced(userId: String)
 
+    @Query("SELECT * FROM users WHERE is_synced = 0")
+    suspend fun getUnsyncedUsers(): List<User>
 }

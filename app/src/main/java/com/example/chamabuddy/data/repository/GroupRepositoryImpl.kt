@@ -13,6 +13,8 @@ import com.example.chamabuddy.domain.model.UserGroup
 import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class GroupRepositoryImpl @Inject constructor(
@@ -143,4 +145,14 @@ override suspend fun getUserGroups(userId: String): List<Group> {
     override suspend fun getGroupById(groupId: String): Group? {
         return groupDao.getGroup(groupId)
     }
+
+    override suspend fun getUnsyncedGroups(): List<Group> = withContext(Dispatchers.IO) {
+        groupDao.getUnsyncedGroups()
+    }
+
+    override suspend fun markGroupSynced(group: Group) = withContext(Dispatchers.IO) {
+        groupDao.markAsSynced(group.groupId)
+    }
+
+
 }

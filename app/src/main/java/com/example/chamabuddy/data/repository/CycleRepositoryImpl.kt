@@ -66,26 +66,6 @@ class CycleRepositoryImpl @Inject constructor(
 
 
 
-//    override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Unit> = withContext(dispatcher) {
-//        try {
-//            val activeCycle = cycleDao.getActiveCycle()
-//                ?: return@withContext Result.failure(IllegalStateException("No active cycle found"))
-//
-//            if (activeCycle.cycleId != cycleId) {
-//                return@withContext Result.failure(IllegalArgumentException("Mismatched cycle ID"))
-//            }
-//
-//            cycleDao.updateCycle(
-//                activeCycle.copy(
-//                    endDate = endDate,
-//                    isActive = false
-//                )
-//            )
-//            Result.success(Unit)
-//        } catch (e: Exception) {
-//            Result.failure(e)
-//        }
-//    }
 override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Unit> {
     val cycle = getCycleById(cycleId) ?: return Result.failure(IllegalStateException("Cycle not found"))
     val updatedCycle = cycle.copy(
@@ -188,5 +168,16 @@ override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Uni
         cycleDao.deleteCycleById(cycleId)
     }
 
+
+    override suspend fun getUnsyncedCycles(): List<Cycle> =
+        withContext(dispatcher) {
+            cycleDao.getUnsyncedCycles()
+        }
+
+    override suspend fun markCycleSynced(cycle: Cycle) {
+        withContext(dispatcher) {
+            cycleDao.markAsSynced(cycle.cycleId)
+        }
+    }
 
 }

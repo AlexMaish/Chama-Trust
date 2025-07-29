@@ -20,4 +20,14 @@ class PenaltyRepositoryImpl(
     override fun getTotalAmount(groupId: String): Flow<Double> {
         return penaltyDao.getTotalForGroup(groupId)
     }
+
+
+    override suspend fun getUnsyncedPenalties(): List<Penalty> =
+        penaltyDao.getUnsyncedPenalties()
+
+    override suspend fun markPenaltySynced(penalty: Penalty) {
+        penaltyDao.markAsSynced(penalty.penaltyId)
+    }
+
+
 }

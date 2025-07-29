@@ -26,4 +26,8 @@ interface GroupRepository {
     suspend fun addMemberToGroup(groupId: String, phoneNumber: String)
 
     suspend fun getGroupById(groupId: String): Group?
+
+    suspend fun getUnsyncedGroups(): List<Group>
+    suspend fun markGroupSynced(group: Group)
+
 }

@@ -6,7 +6,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import java.util.Date
 
 
 @Entity(
@@ -39,7 +38,7 @@ data class WeeklyMeeting(
     val cycleId: String,
 
     @ColumnInfo(name = "meeting_date")
-    val meetingDate: Date,
+    val meetingDate: Long,
 
     @ColumnInfo(name = "total_collected")
     val totalCollected: Int,
@@ -48,5 +47,12 @@ data class WeeklyMeeting(
     val recordedBy: String? = null,
 
     @ColumnInfo(name = "group_id")
-    val groupId: String
+    val groupId: String,
+
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 )

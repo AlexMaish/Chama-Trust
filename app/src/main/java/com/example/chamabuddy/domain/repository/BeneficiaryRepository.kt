@@ -15,4 +15,8 @@ interface BeneficiaryRepository {
     suspend fun getBeneficiariesForMeeting(meetingId: String): List<Beneficiary>
     suspend fun updateBeneficiaryAmount(beneficiaryId: String, newAmount: Int)
     suspend fun getBeneficiaryCountForMeeting(meetingId: String): Int
+
+    suspend fun getUnsyncedBeneficiaries(): List<Beneficiary>
+    suspend fun markBeneficiarySynced(beneficiary: Beneficiary)
+
 }

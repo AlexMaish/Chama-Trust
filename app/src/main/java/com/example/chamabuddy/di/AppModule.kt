@@ -2,8 +2,10 @@ package com.example.chamabuddy.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.work.WorkManager
 import com.example.chamabuddy.data.local.*
 import com.example.chamabuddy.data.repository.*
+import com.example.chamabuddy.data.sync.FirestoreSyncManager
 import com.example.chamabuddy.domain.repository.*
 import dagger.Module
 import dagger.Provides
@@ -184,6 +186,20 @@ object AppModule {
     fun provideExpenseRepository(
         expenseDao: ExpenseDao
     ): ExpenseRepository = ExpenseRepositoryImpl(expenseDao)
+
+
+
+    @Provides
+    @Singleton
+    fun provideFirestoreSyncManager(@ApplicationContext context: Context): FirestoreSyncManager {
+        return FirestoreSyncManager(context)
+    }
+
+    @Provides
+    fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
+        return WorkManager.getInstance(context)
+    }
+
 
 
 }

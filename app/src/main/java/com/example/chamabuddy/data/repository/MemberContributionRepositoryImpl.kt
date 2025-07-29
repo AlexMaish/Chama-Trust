@@ -47,4 +47,13 @@ class MemberContributionRepositoryImpl @Inject constructor(
     override suspend fun getContributionsForMeeting(meetingId: String): List<MemberContribution> {
         return dao.getContributionsByMeeting(meetingId)
     }
+
+
+    override suspend fun getUnsyncedContributions(): List<MemberContribution> =
+        dao.getUnsyncedContributions()
+
+    override suspend fun markContributionSynced(contribution: MemberContribution) {
+        dao.markAsSynced(contribution.contributionId)
+    }
+
 }

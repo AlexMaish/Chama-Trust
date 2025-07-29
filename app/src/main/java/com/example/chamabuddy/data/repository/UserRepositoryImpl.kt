@@ -156,4 +156,15 @@ class UserRepositoryImpl @Inject constructor(
         val userId = getCurrentUserId()
         return userId?.let { getUserById(it) }
     }
+
+
+    override suspend fun getUnsyncedUsers(): List<User> = withContext(dispatcher) {
+        userDao.getUnsyncedUsers()
+    }
+
+    override suspend fun markUserSynced(user: User) = withContext(dispatcher) {
+        userDao.markAsSynced(user.userId)
+    }
+
+
 }

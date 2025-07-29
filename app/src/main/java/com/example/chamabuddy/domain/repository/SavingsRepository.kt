@@ -59,4 +59,13 @@ interface SavingsRepository {
 
 
     suspend fun getTotalGroupSavings(groupId: String): Int
+
+
+    suspend fun getUnsyncedSavings(): List<MonthlySaving>
+    suspend fun getUnsyncedEntries(): List<MonthlySavingEntry>
+    suspend fun markSavingSynced(saving: MonthlySaving)
+    suspend fun markEntrySynced(entry: MonthlySavingEntry)
+
+
+
 }

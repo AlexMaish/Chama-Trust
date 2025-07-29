@@ -107,6 +107,11 @@ interface MonthlySavingEntryDao {
     suspend fun deleteEntry(entryId: String)
 
 
+    @Query("UPDATE MonthlySavingEntry SET is_synced = 1 WHERE entry_id = :entryId")
+    suspend fun markAsSynced(entryId: String)
+
+    @Query("SELECT * FROM MonthlySavingEntry WHERE is_synced = 0")
+    suspend fun getUnsyncedEntries(): List<MonthlySavingEntry>
 
 
 

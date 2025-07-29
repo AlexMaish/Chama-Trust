@@ -44,11 +44,18 @@ data class MemberContribution(
     val amountContributed: Int,
 
     @ColumnInfo(name = "contribution_date")
-    val contributionDate: String = System.currentTimeMillis().toString(),
+    val contributionDate: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "is_late")
     val isLate: Boolean = false,
 
     @ColumnInfo(name = "group_id")
-    val groupId: String
+    val groupId: String,
+
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 )

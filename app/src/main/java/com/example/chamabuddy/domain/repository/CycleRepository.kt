@@ -28,7 +28,8 @@ interface CycleRepository {
     suspend fun getCyclesWithBeneficiaries(groupId: String): List<CycleWithBeneficiaries>
     suspend fun deleteCycle(cycleId: String)
 
-
+    suspend fun getUnsyncedCycles(): List<Cycle>
+    suspend fun markCycleSynced(cycle: Cycle)
 }
 
 data class CycleStats(

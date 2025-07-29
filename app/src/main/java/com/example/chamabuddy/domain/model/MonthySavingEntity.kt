@@ -49,7 +49,7 @@ data class MonthlySavingEntry(
     val amount: Int,
 
     @ColumnInfo(name = "entry_date")
-    val entryDate: String = System.currentTimeMillis().toString(),
+    val entryDate: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "recorded_by")
     val recordedBy: String?,
@@ -65,6 +65,14 @@ data class MonthlySavingEntry(
 
 
     @ColumnInfo(name = "month_year")
-    val monthYear: String
+    val monthYear: String,
+
+
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 
     )

@@ -67,5 +67,12 @@ interface CycleDao {
     suspend fun deleteCycleById(cycleId: String)
 
 
+
+    @Query("UPDATE cycle SET is_synced = 1 WHERE cycle_id = :cycleId")
+    suspend fun markAsSynced(cycleId: String)
+
+    @Query("SELECT * FROM cycle WHERE is_synced = 0")
+    suspend fun getUnsyncedCycles(): List<Cycle>
+
 }
 

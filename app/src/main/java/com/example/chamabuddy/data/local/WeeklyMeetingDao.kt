@@ -29,12 +29,14 @@ interface WeeklyMeetingDao {
     @Query("SELECT * FROM WeeklyMeeting WHERE cycle_id = :cycleId ORDER BY meeting_date DESC")
     fun getMeetingsForCycle(cycleId: String): Flow<List<WeeklyMeeting>>
 
-    @Query("""
+    @Query(
+        """
         SELECT * FROM WeeklyMeeting 
         WHERE cycle_id = :cycleId 
         ORDER BY meeting_date DESC 
         LIMIT 1
-    """)
+    """
+    )
     suspend fun getLatestMeetingForCycle(cycleId: String): WeeklyMeeting?
 
     @Transaction
@@ -42,9 +44,20 @@ interface WeeklyMeetingDao {
     suspend fun getMeetingWithCycle(meetingId: String): WeeklyMeetingWithCycle?
 
 
-
     @Query("DELETE FROM WeeklyMeeting WHERE meeting_id = :meetingId")
     suspend fun deleteMeeting(meetingId: String)
+
+
+
+    @Query("UPDATE WeeklyMeeting SET is_synced = 1 WHERE meeting_id = :meetingId")
+    suspend fun markAsSynced(meetingId: String)
+
+    @Query("SELECT * FROM WeeklyMeeting WHERE is_synced = 0")
+    suspend fun getUnsyncedMeetings(): List<WeeklyMeeting>
+
+
+
+
 }
 
 

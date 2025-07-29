@@ -62,13 +62,19 @@ data class Beneficiary(
     val paymentOrder: Int,
 
     @ColumnInfo(name = "date_awarded")
-    val dateAwarded: Date = Date(),
+    val dateAwarded: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "cycle_id")
     val cycleId: String,
 
     @ColumnInfo(name = "group_id")
-    val groupId: String
+    val groupId: String,
+
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 ) {
     init {
         require(memberId.isNotBlank()) { "memberId cannot be blank" }

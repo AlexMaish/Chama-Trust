@@ -20,4 +20,8 @@ interface UserRepository {
     }
 
     suspend fun getCurrentUserMemberId(groupId: String): String?
+
+    suspend fun getUnsyncedUsers(): List<User>
+    suspend fun markUserSynced(user: User)
+
 }

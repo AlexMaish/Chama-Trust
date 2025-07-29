@@ -7,4 +7,9 @@ interface BenefitRepository {
     suspend fun addBenefit(benefit: BenefitEntity)
     fun getBenefits(groupId: String): Flow<List<BenefitEntity>>
     fun getTotal(groupId: String): Flow<Double>
+
+    suspend fun getUnsyncedBenefits(): List<BenefitEntity>
+    suspend fun markBenefitSynced(benefit: BenefitEntity)
+
+
 }

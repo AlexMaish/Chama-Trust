@@ -45,5 +45,10 @@ data class Member(
     val isOwner: Boolean = false,
 
 
+    @ColumnInfo(name = "last_updated")
+    val lastUpdated: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_synced")
+    val isSynced: Boolean = false
 
 )
