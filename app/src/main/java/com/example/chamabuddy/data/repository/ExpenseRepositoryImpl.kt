@@ -3,16 +3,22 @@ package com.example.chamabuddy.data.repository
 import com.example.chamabuddy.data.local.ExpenseDao
 import com.example.chamabuddy.domain.model.ExpenseEntity
 import com.example.chamabuddy.domain.repository.ExpenseRepository
+import java.util.UUID
 import javax.inject.Inject
 
 class ExpenseRepositoryImpl @Inject constructor(
     private val expenseDao: ExpenseDao
 ) : ExpenseRepository {
-    override suspend fun addExpense(expense: ExpenseEntity) = expenseDao.insert(expense)
+
+    override suspend fun addExpense(expense: ExpenseEntity) {
+        val newId = UUID.randomUUID().toString()
+        val updatedExpense = expense.copy(expenseId = newId, isSynced = false)
+        expenseDao.insert(updatedExpense)
+    }
+
     override fun getExpenses(groupId: String) = expenseDao.getExpenses(groupId)
+
     override fun getTotal(groupId: String) = expenseDao.getTotal(groupId)
-
-
 
     override suspend fun getUnsyncedExpenses(): List<ExpenseEntity> =
         expenseDao.getUnsyncedExpenses()

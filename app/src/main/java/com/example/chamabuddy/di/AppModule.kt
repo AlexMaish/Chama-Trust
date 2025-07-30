@@ -1,11 +1,14 @@
+// AppModule.kt
 package com.example.chamabuddy.di
 
 import android.content.Context
+import android.net.ConnectivityManager
 import androidx.room.Room
 import androidx.work.WorkManager
 import com.example.chamabuddy.data.local.*
 import com.example.chamabuddy.data.repository.*
 import com.example.chamabuddy.data.sync.FirestoreSyncManager
+import com.example.chamabuddy.data.sync.SyncRepository
 import com.example.chamabuddy.domain.repository.*
 import dagger.Module
 import dagger.Provides
@@ -20,6 +23,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
+    // --- Database ---
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
@@ -42,19 +46,15 @@ object AppModule {
     @Provides fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
     @Provides fun provideUserGroupDao(db: AppDatabase): UserGroupDao = db.userGroupDao()
     @Provides fun provideGroupMemberDao(db: AppDatabase): GroupMemberDao = db.groupMemberDao()
-
+    @Provides fun providePenaltyDao(db: AppDatabase): PenaltyDao = db.penaltyDao()
     @Provides fun provideExpenseDao(db: AppDatabase): ExpenseDao = db.expenseDao()
     @Provides fun provideBenefitDao(db: AppDatabase): BenefitDao = db.benefitDao()
-    @Provides
-    fun providePenaltyDao(database: AppDatabase): PenaltyDao = database.penaltyDao()
 
-
-
-    /** DISPATCHER **/
+    // --- Dispatchers ---
     @Provides
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
 
-    /** REPOSITORIES **/
+    // --- Repositories ---
     @Provides
     @Singleton
     fun provideUserRepository(
@@ -63,10 +63,10 @@ object AppModule {
         memberRepository: MemberRepository,
         @ApplicationContext context: Context
     ): UserRepository = UserRepositoryImpl(
-        userDao = userDao,
-        userGroupDao = userGroupDao,
-        memberRepository = memberRepository,
-        context = context
+        userDao,
+        userGroupDao,
+        memberRepository,
+        context
     )
 
     @Provides
@@ -76,9 +76,9 @@ object AppModule {
         userDao: UserDao,
         userGroupDao: UserGroupDao
     ): MemberRepository = MemberRepositoryImpl(
-        memberDao = memberDao,
-        userDao = userDao,
-        userGroupDao = userGroupDao
+        memberDao,
+        userDao,
+        userGroupDao
     )
 
     @Provides
@@ -91,12 +91,12 @@ object AppModule {
         groupRepository: GroupRepository,
         dispatcher: CoroutineDispatcher
     ): CycleRepository = CycleRepositoryImpl(
-        cycleDao = cycleDao,
-        meetingDao = meetingDao,
-        beneficiaryDao = beneficiaryDao,
-        memberDao = memberDao,
-        groupRepository = groupRepository,
-        dispatcher = dispatcher
+        cycleDao,
+        meetingDao,
+        beneficiaryDao,
+        memberDao,
+        groupRepository,
+        dispatcher
     )
 
     @Provides
@@ -110,13 +110,13 @@ object AppModule {
         weeklyMeetingDao: WeeklyMeetingDao,
         dispatcher: CoroutineDispatcher
     ): MeetingRepository = MeetingRepositoryImpl(
-        meetingDao = meetingDao,
-        contributionDao = contributionDao,
-        beneficiaryDao = beneficiaryDao,
-        memberDao = memberDao,
-        cycleDao = cycleDao,
-        weeklyMeetingDao = weeklyMeetingDao,
-        dispatcher = dispatcher
+        meetingDao,
+        contributionDao,
+        beneficiaryDao,
+        memberDao,
+        cycleDao,
+        weeklyMeetingDao,
+        dispatcher
     )
 
     @Provides
@@ -142,12 +142,12 @@ object AppModule {
         memberDao: MemberDao,
         dispatcher: CoroutineDispatcher
     ): SavingsRepository = SavingsRepositoryImpl(
-        db = db,
-        savingDao = savingDao,
-        savingEntryDao = savingEntryDao,
-        cycleDao = cycleDao,
-        memberDao = memberDao,
-        dispatcher = dispatcher
+        db,
+        savingDao,
+        savingEntryDao,
+        cycleDao,
+        memberDao,
+        dispatcher
     )
 
     @Provides
@@ -159,19 +159,18 @@ object AppModule {
         userRepository: UserRepository,
         groupMemberDao: GroupMemberDao
     ): GroupRepository = GroupRepositoryImpl(
-        groupDao = groupDao,
-        memberDao = memberDao,
-        userGroupDao = userGroupDao,
-        userRepository = userRepository,
-        groupMemberDao = groupMemberDao
+        groupDao,
+        memberDao,
+        userGroupDao,
+        userRepository,
+        groupMemberDao
     )
 
     @Provides
     @Singleton
-    fun provideBenfitRepository(
+    fun provideBenefitRepository(
         benefitDao: BenefitDao
-    ): BenefitRepository = BenefitRepositoryImpl (benefitDao)
-
+    ): BenefitRepository = BenefitRepositoryImpl(benefitDao)
 
     @Provides
     @Singleton
@@ -179,27 +178,58 @@ object AppModule {
         penaltyDao: PenaltyDao
     ): PenaltyRepository = PenaltyRepositoryImpl(penaltyDao)
 
-
-
     @Provides
     @Singleton
     fun provideExpenseRepository(
         expenseDao: ExpenseDao
     ): ExpenseRepository = ExpenseRepositoryImpl(expenseDao)
 
-
+    // --- Firestore Sync ---
+    @Provides
+    @Singleton
+    fun provideFirestoreSyncManager(
+        @ApplicationContext context: Context
+    ): FirestoreSyncManager = FirestoreSyncManager(context)
 
     @Provides
     @Singleton
-    fun provideFirestoreSyncManager(@ApplicationContext context: Context): FirestoreSyncManager {
-        return FirestoreSyncManager(context)
-    }
+    fun provideSyncRepository(
+        syncManager: FirestoreSyncManager,
+        userRepository: UserRepository,
+        groupRepository: GroupRepository,
+        cycleRepository: CycleRepository,
+        memberRepository: MemberRepository,
+        meetingRepository: MeetingRepository,
+        memberContributionRepository: MemberContributionRepository,
+        beneficiaryRepository: BeneficiaryRepository,
+        savingRepository: SavingsRepository,
+        benefitRepository: BenefitRepository,
+        expenseRepository: ExpenseRepository,
+        penaltyRepository: PenaltyRepository
+    ): SyncRepository = SyncRepository(
+        syncManager,
+        userRepository,
+        groupRepository,
+        cycleRepository,
+        memberRepository,
+        meetingRepository,
+        memberContributionRepository,
+        beneficiaryRepository,
+        savingRepository,
+        benefitRepository,
+        expenseRepository,
+        penaltyRepository
+    )
 
     @Provides
-    fun provideWorkManager(@ApplicationContext context: Context): WorkManager {
-        return WorkManager.getInstance(context)
-    }
+    fun provideWorkManager(
+        @ApplicationContext context: Context
+    ): WorkManager = WorkManager.getInstance(context)
 
-
-
+    @Provides
+    @Singleton
+    fun provideConnectivityManager(
+        @ApplicationContext context: Context
+    ): ConnectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 }

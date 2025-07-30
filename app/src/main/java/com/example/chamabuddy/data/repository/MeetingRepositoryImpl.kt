@@ -35,7 +35,8 @@ class MeetingRepositoryImpl @Inject constructor(
                 meetingDate = meetingDate.time,
                 totalCollected = 0,
                 recordedBy = recordedBy,
-                groupId = groupId
+                groupId = groupId,
+                isSynced = false
             )
             meetingDao.insertMeeting(meeting)
             Result.success(meeting)

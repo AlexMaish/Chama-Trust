@@ -5,15 +5,12 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.lifecycle.ViewModel
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
+import androidx.work.*
 import com.example.chamabuddy.workers.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import javax.inject.Inject
 
 @HiltViewModel
 class SyncViewModel @Inject constructor(
@@ -21,25 +18,37 @@ class SyncViewModel @Inject constructor(
     private val connectivityManager: ConnectivityManager
 ) : ViewModel() {
 
+    // Track network status
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline
+
+    // Expose sync status from SyncWorker
+    val syncStatus = SyncWorker.syncStatus
+
+    // Trigger snackbar when network is restored
+    private val _showNetworkRestored = MutableStateFlow(false)
+    val showNetworkRestored: StateFlow<Boolean> = _showNetworkRestored
+
+    // Network callback to monitor connectivity
+    private val callback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            if (!_isOnline.value) {
+                _showNetworkRestored.value = true
+            }
+            _isOnline.value = true
+            triggerSync()
+        }
+
+        override fun onLost(network: Network) {
+            _isOnline.value = false
+        }
+    }
 
     init {
         observeNetworkState()
     }
 
     private fun observeNetworkState() {
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                _isOnline.value = true
-                triggerSync()
-            }
-
-            override fun onLost(network: Network) {
-                _isOnline.value = false
-            }
-        }
-
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
@@ -53,8 +62,18 @@ class SyncViewModel @Inject constructor(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build()
-            ).build()
+            )
+            .build()
 
         workManager.enqueue(request)
+    }
+
+    fun resetNetworkRestored() {
+        _showNetworkRestored.value = false
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        connectivityManager.unregisterNetworkCallback(callback)
     }
 }

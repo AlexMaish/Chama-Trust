@@ -1,6 +1,8 @@
 package com.example.chamabuddy.domain.repository
 
 import com.example.chamabuddy.domain.model.User
+import com.example.chamabuddy.domain.model.UserGroup
+import kotlinx.coroutines.withContext
 
 interface UserRepository {
     suspend fun registerUser(username: String, password: String, phoneNumber: String): Result<User>
@@ -24,4 +26,7 @@ interface UserRepository {
     suspend fun getUnsyncedUsers(): List<User>
     suspend fun markUserSynced(user: User)
 
+    suspend fun getUnsyncedUserGroups(): List<UserGroup>
+    suspend fun markUserGroupSynced(userGroup: UserGroup)
 }
+

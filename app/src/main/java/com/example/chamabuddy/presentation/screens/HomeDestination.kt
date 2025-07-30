@@ -33,6 +33,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
@@ -122,6 +126,8 @@ import com.example.chamabuddy.presentation.viewmodel.ExpenseViewModel
 import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
 import com.example.chamabuddy.presentation.viewmodel.PenaltyViewModel
+import com.example.chamabuddy.presentation.viewmodel.SyncViewModel
+import com.example.chamabuddy.workers.SyncWorker
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -286,6 +292,31 @@ fun HomeScreen(
 
 
 
+    val syncViewModel: SyncViewModel = hiltViewModel()
+    val isOnline by syncViewModel.isOnline.collectAsState()
+    val syncStatus by syncViewModel.syncStatus.collectAsState()
+    val showNetworkRestored by syncViewModel.showNetworkRestored.collectAsState()
+
+    // Show network restored snackbar
+    LaunchedEffect(showNetworkRestored) {
+        if (showNetworkRestored) {
+            snackbarHostState.showSnackbar("Back online - synchronizing data")
+            syncViewModel.resetNetworkRestored()
+        }
+    }
+
+    // Show sync status snackbars
+    LaunchedEffect(syncStatus) {
+        when (syncStatus) {
+            is SyncWorker.SyncStatus.Success -> {
+                snackbarHostState.showSnackbar("Data synchronized")
+            }
+            is SyncWorker.SyncStatus.Failed -> {
+                snackbarHostState.showSnackbar("Sync failed: ${(syncStatus as SyncWorker.SyncStatus.Failed).message}")
+            }
+            else -> {}
+        }
+    }
 
 
 
@@ -332,7 +363,8 @@ fun HomeScreen(
                             )
                             Text(
                                 text = "${groupData?.members?.size ?: 0} members",
-                                color = Color.White.copy(alpha = 0.8f))
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
                         }
                     },
                     navigationIcon = {
@@ -345,12 +377,49 @@ fun HomeScreen(
                         }
                     },
                     actions = {
-                        Text(
-                            text = "KES $totalSavings",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(end = 16.dp)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            when {
+                                !isOnline -> {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudOff,
+                                        contentDescription = "Offline",
+                                        tint = Color.LightGray
+                                    )
+                                }
+                                syncStatus is SyncWorker.SyncStatus.InProgress -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .padding(end = 4.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                                syncStatus is SyncWorker.SyncStatus.Success -> {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudDone,
+                                        contentDescription = "Synced",
+                                        tint = Color.Green
+                                    )
+                                }
+                                else -> {
+                                    Icon(
+                                        imageVector = Icons.Default.Cloud,
+                                        contentDescription = "Online",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Text(
+                                text = "KES $totalSavings",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(end = 16.dp)
+                            )
+                        }
                     },
                     colors = TopAppBarDefaults.largeTopAppBarColors(
                         containerColor = PremiumNavy,
@@ -393,9 +462,7 @@ fun HomeScreen(
                             selected = false,
                             onClick = {
                                 when (item.title) {
-                                    "Beneficiaries" -> navController.navigate(
-                                        "${BeneficiaryGroupDestination.route}/$groupId"
-                                    )
+                                    "Beneficiaries" -> navController.navigate("${BeneficiaryGroupDestination.route}/$groupId")
                                     "Home" -> navController.navigate("${HomeDestination.route}/$groupId")
                                     "Savings" -> navController.navigate("${SavingsDestination.route}/$groupId")
                                     "Members" -> navController.navigate("${MembersDestination.route}/$groupId")

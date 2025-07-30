@@ -54,7 +54,8 @@ class CycleRepositoryImpl @Inject constructor(
                 groupId = groupId,
                 totalSavings = 0,
                 beneficiariesPerMeeting = beneficiariesPerMeeting,
-                cycleNumber = calculateNextCycleNumber(groupId)
+                cycleNumber = calculateNextCycleNumber(groupId),
+                isSynced = false
             )
 
             cycleDao.insertCycle(newCycle)

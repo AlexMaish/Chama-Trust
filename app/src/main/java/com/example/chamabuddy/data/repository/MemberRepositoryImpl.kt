@@ -85,7 +85,8 @@ class MemberRepositoryImpl @Inject constructor(
                 UserGroup(
                     userId = user.userId,
                     groupId = member.groupId,
-                    isOwner = false
+                    isOwner = false,
+                    isSynced = false
                 )
             )
 

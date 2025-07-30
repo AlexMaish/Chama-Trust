@@ -9,15 +9,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.chamabuddy.presentation.MainScreen
 import com.example.chamabuddy.presentation.navigation.AuthNavHost
 import com.example.chamabuddy.presentation.screens.SplashScreen
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
+import com.example.chamabuddy.presentation.viewmodel.SyncViewModel
 import com.example.chamabuddy.ui.theme.ChamaBuddyTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-// ChamaBuddyApp.kt (updated)
 @AndroidEntryPoint
 class ChamaBuddyApp : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,6 +32,17 @@ class ChamaBuddyApp : ComponentActivity() {
                     val navController = rememberNavController()
                     var showSplash by remember { mutableStateOf(true) }
                     var isAuthenticated by remember { mutableStateOf(false) }
+
+                    // ✅ ViewModel scoped to activity
+                    val syncViewModel: SyncViewModel = hiltViewModel()
+
+                    // ✅ Trigger one-time sync on first launch if online
+                    val isOnline by syncViewModel.isOnline.collectAsState()
+                    LaunchedEffect(isOnline) {
+                        if (isOnline) {
+                            syncViewModel.triggerSync()
+                        }
+                    }
 
                     if (showSplash) {
                         SplashScreen {

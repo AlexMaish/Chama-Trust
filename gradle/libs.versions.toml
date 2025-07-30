@@ -20,7 +20,8 @@ firebaseDatabase = "22.0.0"
 firebaseStorage = "22.0.0"
 firebaseFirestore = "25.0.0"
 hiltCommon = "1.2.0"
-workRuntimeKtx = "2.10.2"
+workRuntimeKtx  = "2.8.1"
+hiltWork ="1.2.0"
 
 
 
@@ -59,7 +60,8 @@ firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore
 androidx-hilt-common = { group = "androidx.hilt", name = "hilt-common", version.ref = "hiltCommon" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
 
-
+androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hiltWork" }
+androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hiltWork" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -33,7 +33,8 @@ class GroupRepositoryImpl @Inject constructor(
         val group = Group(
             name = name,
             adminId = adminId,
-            adminName = user.username
+            adminName = user.username,
+            isSynced = false
         )
         groupDao.insertGroup(group)
 
@@ -41,7 +42,8 @@ class GroupRepositoryImpl @Inject constructor(
         val groupMember = GroupMember(
             groupId = group.groupId,
             userId = adminId,
-            isAdmin = true
+            isAdmin = true,
+            isSynced = false
         )
         groupMemberDao.insert(groupMember)
 
@@ -52,7 +54,8 @@ class GroupRepositoryImpl @Inject constructor(
             phoneNumber = user.phoneNumber,
             isAdmin = true,
             userId = adminId,
-            groupId = group.groupId
+            groupId = group.groupId,
+            isSynced = false
         )
         memberDao.insertMember(adminMember)
 
@@ -61,7 +64,8 @@ class GroupRepositoryImpl @Inject constructor(
             UserGroup(
                 userId = adminId,
                 groupId = group.groupId,
-                isOwner = true
+                isOwner = true,
+                isSynced = false
             )
         )
 
@@ -79,7 +83,8 @@ class GroupRepositoryImpl @Inject constructor(
             UserGroup(
                 userId = user.userId,
                 groupId = groupId,
-                isOwner = false
+                isOwner = false,
+                isSynced = false
             )
         )
 
@@ -87,7 +92,8 @@ class GroupRepositoryImpl @Inject constructor(
         val groupMember = GroupMember(
             groupId = groupId,
             userId = user.userId,
-            isAdmin = false
+            isAdmin = false,
+            isSynced = false
         )
         groupMemberDao.insert(groupMember)
 
@@ -98,7 +104,8 @@ class GroupRepositoryImpl @Inject constructor(
             phoneNumber = user.phoneNumber,
             isAdmin = false,
             userId = user.userId,
-            groupId = groupId
+            groupId = groupId,
+            isSynced = false
         )
         memberDao.insertMember(member)
     }
@@ -154,5 +161,14 @@ override suspend fun getUserGroups(userId: String): List<Group> {
         groupDao.markAsSynced(group.groupId)
     }
 
+
+
+    override suspend fun getUnsyncedGroupMembers(): List<GroupMember> = withContext(Dispatchers.IO) {
+        groupMemberDao.getUnsyncedGroupMembers()
+    }
+
+    override suspend fun markGroupMemberSynced(groupMember: GroupMember) = withContext(Dispatchers.IO) {
+        groupMemberDao.markAsSynced(groupMember.groupId, groupMember.userId)
+    }
 
 }

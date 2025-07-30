@@ -92,26 +92,18 @@ fun GroupMemberFire.toLocal() = GroupMember(
     isSynced = true
 )
 
-fun MemberContributionFire.toLocal(): MemberContribution {
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val dateMillis = try {
-        formatter.parse(contributionDate)?.time ?: System.currentTimeMillis()
-    } catch (e: Exception) {
-        System.currentTimeMillis()
-    }
+fun MemberContributionFire.toLocal(): MemberContribution = MemberContribution(
+    contributionId = contributionId,
+    meetingId = meetingId,
+    memberId = memberId,
+    amountContributed = amountContributed,
+    contributionDate = contributionDate.toDate().time, // ✅ Timestamp → Long
+    isLate = isLate,
+    groupId = groupId,
+    lastUpdated = lastUpdated.toDate().time, // ✅ Timestamp → Long
+    isSynced = true
+)
 
-    return MemberContribution(
-        contributionId = contributionId,
-        meetingId = meetingId,
-        memberId = memberId,
-        amountContributed = amountContributed,
-        contributionDate = dateMillis,
-        isLate = isLate,
-        groupId = groupId,
-        lastUpdated = lastUpdated.toDate().time,
-        isSynced = true
-    )
-}
 
 fun MemberFire.toLocal() = Member(
     memberId = memberId,
@@ -130,27 +122,21 @@ fun MemberFire.toLocal() = Member(
 )
 
 fun MonthlySavingEntryFire.toLocal(): MonthlySavingEntry {
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val dateMillis = try {
-        formatter.parse(entryDate)?.time ?: System.currentTimeMillis()
-    } catch (e: Exception) {
-        System.currentTimeMillis()
-    }
-
     return MonthlySavingEntry(
         entryId = entryId,
         savingId = savingId,
         memberId = memberId,
         amount = amount,
-        entryDate = dateMillis,
+        entryDate = entryDate.toDate().time, // ✅ Convert Timestamp to Long
         recordedBy = recordedBy,
         groupId = groupId,
         isPlaceholder = isPlaceholder,
         monthYear = monthYear,
-        lastUpdated = lastUpdated.toDate().time,
+        lastUpdated = lastUpdated.toDate().time, // ✅ Timestamp to Long
         isSynced = true
     )
 }
+
 
 fun MonthlySavingFire.toLocal() = MonthlySaving(
     savingId = savingId,

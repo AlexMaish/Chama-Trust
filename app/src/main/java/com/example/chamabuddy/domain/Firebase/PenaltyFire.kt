@@ -2,8 +2,9 @@ package com.example.chamabuddy.domain.Firebase
 
 import com.google.firebase.Timestamp
 
+// PenaltyFire.kt
 data class PenaltyFire(
-    val id: Long = 0,
+    val id: String = "",
     val groupId: String = "",
     val memberName: String = "",
     val description: String = "",

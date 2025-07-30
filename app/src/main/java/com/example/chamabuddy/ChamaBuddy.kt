@@ -1,12 +1,9 @@
 package com.example.chamabuddy
 
-
 import android.app.Application
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.*
+import com.example.chamabuddy.util.setupLogging
 import com.example.chamabuddy.workers.SyncWorker
 import com.google.firebase.FirebaseApp
 import dagger.hilt.android.HiltAndroidApp
@@ -14,27 +11,38 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltAndroidApp
-class ChamaBuddy : Application() {
-    @Inject lateinit var workManager: WorkManager
+class ChamaBuddy : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
+
+    override fun getWorkManagerConfiguration(): Configuration {
+        return Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+    }
 
     override fun onCreate() {
         super.onCreate()
+        setupLogging()
         FirebaseApp.initializeApp(this)
         scheduleSync()
     }
 
     private fun scheduleSync() {
+        val workManager = WorkManager.getInstance(this)
         val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-            6, // Repeat every 6 hours
-            TimeUnit.HOURS
-        ).setConstraints(
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-        ).build()
+            6, TimeUnit.HOURS
+        )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .build()
 
         workManager.enqueueUniquePeriodicWork(
-            "member_sync_work",
+            "full_sync_work",
             ExistingPeriodicWorkPolicy.KEEP,
             syncRequest
         )

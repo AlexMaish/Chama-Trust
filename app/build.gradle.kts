@@ -1,10 +1,11 @@
+// build.gradle.kts
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
     kotlin("kapt")
-    alias(libs.plugins.google.gms.google.services) // Apply without version
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -19,9 +20,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
+        vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {
@@ -33,6 +32,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -46,22 +46,16 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.13"
     }
-
-    packaging {
-        resources {
-            excludes += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
-        }
-    }
+    packaging.resources.excludes += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
 }
 
 kapt {
+    correctErrorTypes = true
     arguments {
-        arg("room.schemaLocation", "$projectDir/schemas")
+        arg("room.schemaLocation", "${projectDir}/schemas")
         arg("dagger.fastInit", "enabled")
-        arg("kapt.kotlin.generated", "$buildDir/generated/source/kaptKotlin/")
+        arg("kapt.kotlin.generated", "${buildDir}/generated/source/kaptKotlin/")
     }
-
-
 }
 
 dependencies {
@@ -70,7 +64,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose BOM - Single declaration
+    // Compose BOM
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -78,24 +72,27 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
 
-    // Foundation Modules (BOM-managed)
+    // Foundation & Animation
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.foundation:foundation-layout") // NEW
+    implementation("androidx.compose.foundation:foundation-layout")
     implementation("androidx.compose.animation:animation")
 
     // Material Icons
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Hilt
-    implementation(libs.hilt.android)
+    // Hilt & WorkManager
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-compiler:2.51.1")
+    implementation("androidx.hilt:hilt-work:1.2.0")
+    kapt("androidx.hilt:hilt-compiler:1.2.0")
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+
+    // Existing Dependencies
     implementation(libs.protolite.well.known.types)
     implementation(libs.firebase.database)
     implementation(libs.firebase.storage)
-    implementation(libs.androidx.hilt.common)
-    implementation(libs.androidx.work.runtime.ktx)
-    kapt(libs.hilt.android.compiler)
-    implementation(libs.hilt.navigation.compose)
     implementation(libs.firebase.firestore)
+    implementation(libs.hilt.navigation.compose)
 
     // Room
     implementation(libs.androidx.room.runtime)
@@ -116,6 +113,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.livedata)
 
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -124,17 +124,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
-
-
 }
 
 kapt {
     correctErrorTypes = true
 }
-
-
-
-
-

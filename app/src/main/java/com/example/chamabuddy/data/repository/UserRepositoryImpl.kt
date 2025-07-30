@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.room.Query
 import com.example.chamabuddy.data.local.MemberDao
 import com.example.chamabuddy.data.local.UserDao
 import com.example.chamabuddy.data.local.UserGroupDao
@@ -72,7 +73,8 @@ class UserRepositoryImpl @Inject constructor(
             val user = User(
                 username = username,
                 password = password,
-                phoneNumber = normalizedPhone
+                phoneNumber = normalizedPhone,
+                isSynced = false
             )
             userDao.insertUser(user)
             setCurrentUserId(user.userId)
@@ -117,7 +119,7 @@ class UserRepositoryImpl @Inject constructor(
         isOwner: Boolean
     ): Result<Unit> = withContext(dispatcher) {
         runCatching {
-            val ug = UserGroup(userId = userId, groupId = groupId, isOwner = isOwner)
+            val ug = UserGroup(userId = userId, groupId = groupId, isOwner = isOwner,    isSynced = false)
             userGroupDao.insertUserGroup(ug)
         }
     }
@@ -166,5 +168,14 @@ class UserRepositoryImpl @Inject constructor(
         userDao.markAsSynced(user.userId)
     }
 
+
+
+    override suspend fun getUnsyncedUserGroups(): List<UserGroup> = withContext(dispatcher) {
+        userGroupDao.getUnsyncedUserGroups()
+    }
+
+    override suspend fun markUserGroupSynced(userGroup: UserGroup) = withContext(dispatcher) {
+        userGroupDao.markAsSynced(userGroup.userId, userGroup.groupId)
+    }
 
 }

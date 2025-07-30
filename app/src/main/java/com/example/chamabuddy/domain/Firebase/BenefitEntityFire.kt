@@ -3,7 +3,7 @@ package com.example.chamabuddy.domain.Firebase
 import com.google.firebase.Timestamp
 
 data class BenefitEntityFire(
-    val id: Long = 0,
+    val id: String,
     val groupId: String = "",
     val name: String = "",
     val description: String = "",

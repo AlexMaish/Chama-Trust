@@ -60,7 +60,8 @@ class SavingsRepositoryImpl @Inject constructor(
                     cycleId = cycleId,
                     monthYear = monthYear,
                     targetAmount = cycle.monthlySavingsAmount,
-                    groupId = groupId
+                    groupId = groupId,
+                    isSynced = false
                 )
                 savingDao.insert(saving)
             }
@@ -82,7 +83,8 @@ class SavingsRepositoryImpl @Inject constructor(
                     entryDate = System.currentTimeMillis(), // Current timestamp
                     recordedBy = recordedBy,
                     groupId = groupId,
-                    monthYear = monthYear  // Target month for grouping
+                    monthYear = monthYear ,
+                    isSynced = false
                 )
             )
 
@@ -136,7 +138,8 @@ class SavingsRepositoryImpl @Inject constructor(
                     monthYear = monthYear,
                     targetAmount = targetAmount,
                     actualAmount = 0,
-                    groupId = groupId
+                    groupId = groupId,
+                    isSynced = false
                 )
             )
         }
