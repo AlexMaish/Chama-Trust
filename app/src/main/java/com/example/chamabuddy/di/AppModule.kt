@@ -10,14 +10,25 @@ import com.example.chamabuddy.data.repository.*
 import com.example.chamabuddy.data.sync.FirestoreSyncManager
 import com.example.chamabuddy.data.sync.SyncRepository
 import com.example.chamabuddy.domain.repository.*
+import com.example.chamabuddy.workers.SyncWorker
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoMap
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
+import androidx.work.ListenableWorker // For ListenableWorker
+import androidx.hilt.work.WorkerAssistedFactory // For WorkerAssistedFactory
+import androidx.work.WorkerFactory
+import com.example.chamabuddy.data.local.preferences.SyncPreferences
+import com.example.chamabuddy.workers.CustomWorkerFactory
+import com.example.chamabuddy.workers.SyncWorkerFactory
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -61,13 +72,18 @@ object AppModule {
         userDao: UserDao,
         userGroupDao: UserGroupDao,
         memberRepository: MemberRepository,
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        firebaseAuth: FirebaseAuth,
+        firestore: FirebaseFirestore
     ): UserRepository = UserRepositoryImpl(
-        userDao,
-        userGroupDao,
-        memberRepository,
-        context
+        userDao = userDao,
+        userGroupDao = userGroupDao,
+        memberRepository = memberRepository,
+        firebaseAuth = firebaseAuth,
+        firestore = firestore,
+        context = context
     )
+
 
     @Provides
     @Singleton
@@ -232,4 +248,41 @@ object AppModule {
         @ApplicationContext context: Context
     ): ConnectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+
+
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+
+
+
 }
+
+
+
+@Module
+@InstallIn(SingletonComponent::class)
+object WorkerModule {
+
+    @Provides
+    fun provideSyncWorkerFactory(
+        userRepository: UserRepository,
+        firestore: FirebaseFirestore,
+        preferences: SyncPreferences
+    ): SyncWorkerFactory {
+        return SyncWorkerFactory(userRepository, firestore, preferences)
+    }
+
+    @Provides
+    fun provideCustomWorkerFactory(syncWorkerFactory: SyncWorkerFactory): WorkerFactory {
+        return CustomWorkerFactory(syncWorkerFactory)
+    }
+}
+
+

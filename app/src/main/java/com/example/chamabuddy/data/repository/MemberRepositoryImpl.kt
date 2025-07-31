@@ -165,10 +165,22 @@ class MemberRepositoryImpl @Inject constructor(
     }
 
 
-    override suspend fun syncMember(member: Member) {
+    override suspend fun syncMember(remoteMember: Member) {
         withContext(Dispatchers.IO) {
-            // Direct insert/update without business logic checks
-            memberDao.insertMember(member.copy(isSynced = true))
+            // Get existing member from database
+            val existingMember = memberDao.getMemberById(remoteMember.memberId)
+
+            // Preserve admin status from local database
+            val isAdmin = existingMember?.isAdmin ?: remoteMember.isAdmin
+
+            // Create updated member preserving admin status
+            val updatedMember = remoteMember.copy(
+                isAdmin = isAdmin,
+                isSynced = true
+            )
+
+            // Update with preserved admin status
+            memberDao.insertMember(updatedMember)
         }
     }
 

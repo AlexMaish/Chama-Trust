@@ -34,14 +34,21 @@ class AuthViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            userRepository.getCurrentUserId()?.let { userId ->
-                userRepository.getUserById(userId)?.let { user ->
+            val userId = userRepository.getCurrentUserId()
+            if (userId != null) {
+                val user = userRepository.getUserById(userId)
+                if (user != null) {
                     _currentUser.value = user
                     _authState.value = AuthState.Authenticated(userId)
+                } else {
+                    _authState.value = AuthState.Unauthenticated
                 }
+            } else {
+                _authState.value = AuthState.Unauthenticated
             }
         }
     }
+
     private val _currentUserId = MutableStateFlow<String?>(null)
     val currentUserId: StateFlow<String?> = _currentUserId
 
@@ -84,6 +91,25 @@ class AuthViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    // Add this function for Firebase fallback
+    fun loginWithFirebaseFallback(identifier: String, password: String) {
+        viewModelScope.launch {
+            _loginState.value = Resource.Loading()
+            userRepository.loginUser(identifier, password).fold(
+                onSuccess = { user ->
+                    userRepository.setCurrentUserId(user.userId)
+                    _currentUser.value = user
+                    _loginState.value = Resource.Success(user) // ✅ Fix: Pass actual User, not Result
+                    _authState.value = AuthState.Authenticated(user.userId)
+                },
+                onFailure = { e ->
+                    _loginState.value = Resource.Error(e.message ?: "Login failed")
+                }
+            )
+        }
+
     }
 
     fun logout() {

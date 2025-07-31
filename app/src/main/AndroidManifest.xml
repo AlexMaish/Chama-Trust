@@ -5,12 +5,6 @@
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Remove AndroidX Startup auto-initialization -->
-    <provider
-        android:name="androidx.startup.InitializationProvider"
-        android:authorities="${applicationId}.androidx-startup"
-        tools:node="remove" />
-
     <application
         android:name=".ChamaBuddy"
         android:allowBackup="true"
@@ -22,6 +16,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ChamaBuddy"
         tools:targetApi="31">
+
+        <!-- Disable WorkManager auto-init via AndroidX Startup -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
         <!-- Launcher Activity -->
         <activity

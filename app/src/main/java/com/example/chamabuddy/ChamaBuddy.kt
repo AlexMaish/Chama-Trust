@@ -11,21 +11,21 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltAndroidApp
-class ChamaBuddy : Application(), Configuration.Provider {
+class ChamaBuddy : Application() {
 
-    @Inject
-    lateinit var workerFactory: HiltWorkerFactory
-
-    override fun getWorkManagerConfiguration(): Configuration {
-        return Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
-    }
+    @Inject lateinit var workerFactory: WorkerFactory
 
     override fun onCreate() {
         super.onCreate()
-        setupLogging()
         FirebaseApp.initializeApp(this)
+        setupLogging()
+
+        // Initialize WorkManager with custom configuration
+        val config = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+        WorkManager.initialize(this, config)
+
         scheduleSync()
     }
 
@@ -33,13 +33,11 @@ class ChamaBuddy : Application(), Configuration.Provider {
         val workManager = WorkManager.getInstance(this)
         val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
             6, TimeUnit.HOURS
-        )
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
+        ).setConstraints(
+            Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+        ).build()
 
         workManager.enqueueUniquePeriodicWork(
             "full_sync_work",

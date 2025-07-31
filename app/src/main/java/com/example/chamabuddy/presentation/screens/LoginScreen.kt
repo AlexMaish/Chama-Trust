@@ -27,10 +27,6 @@ import com.example.chamabuddy.Common.Resource
 import com.example.chamabuddy.R
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 
-//val PremiumNavy = Color(0xFF0A1D3A)
-//val SoftOffWhite = Color(0xFFF8F9FA)
-//val VibrantOrange = Color(0xFFFF6B35)
-//val LightAccentBlue = Color(0xFFE3F2FD)
 
 @Composable
 fun LoginScreen(
@@ -103,16 +99,13 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Username/Phone Field
                 OutlinedTextField(
                     value = identifier,
                     onValueChange = { identifier = it },
                     label = { Text("Username or Phone") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.Email, contentDescription = "Email")
-                    },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = SoftOffWhite,
                         unfocusedContainerColor = SoftOffWhite,
@@ -124,7 +117,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Password Field
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -133,9 +125,7 @@ fun LoginScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
-                    leadingIcon = {
-                        Icon(Icons.Default.Lock, contentDescription = "Password")
-                    },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password") },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = SoftOffWhite,
                         unfocusedContainerColor = SoftOffWhite,
@@ -165,7 +155,9 @@ fun LoginScreen(
                 }
 
                 Button(
-                    onClick = { viewModel.loginUser(identifier.trim(), password) },
+                    onClick = {
+                        viewModel.loginUser(identifier.trim(), password)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),

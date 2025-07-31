@@ -11,6 +11,9 @@ interface UserDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertUser(user: User)
 
+    @androidx.room.Update(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun updateUser(user: User)
+
     @Query("SELECT * FROM users WHERE username = :username")
     suspend fun getUserByUsername(username: String): User?
 
@@ -20,10 +23,8 @@ interface UserDao {
     @Query("SELECT username FROM users WHERE user_id = :userId")
     suspend fun getUserName(userId: String): String?
 
-
     @Query("SELECT * FROM users WHERE user_id = :userId")
     suspend fun getUserById(userId: String): User?
-
 
     @Query("UPDATE users SET is_synced = 1 WHERE user_id = :userId")
     suspend fun markAsSynced(userId: String)
