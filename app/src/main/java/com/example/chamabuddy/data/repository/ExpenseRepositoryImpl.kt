@@ -26,4 +26,14 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun markExpenseSynced(expense: ExpenseEntity) {
         expenseDao.markAsSynced(expense.expenseId)
     }
+
+    override suspend fun getExpenseById(expenseId: String): ExpenseEntity? {
+        return expenseDao.getExpenseById(expenseId)
+    }
+
+    override suspend fun insertExpense(expense: ExpenseEntity) {
+        expenseDao.insert(expense)
+    }
+
+
 }

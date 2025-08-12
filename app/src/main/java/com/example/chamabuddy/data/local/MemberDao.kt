@@ -96,4 +96,8 @@ interface MemberDao {
     @Query("SELECT * FROM member WHERE is_synced = 0")
     suspend fun getUnsyncedMembers(): List<Member>
 
+
+    @Query("SELECT * FROM member WHERE group_id = :groupId AND is_synced = 0")
+    suspend fun getUnsyncedMembersForGroup(groupId: String): List<Member>
+
 }

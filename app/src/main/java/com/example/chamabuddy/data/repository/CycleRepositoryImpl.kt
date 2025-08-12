@@ -181,4 +181,12 @@ override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Uni
         }
     }
 
+    override suspend fun getUnsyncedCyclesForGroup(groupId: String): List<Cycle> {
+        return cycleDao.getUnsyncedCyclesForGroup(groupId)
+    }
+
+    override suspend fun insertCycle(cycle: Cycle) {
+        cycleDao.insertCycle(cycle)
+    }
+
 }

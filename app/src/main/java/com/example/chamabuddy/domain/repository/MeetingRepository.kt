@@ -39,5 +39,8 @@ interface MeetingRepository {
 
     suspend fun getUnsyncedMeetings(): List<WeeklyMeeting>
     suspend fun markMeetingSynced(meeting: WeeklyMeeting)
+    suspend fun insertMeeting(meeting: WeeklyMeeting)
+
+
 
 }

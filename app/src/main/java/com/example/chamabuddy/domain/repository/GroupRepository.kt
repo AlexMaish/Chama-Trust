@@ -6,6 +6,7 @@ import com.example.chamabuddy.domain.model.GroupMember
 import com.example.chamabuddy.domain.model.GroupWithMembers
 import com.example.chamabuddy.domain.model.Member
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 interface GroupRepository {
@@ -36,7 +37,12 @@ interface GroupRepository {
     suspend fun getUnsyncedGroupMembers(): List<GroupMember>
     suspend fun markGroupMemberSynced(groupMember: GroupMember)
 
+    suspend fun insertGroup(group: Group)
+    suspend fun updateGroup(group: Group)
 
+    suspend fun getUnsyncedGroup(groupId: String): Group?
+
+    fun getUserGroupsFlow(userId: String): Flow<List<Group>>
 }
 
 

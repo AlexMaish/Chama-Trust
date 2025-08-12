@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.example.chamabuddy.domain.model.Group
 import com.example.chamabuddy.domain.model.UserGroup
 
@@ -44,6 +45,14 @@ interface UserGroupDao {
 
     @Query("SELECT * FROM user_groups WHERE is_synced = 0")
     suspend fun getUnsyncedUserGroups(): List<UserGroup>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(userGroup: UserGroup)
+
+    @Update
+    suspend fun update(userGroup: UserGroup)
+
+
 
 
 }

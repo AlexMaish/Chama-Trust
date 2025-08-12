@@ -66,6 +66,7 @@ interface SavingsRepository {
     suspend fun markSavingSynced(saving: MonthlySaving)
     suspend fun markEntrySynced(entry: MonthlySavingEntry)
 
-
+    suspend fun getSavingById(savingId: String): MonthlySaving?
+    suspend fun insertSaving(saving: MonthlySaving)
 
 }

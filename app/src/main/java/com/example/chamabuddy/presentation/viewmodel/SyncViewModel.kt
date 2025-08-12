@@ -5,20 +5,25 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.work.*
+import com.example.chamabuddy.data.local.preferences.SyncPreferences
+import com.example.chamabuddy.workers.SyncHelper
 import com.example.chamabuddy.workers.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SyncViewModel @Inject constructor(
     private val workManager: WorkManager,
-    private val connectivityManager: ConnectivityManager
+    private val connectivityManager: ConnectivityManager,
+    private val syncHelper: SyncHelper,
+    private val syncPreferences: SyncPreferences
 ) : ViewModel() {
-
-    // Track network status
+// Track network status
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline
 
@@ -46,6 +51,16 @@ class SyncViewModel @Inject constructor(
 
     init {
         observeNetworkState()
+
+        // Trigger sync when network becomes available
+        viewModelScope.launch {
+            _isOnline.collect { online ->
+                if (online) {
+                    // This could be triggerSync() or triggerFullSync()
+                    syncHelper.triggerFullSync()
+                }
+            }
+        }
     }
 
     private fun observeNetworkState() {
@@ -55,18 +70,26 @@ class SyncViewModel @Inject constructor(
 
         connectivityManager.registerNetworkCallback(request, callback)
     }
-
     fun triggerSync() {
-        val request = OneTimeWorkRequestBuilder<SyncWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .build()
+        viewModelScope.launch {
+            try {
+                val groupIds = syncPreferences.getUserGroups()
+                if (groupIds.isNotEmpty()) {
+                    syncHelper.triggerGroupSync(groupIds)
+                } else {
+                    // Optionally log or handle empty group list case
+                    println("No groups found for sync.")
+                }
+            } catch (e: Exception) {
+                // Log the error for debugging
+                e.printStackTrace()
 
-        workManager.enqueue(request)
+                // Optional: Expose the error to the UI
+                // _syncState.value = SyncState.Error("Failed to sync groups: ${e.message}")
+            }
+        }
     }
+
 
     fun resetNetworkRestored() {
         _showNetworkRestored.value = false

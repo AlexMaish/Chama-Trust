@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "526001897784",
+    "project_id": "chama-trust-app",
+    "storage_bucket": "chama-trust-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:526001897784:android:d6e922fb8e4f5710c701cd",
+        "android_client_info": {
+          "package_name": "com.example.chamabuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9zdQin5G5x2yc5BGbK6ZPZRt5SV-gdnU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

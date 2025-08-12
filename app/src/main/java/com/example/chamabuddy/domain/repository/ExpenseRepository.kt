@@ -11,4 +11,9 @@ interface ExpenseRepository {
 
     suspend fun getUnsyncedExpenses(): List<ExpenseEntity>
     suspend fun markExpenseSynced(expense: ExpenseEntity)
+
+
+    suspend fun getExpenseById(expenseId: String): ExpenseEntity?
+    suspend fun insertExpense(expense: ExpenseEntity)
+
 }

@@ -14,6 +14,7 @@ import com.example.chamabuddy.domain.repository.GroupRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -130,7 +131,17 @@ class GroupRepositoryImpl @Inject constructor(
 //        return groupDao.getGroupsByIds(groupIds)
 //    }
 override suspend fun getUserGroups(userId: String): List<Group> {
-    return userGroupDao.getUserGroupsWithDetails(userId)
+    return withContext(Dispatchers.IO) {
+        // Get group IDs first
+        val groupIds = userGroupDao.getGroupIdsForUser(userId)
+
+        // Then fetch groups by IDs
+        if (groupIds.isNotEmpty()) {
+            groupDao.getGroupsByIds(groupIds)
+        } else {
+            emptyList()
+        }
+    }
 }
     @Transaction
     override suspend fun getGroupWithMembers(groupId: String): GroupWithMembers? {
@@ -170,5 +181,24 @@ override suspend fun getUserGroups(userId: String): List<Group> {
     override suspend fun markGroupMemberSynced(groupMember: GroupMember) = withContext(Dispatchers.IO) {
         groupMemberDao.markAsSynced(groupMember.groupId, groupMember.userId)
     }
+
+    override suspend fun insertGroup(group: Group) = withContext(Dispatchers.IO) {
+        groupDao.insertGroup(group)
+    }
+
+    override suspend fun updateGroup(group: Group) = withContext(Dispatchers.IO) {
+        groupDao.insertGroup(group) // Room's OnConflictStrategy.REPLACE handles updates
+    }
+
+
+    override suspend fun getUnsyncedGroup(groupId: String): Group? {
+        return groupDao.getUnsyncedGroup(groupId)
+    }
+
+
+    override fun getUserGroupsFlow(userId: String): Flow<List<Group>> {
+        return groupDao.observeUserGroups(userId)
+    }
+
 
 }

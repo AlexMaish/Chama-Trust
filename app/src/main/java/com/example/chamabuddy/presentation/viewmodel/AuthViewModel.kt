@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.Common.Resource
 import com.example.chamabuddy.domain.model.User
 import com.example.chamabuddy.domain.repository.UserRepository
+import com.example.chamabuddy.util.SyncLogger
+import com.example.chamabuddy.workers.SyncHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val syncHelper: SyncHelper
 ) : ViewModel() {
 
     private val _currentUser = MutableStateFlow<User?>(null)
@@ -85,6 +88,11 @@ class AuthViewModel @Inject constructor(
                     _currentUser.value = user
                     _loginState.value = Resource.Success(user)
                     _authState.value = AuthState.Authenticated(user.userId)
+
+                    SyncLogger.d("🔥 Triggering full sync after login")
+                    syncHelper.triggerFullSync()
+
+
                 },
                 onFailure = { e ->
                     _loginState.value = Resource.Error(e.message ?: "Login failed")
@@ -93,24 +101,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    // Add this function for Firebase fallback
-    fun loginWithFirebaseFallback(identifier: String, password: String) {
-        viewModelScope.launch {
-            _loginState.value = Resource.Loading()
-            userRepository.loginUser(identifier, password).fold(
-                onSuccess = { user ->
-                    userRepository.setCurrentUserId(user.userId)
-                    _currentUser.value = user
-                    _loginState.value = Resource.Success(user) // ✅ Fix: Pass actual User, not Result
-                    _authState.value = AuthState.Authenticated(user.userId)
-                },
-                onFailure = { e ->
-                    _loginState.value = Resource.Error(e.message ?: "Login failed")
-                }
-            )
-        }
 
-    }
 
     fun logout() {
         viewModelScope.launch {

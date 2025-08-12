@@ -26,4 +26,7 @@ interface MemberContributionRepository {
 
     suspend fun getUnsyncedContributions(): List<MemberContribution>
     suspend fun markContributionSynced(contribution: MemberContribution)
+
+    suspend fun getContributionById(contributionId: String): MemberContribution?
+
 }

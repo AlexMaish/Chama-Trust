@@ -23,4 +23,9 @@ interface BenefitDao {
 
     @Query("SELECT * FROM benefits WHERE is_synced = 0")
     suspend fun getUnsyncedBenefits(): List<BenefitEntity>
+
+    @Query("SELECT * FROM benefits WHERE benefitId = :benefitId LIMIT 1")
+    suspend fun getBenefitById(benefitId: String): BenefitEntity?
+
+
 }

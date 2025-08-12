@@ -291,4 +291,17 @@ class MeetingRepositoryImpl @Inject constructor(
             meetingDao.markAsSynced(meeting.meetingId)
         }
     }
+
+    override suspend fun insertMeeting(meeting: WeeklyMeeting) {
+        withContext(dispatcher) {
+            val localMeeting = meetingDao.getMeetingById(meeting.meetingId)
+
+            if (localMeeting == null || meeting.lastUpdated > localMeeting.lastUpdated) {
+                meetingDao.insertMeeting(meeting)
+            }
+        }
+    }
+
+
+
 }

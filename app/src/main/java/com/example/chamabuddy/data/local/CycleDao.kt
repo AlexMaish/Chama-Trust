@@ -74,5 +74,8 @@ interface CycleDao {
     @Query("SELECT * FROM cycle WHERE is_synced = 0")
     suspend fun getUnsyncedCycles(): List<Cycle>
 
+    @Query("SELECT * FROM cycle WHERE group_id = :groupId AND is_synced = 0")
+    suspend fun getUnsyncedCyclesForGroup(groupId: String): List<Cycle>
+
 }
 

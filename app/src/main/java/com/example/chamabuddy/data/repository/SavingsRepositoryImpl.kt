@@ -324,4 +324,14 @@ class SavingsRepositoryImpl @Inject constructor(
             savingEntryDao.markAsSynced(entry.entryId)
         }
     }
+
+    override suspend fun getSavingById(savingId: String): MonthlySaving? = withContext(dispatcher) {
+        savingDao.getSavingById(savingId)
+    }
+
+    override suspend fun insertSaving(saving: MonthlySaving) = withContext(dispatcher) {
+        savingDao.insert(saving)
+    }
+
+
 }

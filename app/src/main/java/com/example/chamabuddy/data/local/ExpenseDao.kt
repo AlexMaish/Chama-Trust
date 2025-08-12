@@ -22,4 +22,11 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE is_synced = 0")
     suspend fun getUnsyncedExpenses(): List<ExpenseEntity>
+
+
+    @Query("SELECT * FROM expenses WHERE expenseId = :expenseId LIMIT 1")
+    suspend fun getExpenseById(expenseId: String): ExpenseEntity?
+
+
+
 }

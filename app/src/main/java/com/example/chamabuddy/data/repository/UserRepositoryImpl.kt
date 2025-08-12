@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.chamabuddy.data.local.UserDao
 import com.example.chamabuddy.data.local.UserGroupDao
+import com.example.chamabuddy.data.local.preferences.SyncPreferences
 import com.example.chamabuddy.data.remote.toFirebase
 import com.example.chamabuddy.data.remote.toLocal
 import com.example.chamabuddy.domain.Firebase.UserFire
@@ -36,6 +37,7 @@ class UserRepositoryImpl @Inject constructor(
     private val memberRepository: MemberRepository,
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val   syncPreferences: SyncPreferences,
     @ApplicationContext private val context: Context
 ) : UserRepository {
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -47,6 +49,8 @@ class UserRepositoryImpl @Inject constructor(
         dataStore.edit { preferences ->
             preferences[CURRENT_USER_ID] = encryptionHelper.encrypt(userId)
         }
+        // Also set in SyncPreferences
+        syncPreferences.setCurrentUserId(userId)
     }
 
     override suspend fun getCurrentUserId(): String? {
@@ -227,7 +231,33 @@ class UserRepositoryImpl @Inject constructor(
     }
 
 
-    override suspend fun insertUser(user: User) = userDao.insertUser(user)
+    override suspend fun insertUser(user: User) {
+        val existing = getUserById(user.userId)
+        if (existing == null || user.lastUpdated > existing.lastUpdated) {
+            userDao.insertUser(user)
+        }
+    }
     override suspend fun updateUser(user: User) = userDao.updateUser(user)
 
+
+    override suspend fun insertUserGroup(userGroup: UserGroup) =
+        withContext(dispatcher) {
+            userGroupDao.insert(userGroup)
+        }
+
+    override suspend fun updateUserGroup(userGroup: UserGroup) =
+        withContext(dispatcher) {
+            userGroupDao.update(userGroup)
+        }
+
+
+    override suspend fun getUserGroup(userId: String, groupId: String): UserGroup? =
+        withContext(dispatcher) {
+            userGroupDao.getUserGroup(userId, groupId)
+        }
+    override suspend fun isUserInGroup(userId: String, groupId: String): Boolean {
+        return withContext(dispatcher) {
+            userGroupDao.getUserGroup(userId, groupId) != null
+        }
+    }
 }

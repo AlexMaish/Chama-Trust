@@ -36,6 +36,8 @@ interface MemberRepository {
 
     suspend fun syncMember(member: Member)
 
+    suspend fun getUnsyncedMembersForGroup(groupId: String): List<Member>
+
 }
 
 

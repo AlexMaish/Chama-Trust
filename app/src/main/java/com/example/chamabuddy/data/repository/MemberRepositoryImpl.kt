@@ -184,4 +184,9 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getUnsyncedMembersForGroup(groupId: String): List<Member> {
+        return memberDao.getUnsyncedMembersForGroup(groupId)
+    }
+
+
 }

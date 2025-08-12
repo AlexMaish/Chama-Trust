@@ -42,4 +42,11 @@ interface UserRepository {
 
     suspend fun loginWithFirebase(identifier: String, password: String): Result<User>
 
+
+
+    suspend fun insertUserGroup(userGroup: UserGroup)
+    suspend fun updateUserGroup(userGroup: UserGroup)
+    suspend fun getUserGroup(userId: String, groupId: String): UserGroup?
+    suspend fun isUserInGroup(userId: String, groupId: String): Boolean
+
 }

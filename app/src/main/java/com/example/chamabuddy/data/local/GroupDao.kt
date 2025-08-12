@@ -9,6 +9,7 @@ import androidx.room.Transaction
 import com.example.chamabuddy.domain.model.Group
 import com.example.chamabuddy.domain.model.GroupMember
 import com.example.chamabuddy.domain.model.GroupWithMembers
+import kotlinx.coroutines.flow.Flow
 
 
 @Dao
@@ -40,4 +41,12 @@ interface GroupDao {
 
     @Query("SELECT * FROM `groups`WHERE is_synced = 0")
     suspend fun getUnsyncedGroups(): List<Group>
+
+
+    @Query("SELECT * FROM `groups` WHERE group_id = :groupId AND is_synced = 0")
+    suspend fun getUnsyncedGroup(groupId: String): Group?
+
+    @Query("SELECT * FROM `groups` WHERE group_id  IN (SELECT group_id FROM user_groups WHERE user_id = :userId)")
+    fun observeUserGroups(userId: String): Flow<List<Group>>
+
 }

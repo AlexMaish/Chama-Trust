@@ -11,5 +11,7 @@ interface BenefitRepository {
     suspend fun getUnsyncedBenefits(): List<BenefitEntity>
     suspend fun markBenefitSynced(benefit: BenefitEntity)
 
+    suspend fun getBenefitById(benefitId: String): BenefitEntity?
+    suspend fun insertBenefit(benefit: BenefitEntity)
 
 }

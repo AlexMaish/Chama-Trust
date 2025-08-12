@@ -30,6 +30,11 @@ interface CycleRepository {
 
     suspend fun getUnsyncedCycles(): List<Cycle>
     suspend fun markCycleSynced(cycle: Cycle)
+
+    suspend fun getUnsyncedCyclesForGroup(groupId: String): List<Cycle>
+
+    suspend fun insertCycle(cycle: Cycle)
+
 }
 
 data class CycleStats(

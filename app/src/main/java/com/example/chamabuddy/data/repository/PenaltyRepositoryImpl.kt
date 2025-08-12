@@ -30,4 +30,15 @@ class PenaltyRepositoryImpl(
     override suspend fun markPenaltySynced(penalty: Penalty) {
         penaltyDao.markAsSynced(penalty.penaltyId)
     }
+
+
+    override suspend fun getPenaltyById(penaltyId: String): Penalty? {
+        return penaltyDao.getPenaltyById(penaltyId)
+    }
+
+    override suspend fun insertPenalty(penalty: Penalty) {
+        penaltyDao.insert(penalty)
+    }
+
+
 }

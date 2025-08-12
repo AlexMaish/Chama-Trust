@@ -10,12 +10,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +38,7 @@ import com.example.chamabuddy.domain.model.User
 import com.example.chamabuddy.presentation.navigation.GroupsHomeDestination
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.GroupHomeViewModel
+import com.example.chamabuddy.workers.SyncWorker
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,25 +48,38 @@ fun GroupsHomeScreen(
     viewModel: GroupHomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var groupName by remember { mutableStateOf("") }
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val showDialog by remember(uiState.showCreateGroupDialog) {
-        derivedStateOf { uiState.showCreateGroupDialog }
-    }
-    val authViewModel: AuthViewModel = hiltViewModel()
-    val currentUser by authViewModel.currentUser.collectAsState()
-    // Drawer state
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val syncStatus by remember { derivedStateOf { SyncWorker.syncStatus.value } }
+    val syncState by viewModel.syncState.collectAsState()
 
+
+
+
+    // Move SnackbarHostState declaration to top so it's available in effects
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Handle ViewModel sync errors
+    LaunchedEffect(syncState) {
+        if (syncState is GroupHomeViewModel.SyncState.Error) {
+            val error = (syncState as GroupHomeViewModel.SyncState.Error).message
+            snackbarHostState.showSnackbar(error)
+        }
+    }
+
+    // Handle legacy snackbar messages
     LaunchedEffect(uiState.snackbarMessage) {
-        uiState.snackbarMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
+        uiState.snackbarMessage?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
             viewModel.clearSnackbar()
         }
     }
+
+    var groupName by remember { mutableStateOf("") }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val showDialog by remember { derivedStateOf { uiState.showCreateGroupDialog } }
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -101,6 +114,25 @@ fun GroupsHomeScreen(
                             )
                         }
                     },
+                    actions = {
+                        if (uiState.isLoading || !uiState.isSyncComplete) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .padding(8.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            IconButton(onClick = { viewModel.refreshGroups() }) {
+                                Icon(
+                                    Icons.Default.Refresh,
+                                    contentDescription = "Refresh",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    },
                     colors = TopAppBarDefaults.largeTopAppBarColors(
                         containerColor = PremiumNavy,
                         scrolledContainerColor = PremiumNavy,
@@ -121,6 +153,26 @@ fun GroupsHomeScreen(
             containerColor = SoftOffWhite
         ) { innerPadding ->
             Box(modifier = Modifier.padding(innerPadding)) {
+
+                if (syncState is GroupHomeViewModel.SyncState.SyncingData) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.4f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = Color.White)
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                "Syncing your groups...",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
                 // Background curve
                 Box(
                     modifier = Modifier
@@ -142,7 +194,41 @@ fun GroupsHomeScreen(
                         .padding(horizontal = 16.dp)
                 ) {
                     Spacer(modifier = Modifier.height(1.dp))
-
+                    when (syncStatus) {
+                        is SyncWorker.SyncStatus.InProgress -> {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = VibrantOrange,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Syncing data...", color = PremiumNavy)
+                            }
+                        }
+                        is SyncWorker.SyncStatus.Failed -> {
+                            val error = (syncStatus as SyncWorker.SyncStatus.Failed).message
+                            Text(
+                                text = "Sync failed: $error",
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                        }
+                        is SyncWorker.SyncStatus.Success -> {
+                            Text(
+                                text = "Sync complete",
+                                color = Color(0xFF2E7D32), // green
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                        }
+                        else -> Unit
+                    }
                     // Greeting section
                     AnimatedVisibility(
                         visible = true,

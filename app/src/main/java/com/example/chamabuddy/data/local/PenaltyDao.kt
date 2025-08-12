@@ -23,4 +23,9 @@ interface PenaltyDao {
 
     @Query("SELECT * FROM penalties WHERE is_synced = 0")
     suspend fun getUnsyncedPenalties(): List<Penalty>
+
+    @Query("SELECT * FROM penalties WHERE penaltyId = :penaltyId LIMIT 1")
+    suspend fun getPenaltyById(penaltyId: String): Penalty?
+
+
 }

@@ -56,4 +56,9 @@ class MemberContributionRepositoryImpl @Inject constructor(
         dao.markAsSynced(contribution.contributionId)
     }
 
+
+    override suspend fun getContributionById(contributionId: String): MemberContribution? {
+        return dao.getContributionById(contributionId)
+    }
+
 }

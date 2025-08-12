@@ -145,7 +145,7 @@ fun UserGroup.toFirebase() = UserGroupFire(
     groupId = groupId,
     isOwner = isOwner,
     joinedAt = Timestamp(Date(joinedAt)),
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // WeeklyMeeting Conversions

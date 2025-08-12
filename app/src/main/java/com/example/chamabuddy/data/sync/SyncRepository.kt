@@ -1,8 +1,6 @@
 package com.example.chamabuddy.data.sync
 
-
 import androidx.work.ListenableWorker.Result
-import com.example.chamabuddy.data.sync.FirestoreSyncManager
 import com.example.chamabuddy.domain.repository.*
 import javax.inject.Inject
 
@@ -21,77 +19,84 @@ class SyncRepository @Inject constructor(
     private val penaltyRepository: PenaltyRepository
 ) {
 
-    suspend fun performSync(): Result {
+    suspend fun performFullSync(): Result {
         return try {
             // Users
             syncManager.syncUsers(
-                localFetch = { userRepository.getUnsyncedUsers() },
-                updateLocal = { userRepository.markUserSynced(it) }
+                { userRepository.getUnsyncedUsers() },
+                userRepository::markUserSynced
             )
+
             // Groups
             syncManager.syncGroups(
-                localFetch = { groupRepository.getUnsyncedGroups() },
-                updateLocal = { groupRepository.markGroupSynced(it) }
+                { groupRepository.getUnsyncedGroups() },
+                groupRepository::markGroupSynced
             )
-            // Cycles
-            syncManager.syncCycles(
-                localFetch = { cycleRepository.getUnsyncedCycles() },
-                updateLocal = { cycleRepository.markCycleSynced(it) }
-            )
-            // Members
-            syncManager.syncMembers(
-                localFetch = { memberRepository.getUnsyncedMembers() },
-                updateLocal = { memberRepository.syncMember(it) }
-            )
-            // Group Members
-            syncManager.syncGroupMembers(
-                localFetch = { groupRepository.getUnsyncedGroupMembers() },
-                updateLocal = { groupRepository.markGroupMemberSynced(it) }
-            )
+
             // User Groups
             syncManager.syncUserGroups(
-                localFetch = { userRepository.getUnsyncedUserGroups() },
-                updateLocal = { userRepository.markUserGroupSynced(it) }
+                { userRepository.getUnsyncedUserGroups() },
+                userRepository::markUserGroupSynced
             )
+
+            // Group Members
+            syncManager.syncGroupMembers(
+                { groupRepository.getUnsyncedGroupMembers() },
+                groupRepository::markGroupMemberSynced
+            )
+
+            // Members
+            syncManager.syncMembers(
+                { memberRepository.getUnsyncedMembers() },
+                memberRepository::syncMember
+            )
+
+            // Cycles
+            syncManager.syncCycles(
+                { cycleRepository.getUnsyncedCycles() },
+                cycleRepository::markCycleSynced
+            )
+
             // Weekly Meetings
             syncManager.syncWeeklyMeetings(
-                localFetch = { meetingRepository.getUnsyncedMeetings() },
-                updateLocal = { meetingRepository.markMeetingSynced(it) }
+                { meetingRepository.getUnsyncedMeetings() },
+                meetingRepository::markMeetingSynced
             )
-            // Monthly Savings
-            syncManager.syncMonthlySavings(
-                localFetch = { savingRepository.getUnsyncedSavings() },
-                updateLocal = { savingRepository.markSavingSynced(it) }
-            )
-            // Monthly Saving Entries
-            syncManager.syncMonthlySavingEntries(
-                localFetch = { savingRepository.getUnsyncedEntries() },
-                updateLocal = { savingRepository.markEntrySynced(it) }
-            )
+
             // Member Contributions
             syncManager.syncMemberContributions(
-                localFetch = { memberContributionRepository.getUnsyncedContributions() },
-                updateLocal = { memberContributionRepository.markContributionSynced(it) }
+                { memberContributionRepository.getUnsyncedContributions() },
+                memberContributionRepository::markContributionSynced
             )
+
             // Beneficiaries
             syncManager.syncBeneficiaries(
-                localFetch = { beneficiaryRepository.getUnsyncedBeneficiaries() },
-                updateLocal = { beneficiaryRepository.markBeneficiarySynced(it) }
+                { beneficiaryRepository.getUnsyncedBeneficiaries() },
+                beneficiaryRepository::markBeneficiarySynced
             )
+
+            // Monthly Savings
+            syncManager.syncMonthlySavings(
+                { savingRepository.getUnsyncedSavings() },
+                savingRepository::markSavingSynced
+            )
+
             // Benefit Entities
             syncManager.syncBenefitEntities(
-                localFetch = { benefitRepository.getUnsyncedBenefits() },
-                updateLocal = { benefitRepository.markBenefitSynced(it) }
+                { benefitRepository.getUnsyncedBenefits() },
+                benefitRepository::markBenefitSynced
             )
+
             // Expense Entities
             syncManager.syncExpenseEntities(
-                localFetch = { expenseRepository.getUnsyncedExpenses() },
-                updateLocal = { expenseRepository.markExpenseSynced(it) }
+                { expenseRepository.getUnsyncedExpenses() },
+                expenseRepository::markExpenseSynced
             )
+
             // Penalties
             syncManager.syncPenalties(
-                localFetch = { penaltyRepository.getUnsyncedPenalties() },
-                updateLocal = { penaltyRepository.markPenaltySynced(it) }
+                { penaltyRepository.getUnsyncedPenalties() },
+                penaltyRepository::markPenaltySynced
             )
 
             Result.success()

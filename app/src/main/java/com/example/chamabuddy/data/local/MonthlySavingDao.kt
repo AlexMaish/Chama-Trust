@@ -64,6 +64,8 @@ interface MonthlySavingDao {
     @Query("SELECT * FROM MonthlySaving WHERE is_synced = 0")
     suspend fun getUnsyncedSavings(): List<MonthlySaving>
 
+    @Query("SELECT * FROM MonthlySaving WHERE saving_id = :savingId LIMIT 1")
+    suspend fun getSavingById(savingId: String): MonthlySaving?
 
 
 }

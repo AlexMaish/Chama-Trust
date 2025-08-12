@@ -11,4 +11,7 @@ interface PenaltyRepository {
     suspend fun getUnsyncedPenalties(): List<Penalty>
     suspend fun markPenaltySynced(penalty: Penalty)
 
+    suspend fun getPenaltyById(penaltyId: String): Penalty?
+    suspend fun insertPenalty(penalty: Penalty)
+
 }

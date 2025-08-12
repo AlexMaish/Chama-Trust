@@ -1,48 +1,33 @@
 package com.example.chamabuddy
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import androidx.hilt.work.HiltWorkerFactory
-import androidx.work.*
+import androidx.work.Configuration
+import androidx.work.WorkManager
+import com.example.chamabuddy.util.SyncLogger
+import com.example.chamabuddy.workers.SyncHelper
 import com.example.chamabuddy.util.setupLogging
-import com.example.chamabuddy.workers.SyncWorker
 import com.google.firebase.FirebaseApp
 import dagger.hilt.android.HiltAndroidApp
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltAndroidApp
-class ChamaBuddy : Application() {
-
-    @Inject lateinit var workerFactory: WorkerFactory
+class ChamaBuddy : Application(), Configuration.Provider {
+    @Inject lateinit var workerFactory: HiltWorkerFactory
 
     override fun onCreate() {
         super.onCreate()
-        FirebaseApp.initializeApp(this)
         setupLogging()
+        FirebaseApp.initializeApp(this)  // <-- Correct method
 
-        // Initialize WorkManager with custom configuration
-        val config = Configuration.Builder()
+        SyncLogger.d("Application onCreate finished")
+    }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
+            .setMinimumLoggingLevel(android.util.Log.DEBUG)
             .build()
-        WorkManager.initialize(this, config)
-
-        scheduleSync()
-    }
-
-    private fun scheduleSync() {
-        val workManager = WorkManager.getInstance(this)
-        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-            6, TimeUnit.HOURS
-        ).setConstraints(
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-        ).build()
-
-        workManager.enqueueUniquePeriodicWork(
-            "full_sync_work",
-            ExistingPeriodicWorkPolicy.KEEP,
-            syncRequest
-        )
-    }
 }
