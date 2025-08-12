@@ -32,8 +32,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.sql.SQLException
 import java.util.*
 import javax.inject.Inject
 import kotlin.jvm.java
@@ -59,7 +61,6 @@ class GroupSyncWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-
             SyncLogger.d("GroupSyncWorker STARTED")
             val groupIds = inputData.getStringArray("group_ids")?.toSet() ?: emptySet()
             SyncLogger.d("Processing groups: ${groupIds.joinToString()}")
@@ -85,29 +86,24 @@ class GroupSyncWorker @AssistedInject constructor(
         SyncLogger.d("Syncing data for group: $groupId")
         val lastSync = preferences.getLastGroupSync(groupId)
 
-        // Create a new coroutine scope for the async operations
-        coroutineScope {
-            // Explicitly declare the type as List<Deferred<Unit>>
-            val syncOperations: List<Deferred<Unit>> = listOf(
-                async { syncGroupDetails(groupId, lastSync) },
-                async { syncMembers(groupId, lastSync) },
-                async { syncCycles(groupId, lastSync) },
-                async { syncMeetings(groupId, lastSync) },
-                async { syncContributions(groupId, lastSync) },
-                async { syncBeneficiaries(groupId, lastSync) },
-                async { syncSavings(groupId, lastSync) },
-                async { syncBenefitEntities(groupId, lastSync) },
-                async { syncExpenseEntities(groupId, lastSync) },
-                async { syncPenalties(groupId, lastSync) },
-                async { syncUserGroups(groupId, lastSync) }
-            )
-
-            syncOperations.awaitAll()
-        }
+        // MUST run sequentially in this exact order
+        syncGroupDetails(groupId, lastSync)
+        syncMembers(groupId, lastSync)
+        syncCycles(groupId, lastSync)
+        syncMeetings(groupId, lastSync)
+        syncBeneficiaries(groupId, lastSync)  // Now after cycles/members
+        syncContributions(groupId, lastSync)   // Now after cycles/members
+        syncSavings(groupId, lastSync)
+        syncMonthlySavingEntries(groupId, lastSync)
+        syncBenefitEntities(groupId, lastSync)
+        syncExpenseEntities(groupId, lastSync)
+        syncPenalties(groupId, lastSync)
+        syncUserGroups(groupId, lastSync)
 
         preferences.setLastGroupSync(groupId, System.currentTimeMillis())
         SyncLogger.d("Sync completed for group: $groupId")
     }
+
     private suspend fun syncGroupDetails(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing group details for: $groupId")
         try {
@@ -139,12 +135,14 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             membersSnapshot.documents.forEach { doc ->
-                doc.toObject(MemberFire::class.java)?.let { firebaseMember ->
-                    val localMember = memberRepository.getMemberById(firebaseMember.memberId)
-                    val firebaseTime = firebaseMember.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(MemberFire::class.java)?.let { firebaseMember ->
+                        val localMember = memberRepository.getMemberById(firebaseMember.memberId)
+                        val firebaseTime = firebaseMember.lastUpdated.toDate().time
 
-                    if (localMember == null || firebaseTime > localMember.lastUpdated) {
-                        memberRepository.syncMember(firebaseMember.toLocal())
+                        if (localMember == null || firebaseTime > localMember.lastUpdated) {
+                            memberRepository.syncMember(firebaseMember.toLocal())
+                        }
                     }
                 }
             }
@@ -167,12 +165,14 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             cyclesSnapshot.documents.forEach { doc ->
-                doc.toObject(CycleFire::class.java)?.let { firebaseCycle ->
-                    val localCycle = cycleRepository.getCycleById(firebaseCycle.cycleId)
-                    val firebaseTime = firebaseCycle.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(CycleFire::class.java)?.let { firebaseCycle ->
+                        val localCycle = cycleRepository.getCycleById(firebaseCycle.cycleId)
+                        val firebaseTime = firebaseCycle.lastUpdated.toDate().time
 
-                    if (localCycle == null || firebaseTime > localCycle.lastUpdated) {
-                        cycleRepository.insertCycle(firebaseCycle.toLocal())
+                        if (localCycle == null || firebaseTime > localCycle.lastUpdated) {
+                            cycleRepository.insertCycle(firebaseCycle.toLocal())
+                        }
                     }
                 }
             }
@@ -195,12 +195,14 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             meetingsSnapshot.documents.forEach { doc ->
-                doc.toObject(WeeklyMeetingFire::class.java)?.let { firebaseMeeting ->
-                    val localMeeting = meetingRepository.getMeetingById(firebaseMeeting.meetingId)
-                    val firebaseTime = firebaseMeeting.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(WeeklyMeetingFire::class.java)?.let { firebaseMeeting ->
+                        val localMeeting = meetingRepository.getMeetingById(firebaseMeeting.meetingId)
+                        val firebaseTime = firebaseMeeting.lastUpdated.toDate().time
 
-                    if (localMeeting == null || firebaseTime > localMeeting.lastUpdated) {
-                        meetingRepository.insertMeeting(firebaseMeeting.toLocal())
+                        if (localMeeting == null || firebaseTime > localMeeting.lastUpdated) {
+                            meetingRepository.insertMeeting(firebaseMeeting.toLocal())
+                        }
                     }
                 }
             }
@@ -223,12 +225,19 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             contributionsSnapshot.documents.forEach { doc ->
-                doc.toObject(MemberContributionFire::class.java)?.let { firebaseContribution ->
-                    val localContribution = contributionRepository.getContributionById(firebaseContribution.contributionId)
-                    val firebaseTime = firebaseContribution.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(MemberContributionFire::class.java)?.let { firebaseContribution ->
+                        if (!verifyContributionReferences(firebaseContribution)) {
+                            SyncLogger.e("Skipping contribution with missing references: ${firebaseContribution.contributionId}")
+                            return@let
+                        }
 
-                    if (localContribution == null || firebaseTime > localContribution.lastUpdated) {
-                        contributionRepository.insertContribution(firebaseContribution.toLocal())
+                        val localContribution = contributionRepository.getContributionById(firebaseContribution.contributionId)
+                        val firebaseTime = firebaseContribution.lastUpdated.toDate().time
+
+                        if (localContribution == null || firebaseTime > localContribution.lastUpdated) {
+                            contributionRepository.insertContribution(firebaseContribution.toLocal())
+                        }
                     }
                 }
             }
@@ -243,6 +252,19 @@ class GroupSyncWorker @AssistedInject constructor(
         }
     }
 
+    private suspend fun verifyContributionReferences(contribution: MemberContributionFire): Boolean {
+        val memberExists = memberRepository.getMemberById(contribution.memberId) != null
+
+        val cycleExists = if (contribution.meetingId != null) {
+            val meeting = meetingRepository.getMeetingById(contribution.meetingId)
+            meeting != null && cycleRepository.getCycleById(meeting.cycleId) != null
+        } else {
+            false // Handle case where meetingId is null
+        }
+
+        return memberExists && cycleExists
+    }
+
     private suspend fun syncBeneficiaries(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing beneficiaries for: $groupId")
         try {
@@ -251,12 +273,19 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             beneficiariesSnapshot.documents.forEach { doc ->
-                doc.toObject(BeneficiaryFire::class.java)?.let { firebaseBeneficiary ->
-                    val localBeneficiary = beneficiaryRepository.getBeneficiaryById(firebaseBeneficiary.beneficiaryId)
-                    val firebaseTime = firebaseBeneficiary.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(BeneficiaryFire::class.java)?.let { firebaseBeneficiary ->
+                        if (!verifyBeneficiaryReferences(firebaseBeneficiary)) {
+                            SyncLogger.e("Skipping beneficiary with missing references: ${firebaseBeneficiary.beneficiaryId}")
+                            return@let
+                        }
 
-                    if (localBeneficiary == null || firebaseTime > localBeneficiary.lastUpdated) {
-                        beneficiaryRepository.insertBeneficiary(firebaseBeneficiary.toLocal())
+                        val localBeneficiary = beneficiaryRepository.getBeneficiaryById(firebaseBeneficiary.beneficiaryId)
+                        val firebaseTime = firebaseBeneficiary.lastUpdated.toDate().time
+
+                        if (localBeneficiary == null || firebaseTime > localBeneficiary.lastUpdated) {
+                            beneficiaryRepository.insertBeneficiary(firebaseBeneficiary.toLocal())
+                        }
                     }
                 }
             }
@@ -271,6 +300,11 @@ class GroupSyncWorker @AssistedInject constructor(
         }
     }
 
+    private suspend fun verifyBeneficiaryReferences(beneficiary: BeneficiaryFire): Boolean {
+        return memberRepository.getMemberById(beneficiary.memberId) != null &&
+                cycleRepository.getCycleById(beneficiary.cycleId) != null
+    }
+
     private suspend fun syncSavings(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing savings for: $groupId")
         try {
@@ -279,12 +313,14 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             savingsSnapshot.documents.forEach { doc ->
-                doc.toObject(MonthlySavingFire::class.java)?.let { firebaseSaving ->
-                    val localSaving = savingRepository.getSavingById(firebaseSaving.savingId)
-                    val firebaseTime = firebaseSaving.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(MonthlySavingFire::class.java)?.let { firebaseSaving ->
+                        val localSaving = savingRepository.getSavingById(firebaseSaving.savingId)
+                        val firebaseTime = firebaseSaving.lastUpdated.toDate().time
 
-                    if (localSaving == null || firebaseTime > localSaving.lastUpdated) {
-                        savingRepository.insertSaving(firebaseSaving.toLocal())
+                        if (localSaving == null || firebaseTime > localSaving.lastUpdated) {
+                            savingRepository.insertSaving(firebaseSaving.toLocal())
+                        }
                     }
                 }
             }
@@ -307,12 +343,14 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             benefitsSnapshot.documents.forEach { doc ->
-                doc.toObject(BenefitEntityFire::class.java)?.let { firebaseBenefit ->
-                    val localBenefit = benefitRepository.getBenefitById(firebaseBenefit.id)
-                    val firebaseTime = firebaseBenefit.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(BenefitEntityFire::class.java)?.let { firebaseBenefit ->
+                        val localBenefit = benefitRepository.getBenefitById(firebaseBenefit.id)
+                        val firebaseTime = firebaseBenefit.lastUpdated.toDate().time
 
-                    if (localBenefit == null || firebaseTime > localBenefit.lastUpdated) {
-                        benefitRepository.insertBenefit(firebaseBenefit.toLocal())
+                        if (localBenefit == null || firebaseTime > localBenefit.lastUpdated) {
+                            benefitRepository.insertBenefit(firebaseBenefit.toLocal())
+                        }
                     }
                 }
             }
@@ -335,12 +373,14 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             expensesSnapshot.documents.forEach { doc ->
-                doc.toObject(ExpenseEntityFire::class.java)?.let { firebaseExpense ->
-                    val localExpense = expenseRepository.getExpenseById(firebaseExpense.id)
-                    val firebaseTime = firebaseExpense.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(ExpenseEntityFire::class.java)?.let { firebaseExpense ->
+                        val localExpense = expenseRepository.getExpenseById(firebaseExpense.id)
+                        val firebaseTime = firebaseExpense.lastUpdated.toDate().time
 
-                    if (localExpense == null || firebaseTime > localExpense.lastUpdated) {
-                        expenseRepository.insertExpense(firebaseExpense.toLocal())
+                        if (localExpense == null || firebaseTime > localExpense.lastUpdated) {
+                            expenseRepository.insertExpense(firebaseExpense.toLocal())
+                        }
                     }
                 }
             }
@@ -363,12 +403,14 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             penaltiesSnapshot.documents.forEach { doc ->
-                doc.toObject(PenaltyFire::class.java)?.let { firebasePenalty ->
-                    val localPenalty = penaltyRepository.getPenaltyById(firebasePenalty.id)
-                    val firebaseTime = firebasePenalty.lastUpdated.toDate().time
+                withForeignKeyRetry {
+                    doc.toObject(PenaltyFire::class.java)?.let { firebasePenalty ->
+                        val localPenalty = penaltyRepository.getPenaltyById(firebasePenalty.id)
+                        val firebaseTime = firebasePenalty.lastUpdated.toDate().time
 
-                    if (localPenalty == null || firebaseTime > localPenalty.lastUpdated) {
-                        penaltyRepository.insertPenalty(firebasePenalty.toLocal())
+                        if (localPenalty == null || firebaseTime > localPenalty.lastUpdated) {
+                            penaltyRepository.insertPenalty(firebasePenalty.toLocal())
+                        }
                     }
                 }
             }
@@ -392,22 +434,24 @@ class GroupSyncWorker @AssistedInject constructor(
                 .get().await()
 
             userGroupsSnapshot.documents.forEach { doc ->
-                doc.toObject(UserGroupFire::class.java)?.let { firebaseUserGroup ->
+                withForeignKeyRetry {
+                    doc.toObject(UserGroupFire::class.java)?.let { firebaseUserGroup ->
 
-                    if (groupRepository.getGroupById(groupId) == null) {
-                        SyncLogger.d("Group $groupId missing in local DB")
-                        syncGroupDetails(groupId, 0) // Force sync group details
-                    }
-                    val localUserGroup = userRepository.getUserGroup(
-                        firebaseUserGroup.userId,
-                        firebaseUserGroup.groupId
-                    )
-                    val firebaseTime = firebaseUserGroup.lastUpdated.toDate().time
+                        if (groupRepository.getGroupById(groupId) == null) {
+                            SyncLogger.d("Group $groupId missing in local DB")
+                            syncGroupDetails(groupId, 0) // Force sync group details
+                        }
+                        val localUserGroup = userRepository.getUserGroup(
+                            firebaseUserGroup.userId,
+                            firebaseUserGroup.groupId
+                        )
+                        val firebaseTime = firebaseUserGroup.lastUpdated.toDate().time
 
-                    if (localUserGroup == null) {
-                        userRepository.insertUserGroup(firebaseUserGroup.toLocal())
-                    } else if (firebaseTime > localUserGroup.lastUpdated) {
-                        userRepository.updateUserGroup(firebaseUserGroup.toLocal())
+                        if (localUserGroup == null) {
+                            userRepository.insertUserGroup(firebaseUserGroup.toLocal())
+                        } else if (firebaseTime > localUserGroup.lastUpdated) {
+                            userRepository.updateUserGroup(firebaseUserGroup.toLocal())
+                        }
                     }
                 }
             }
@@ -422,45 +466,70 @@ class GroupSyncWorker @AssistedInject constructor(
             SyncLogger.e("Error syncing user groups: ${e.message}", e)
         }
     }
+    // Add to GroupSyncWorker class
+    private suspend fun syncMonthlySavingEntries(groupId: String, lastSync: Long) {
+        SyncLogger.d("Syncing monthly saving entries for: $groupId")
+        try {
+            // Download entries from Firestore
+            val entriesSnapshot = firestore.collection("groups/$groupId/monthly_saving_entries")
+                .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync)))
+                .get().await()
 
-//    class Factory @Inject constructor(
-//        private val groupRepository: GroupRepository,
-//        private val memberRepository: MemberRepository,
-//        private val cycleRepository: CycleRepository,
-//        private val meetingRepository: MeetingRepository,
-//        private val beneficiaryRepository: BeneficiaryRepository,
-//        private val contributionRepository: MemberContributionRepository,
-//        private val savingRepository: SavingsRepository,
-//        private val benefitRepository: BenefitRepository,
-//        private val expenseRepository: ExpenseRepository,
-//        private val penaltyRepository: PenaltyRepository,
-//        private val firestore: FirebaseFirestore,
-//        private val preferences: SyncPreferences,
-//        private val userRepository: UserRepository
-//    ) : ChildWorkerFactory {
-//        override fun create(
-//            context: Context,
-//            workerParams: WorkerParameters
-//        ): CoroutineWorker {
-//            return GroupSyncWorker(
-//                context,
-//                workerParams,
-//                groupRepository,
-//                memberRepository,
-//                cycleRepository,
-//                meetingRepository,
-//                beneficiaryRepository,
-//                contributionRepository,
-//                savingRepository,
-//                benefitRepository,
-//                expenseRepository,
-//                penaltyRepository,
-//                firestore,
-//                preferences,
-//                userRepository
-//            )
-//        }
-//    }
+            entriesSnapshot.documents.forEach { doc ->
+                withForeignKeyRetry {
+                    doc.toObject(MonthlySavingEntryFire::class.java)?.let { firebaseEntry ->
+                        if (!verifyMonthlySavingEntryReferences(firebaseEntry)) {
+                            SyncLogger.e("Skipping saving entry with missing references: ${firebaseEntry.entryId}")
+                            return@let
+                        }
+
+                        val localEntry = savingRepository.getEntryById(firebaseEntry.entryId)
+                        val firebaseTime = firebaseEntry.lastUpdated.toDate().time
+
+                        if (localEntry == null) {
+                            savingRepository.insertEntry(firebaseEntry.toLocal())
+                        } else if (firebaseTime > localEntry.lastUpdated) {
+                            savingRepository.updateEntry(firebaseEntry.toLocal())
+                        }
+                    }
+                }
+            }
+
+            // Upload local unsynced entries
+            savingRepository.getUnsyncedEntries()
+                .filter { it.groupId == groupId }
+                .forEach { entry ->
+                    firestore.collection("groups/$groupId/monthly_saving_entries")
+                        .document(entry.entryId)
+                        .set(entry.toFirebase()).await()
+                    savingRepository.markEntrySynced(entry)
+                }
+        } catch (e: Exception) {
+            SyncLogger.e("Error syncing saving entries: ${e.message}", e)
+        }
+    }
+
+    private suspend fun verifyMonthlySavingEntryReferences(entry: MonthlySavingEntryFire): Boolean {
+        return savingRepository.getSavingById(entry.savingId) != null &&
+                memberRepository.getMemberById(entry.memberId) != null
+    }
+    private suspend fun <T> withForeignKeyRetry(
+        maxRetries: Int = 3,
+        block: suspend () -> T
+    ): T {
+        var attempt = 0
+        while (true) {
+            try {
+                return block()
+            } catch (e: SQLException) {
+                if (e.message?.contains("FOREIGN KEY") == true && attempt < maxRetries) {
+                    attempt++
+                    SyncLogger.d("Foreign key constraint detected, retrying ($attempt/$maxRetries)")
+                    delay(100L * attempt)
+                } else {
+                    throw e
+                }
+            }
+        }
+    }
 }
-
-

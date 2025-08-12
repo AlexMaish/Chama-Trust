@@ -332,6 +332,16 @@ class SavingsRepositoryImpl @Inject constructor(
     override suspend fun insertSaving(saving: MonthlySaving) = withContext(dispatcher) {
         savingDao.insert(saving)
     }
+    override suspend fun getEntryById(entryId: String): MonthlySavingEntry? {
+        return savingEntryDao.getEntryById(entryId)
+    }
+
+    override suspend fun updateEntry(entry: MonthlySavingEntry) {
+        savingEntryDao.updateEntry(entry)
+    }
+    override suspend fun insertEntry(entry: MonthlySavingEntry) {
+        savingEntryDao.insertSavingEntry(entry)
+    }
 
 
 }

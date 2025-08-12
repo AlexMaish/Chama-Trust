@@ -114,5 +114,10 @@ interface MonthlySavingEntryDao {
     suspend fun getUnsyncedEntries(): List<MonthlySavingEntry>
 
 
+    // ✅ NEW METHODS
+    @Query("SELECT * FROM MonthlySavingEntry WHERE entry_id = :entryId LIMIT 1")
+    suspend fun getEntryById(entryId: String): MonthlySavingEntry?
 
+    @androidx.room.Update
+    suspend fun updateEntry(entry: MonthlySavingEntry)
 }

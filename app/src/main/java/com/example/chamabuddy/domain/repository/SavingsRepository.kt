@@ -69,4 +69,10 @@ interface SavingsRepository {
     suspend fun getSavingById(savingId: String): MonthlySaving?
     suspend fun insertSaving(saving: MonthlySaving)
 
+
+    suspend fun getEntryById(entryId: String): MonthlySavingEntry?
+    suspend fun updateEntry(entry: MonthlySavingEntry)
+
+    suspend fun insertEntry(entry: MonthlySavingEntry)
+
 }

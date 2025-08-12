@@ -15,7 +15,7 @@ fun Beneficiary.toFirebase() = BeneficiaryFire(
     dateAwarded = Timestamp(Date(dateAwarded)),
     cycleId = cycleId,
     groupId = groupId,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // BenefitEntity Conversions
@@ -26,7 +26,7 @@ fun BenefitEntity.toFirebase() = BenefitEntityFire(
     description = description,
     amount = amount,
     date = Timestamp(Date(date)),
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // Cycle Conversions
@@ -42,7 +42,7 @@ fun Cycle.toFirebase() = CycleFire(
     groupId = groupId,
     beneficiariesPerMeeting = beneficiariesPerMeeting,
     cycleNumber = cycleNumber,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // ExpenseEntity Conversions
@@ -53,7 +53,7 @@ fun ExpenseEntity.toFirebase() = ExpenseEntityFire(
     description = description,
     amount = amount,
     date = Timestamp(Date(date)),
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // GroupMember Conversions
@@ -62,7 +62,7 @@ fun GroupMember.toFirebase() = GroupMemberFire(
     userId = userId,
     isAdmin = isAdmin,
     joinedAt = Timestamp(Date(joinedAt)),
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // MemberContribution Conversions
@@ -74,7 +74,7 @@ fun MemberContribution.toFirebase() = MemberContributionFire(
     contributionDate = Timestamp(Date(contributionDate)),
     isLate = isLate,
     groupId = groupId,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // Member Conversions
@@ -90,7 +90,7 @@ fun Member.toFirebase() = MemberFire(
     userId = userId,
     groupId = groupId,
     isOwner = isOwner,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // MonthlySavingEntry Conversions
@@ -104,7 +104,7 @@ fun MonthlySavingEntry.toFirebase() = MonthlySavingEntryFire(
     groupId = groupId,
     isPlaceholder = isPlaceholder,
     monthYear = monthYear,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // MonthlySaving Conversions
@@ -115,7 +115,7 @@ fun MonthlySaving.toFirebase() = MonthlySavingFire(
     targetAmount = targetAmount,
     actualAmount = actualAmount,
     groupId = groupId,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // Penalty Conversions
@@ -126,7 +126,7 @@ fun Penalty.toFirebase() = PenaltyFire(
     description = description,
     amount = amount,
     date = Timestamp(Date(date)),
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // User Conversions
@@ -136,7 +136,7 @@ fun User.toFirebase() = UserFire(
     password = password,
     phoneNumber = phoneNumber,
     createdAt = Timestamp(Date(createdAt)),
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // UserGroup Conversions
@@ -156,7 +156,7 @@ fun WeeklyMeeting.toFirebase() = WeeklyMeetingFire(
     totalCollected = totalCollected,
     recordedBy = recordedBy,
     groupId = groupId,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // Group Conversions
@@ -167,7 +167,7 @@ fun Group.toFirebase() = GroupFire(
     adminName = adminName,
     createdAt = Timestamp(Date(createdAt)),
     totalSavings = totalSavings,
-    lastUpdated = Timestamp.now()
+    lastUpdated = Timestamp(Date(lastUpdated))
 )
 
 // Map to Firebase Conversions with null safety
@@ -253,15 +253,15 @@ fun Map<String, Any>.toMemberFire(): MemberFire {
     return MemberFire(
         memberId = this["memberId"] as? String ?: "",
         name = this["name"] as? String ?: "",
-        nickname = this["nickname"] as? String ?: "",
+        nickname = this["nickname"] as? String?,
         phoneNumber = this["phoneNumber"] as? String ?: "",
-        profilePicture = this["profilePicture"] as? String ?: "",
-        isAdmin = this["isAdmin"] as? Boolean ?: false,
-        isActive = this["isActive"] as? Boolean ?: true,
+        profilePicture = this["profilePicture"] as? String?,
+        isAdmin = this["admin"] as? Boolean ?: false,  // Match Firestore field name
+        isActive = this["active"] as? Boolean ?: true, // Match Firestore field name
         joinDate = this["joinDate"] as? Timestamp ?: Timestamp.now(),
-        userId = this["userId"] as? String ?: "",
+        userId = this["userId"] as? String?,
         groupId = this["groupId"] as? String ?: "",
-        isOwner = this["isOwner"] as? Boolean ?: false,
+        isOwner = this["owner"] as? Boolean ?: false,  // Match Firestore field name
         lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
     )
 }
