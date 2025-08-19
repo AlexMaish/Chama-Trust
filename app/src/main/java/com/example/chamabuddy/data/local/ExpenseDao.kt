@@ -14,7 +14,10 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE groupId = :groupId ORDER BY date DESC")
     fun getExpenses(groupId: String): kotlinx.coroutines.flow.Flow<List<ExpenseEntity>>
 
-    @Query("SELECT SUM(amount) FROM expenses WHERE groupId = :groupId")
+//    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE groupId = :groupId")
+//    fun getTotal(groupId: String): Flow<Double>
+
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE groupId = :groupId")
     fun getTotal(groupId: String): kotlinx.coroutines.flow.Flow<Double>
 
     @Query("UPDATE expenses SET is_synced = 1 WHERE expenseId = :expenseId")

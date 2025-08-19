@@ -12,7 +12,10 @@ class PenaltyRepositoryImpl(
 
     override suspend fun addPenalty(penalty: Penalty) {
         val newId = UUID.randomUUID().toString()
-        val updatedPenalty = penalty.copy(penaltyId = newId, isSynced = false)
+        val updatedPenalty = penalty.copy(
+            penaltyId = newId,
+            isSynced = false
+        )
         penaltyDao.insert(updatedPenalty)
     }
 

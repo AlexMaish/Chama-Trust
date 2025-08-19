@@ -53,6 +53,11 @@ object AppModule {
     @Provides fun provideExpenseDao(db: AppDatabase): ExpenseDao = db.expenseDao()
     @Provides fun provideBenefitDao(db: AppDatabase): BenefitDao = db.benefitDao()
 
+    @Provides fun provideWelfareDao(db: AppDatabase): WelfareDao = db.welfareDao()
+    @Provides fun provideWelfareMeetingDao(db: AppDatabase): WelfareMeetingDao = db.welfareMeetingDao()
+    @Provides fun provideWelfareContributionDao(db: AppDatabase): WelfareContributionDao = db.welfareContributionDao()
+    @Provides fun provideWelfareBeneficiaryDao(db: AppDatabase): WelfareBeneficiaryDao = db.welfareBeneficiaryDao()
+
     // --- Dispatchers ---
     @Provides
     fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
@@ -228,6 +233,23 @@ object AppModule {
     @Singleton
     fun provideExpenseRepository(expenseDao: ExpenseDao): ExpenseRepository =
         ExpenseRepositoryImpl(expenseDao)
+
+    @Provides
+    @Singleton
+    fun provideWelfareRepository(
+        welfareDao: WelfareDao,
+        welfareMeetingDao: WelfareMeetingDao,
+        welfareContributionDao: WelfareContributionDao,
+        welfareBeneficiaryDao: WelfareBeneficiaryDao,
+        memberRepository: MemberRepository
+    ): WelfareRepository = WelfareRepositoryImpl(
+        welfareDao,
+        welfareMeetingDao,
+        welfareContributionDao,
+        welfareBeneficiaryDao,
+        memberRepository
+    )
+
 
     @Provides
     @Singleton

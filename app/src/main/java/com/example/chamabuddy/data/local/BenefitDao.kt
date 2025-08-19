@@ -15,8 +15,13 @@ interface BenefitDao {
     @Query("SELECT * FROM benefits WHERE groupId = :groupId ORDER BY date DESC")
     fun getBenefits(groupId: String): kotlinx.coroutines.flow.Flow<List<BenefitEntity>>
 
-    @Query("SELECT SUM(amount) FROM benefits WHERE groupId = :groupId")
+
+//    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM benefits WHERE groupId = :groupId")
+//    fun getTotal(groupId: String): Flow<Double>
+
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM benefits WHERE groupId = :groupId")
     fun getTotal(groupId: String): kotlinx.coroutines.flow.Flow<Double>
+
 
     @Query("UPDATE benefits SET is_synced = 1 WHERE benefitId = :benefitId")
     suspend fun markAsSynced(benefitId: String)

@@ -18,6 +18,55 @@ fun Beneficiary.toFirebase() = BeneficiaryFire(
     lastUpdated = Timestamp(Date(lastUpdated))
 )
 
+// Welfare Conversions
+fun Welfare.toFirebase() = WelfareFire(
+    welfareId = welfareId,
+    groupId = groupId,
+    name = name,
+    amount = amount,
+    createdBy = createdBy,
+    createdAt = Timestamp(Date(createdAt)),
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isSynced = isSynced
+)
+
+// WelfareBeneficiary Conversions
+fun WelfareBeneficiary.toFirebase() = WelfareBeneficiaryFire(
+    beneficiaryId = beneficiaryId,
+    meetingId = meetingId,
+    memberId = memberId,
+    amountReceived = amountReceived,
+    dateAwarded = dateAwarded,
+    groupId = groupId
+)
+
+// WelfareMeeting Conversions
+fun WelfareMeeting.toFirebase() = WelfareMeetingFire(
+    meetingId = meetingId,
+    welfareId = welfareId,
+    meetingDate = meetingDate,
+    welfareAmount = welfareAmount,
+    totalCollected = totalCollected,
+    recordedBy = recordedBy,
+    groupId = groupId,
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isSynced = isSynced,
+    beneficiaryNames = beneficiaryNames,
+    contributorSummaries = contributorSummaries
+)
+
+
+// MemberWelfareContribution Conversions
+fun MemberWelfareContribution.toFirebase() = MemberWelfareContributionFire(
+    contributionId = contributionId,
+    meetingId = meetingId,
+    memberId = memberId,
+    amountContributed = amountContributed,
+    contributionDate = contributionDate,
+    isLate = isLate,
+    groupId = groupId
+)
+
 // BenefitEntity Conversions
 fun BenefitEntity.toFirebase() = BenefitEntityFire(
     id = benefitId,
@@ -122,6 +171,7 @@ fun MonthlySaving.toFirebase() = MonthlySavingFire(
 fun Penalty.toFirebase() = PenaltyFire(
     id = penaltyId,
     groupId = groupId,
+    memberId = memberId,
     memberName = memberName,
     description = description,
     amount = amount,
@@ -296,6 +346,7 @@ fun Map<String, Any>.toMonthlySavingFire(): MonthlySavingFire {
 fun Map<String, Any>.toPenaltyFire(): PenaltyFire {
     return PenaltyFire(
         id = this["id"] as? String ?: "",
+        memberId = this["memberId"] as? String ?: "",
         groupId = this["groupId"] as? String ?: "",
         memberName = this["memberName"] as? String ?: "",
         description = this["description"] as? String ?: "",
@@ -347,5 +398,60 @@ fun Map<String, Any>.toGroupFire(): GroupFire {
         createdAt = this["createdAt"] as? Timestamp ?: Timestamp.now(),
         totalSavings = (this["totalSavings"] as? Number)?.toDouble() ?: 0.0,
         lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+    )
+}
+fun Map<String, Any>.toWelfareFire(): WelfareFire {
+    return WelfareFire(
+        welfareId = this["welfareId"] as? String ?: "",
+        groupId = this["groupId"] as? String ?: "",
+        name = this["name"] as? String ?: "",
+        amount = (this["amount"] as? Number)?.toInt() ?: 0,
+        createdBy = this["createdBy"] as? String ?: "",
+        // return Timestamp (not Long)
+        createdAt = this["createdAt"] as? Timestamp ?: Timestamp.now(),
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isSynced = this["isSynced"] as? Boolean ?: false
+    )
+}
+
+fun Map<String, Any>.toWelfareBeneficiaryFire(): WelfareBeneficiaryFire {
+    return WelfareBeneficiaryFire(
+        beneficiaryId = this["beneficiaryId"] as? String ?: "",
+        meetingId = this["meetingId"] as? String ?: "",
+        memberId = this["memberId"] as? String ?: "",
+        amountReceived = (this["amountReceived"] as? Number)?.toInt() ?: 0,
+        dateAwarded = (this["dateAwarded"] as? Timestamp ?: Timestamp.now()).toDate().time,
+        groupId = this["groupId"] as? String ?: ""
+    )
+}
+
+fun Map<String, Any>.toWelfareMeetingFire(): WelfareMeetingFire {
+    return WelfareMeetingFire(
+        meetingId = this["meetingId"] as? String ?: "",
+        welfareId = this["welfareId"] as? String ?: "",
+        // meetingDate in your WelfareMeetingFire data class is Long — keep as Long
+        meetingDate = (this["meetingDate"] as? Number)?.toLong()
+            ?: (this["meetingDate"] as? Timestamp)?.toDate()?.time
+            ?: Timestamp.now().toDate().time,
+        welfareAmount = (this["welfareAmount"] as? Number)?.toInt() ?: 0,
+        totalCollected = (this["totalCollected"] as? Number)?.toInt() ?: 0,
+        recordedBy = this["recordedBy"] as? String,
+        groupId = this["groupId"] as? String ?: "",
+        // lastUpdated expects Timestamp in your data class
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isSynced = this["isSynced"] as? Boolean ?: false,
+        beneficiaryNames = this["beneficiaryNames"] as? List<String> ?: emptyList(),
+        contributorSummaries = this["contributorSummaries"] as? List<String> ?: emptyList()
+    )
+}
+fun Map<String, Any>.toMemberWelfareContributionFire(): MemberWelfareContributionFire {
+    return MemberWelfareContributionFire(
+        contributionId = this["contributionId"] as? String ?: "",
+        meetingId = this["meetingId"] as? String ?: "",
+        memberId = this["memberId"] as? String ?: "",
+        amountContributed = (this["amountContributed"] as? Number)?.toInt() ?: 0,
+        contributionDate = (this["contributionDate"] as? Timestamp ?: Timestamp.now()).toDate().time,
+        isLate = this["isLate"] as? Boolean ?: false,
+        groupId = this["groupId"] as? String ?: ""
     )
 }

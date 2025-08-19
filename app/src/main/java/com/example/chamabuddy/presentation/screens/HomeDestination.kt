@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically // Fixed: Added missing import
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -28,8 +29,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
@@ -74,6 +78,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -97,6 +102,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -108,6 +114,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.chamabuddy.R
 import com.example.chamabuddy.domain.model.Cycle
 import com.example.chamabuddy.domain.model.Group
+import com.example.chamabuddy.domain.model.Welfare
 import com.example.chamabuddy.presentation.navigation.BeneficiaryGroupDestination
 import com.example.chamabuddy.presentation.navigation.BenefitDestination
 import com.example.chamabuddy.presentation.navigation.ExpenseDestination
@@ -118,6 +125,7 @@ import com.example.chamabuddy.presentation.navigation.NavigationDestination
 import com.example.chamabuddy.presentation.navigation.PenaltyDestination
 import com.example.chamabuddy.presentation.navigation.ProfileDestination
 import com.example.chamabuddy.presentation.navigation.SavingsDestination
+import com.example.chamabuddy.presentation.navigation.WelfareDestination
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.BenefitViewModel
 import com.example.chamabuddy.presentation.viewmodel.CycleEvent
@@ -127,6 +135,7 @@ import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
 import com.example.chamabuddy.presentation.viewmodel.PenaltyViewModel
 import com.example.chamabuddy.presentation.viewmodel.SyncViewModel
+import com.example.chamabuddy.presentation.viewmodel.WelfareViewModel
 import com.example.chamabuddy.workers.SyncWorker
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -183,18 +192,24 @@ fun HomeScreen(
     val benefitViewModel: BenefitViewModel = hiltViewModel()
     val penaltyViewModel: PenaltyViewModel = hiltViewModel()
 
+    val welfareViewModel: WelfareViewModel = hiltViewModel()
+    val welfares by welfareViewModel.welfares.collectAsState()
 
+    var showCreateWelfareDialog by remember { mutableStateOf(false) }
 
+    var welfareName by remember { mutableStateOf("") }
+    var welfareAmount by remember { mutableStateOf("") } // Add this line
+    var welfareAmountError by remember { mutableStateOf(false) }
 
     LaunchedEffect(groupId) {
         if (groupId.isNotEmpty()) {
             authViewModel.loadCurrentMemberId(groupId)
+            welfareViewModel.loadWelfares(groupId) // Load welfares when groupId changes
         }
     }
 
     BackHandler {
         navController.navigate(GroupsHomeDestination.route) {
-            // Clear back stack up to Groups Home
             popUpTo(GroupsHomeDestination.route) { inclusive = true }
         }
     }
@@ -208,23 +223,23 @@ fun HomeScreen(
         }
     }
 
-
     LaunchedEffect(groupId) {
         if (groupId.isNotEmpty()) {
             expenseViewModel.loadData(groupId)
             benefitViewModel.loadData(groupId)
             penaltyViewModel.loadData(groupId)
+            welfareViewModel.loadWelfares(groupId) // Ensure welfares are loaded
         }
     }
+
     val expenseTotal by expenseViewModel.total.collectAsState()
     val benefitTotal by benefitViewModel.total.collectAsState()
     val penaltyTotal by penaltyViewModel.total.collectAsState()
 
-
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.get<Boolean>("cycle_created")?.let { created ->
             if (created) {
-                refreshTrigger++ // Force refresh
+                refreshTrigger++
                 savedStateHandle.remove<Boolean>("cycle_created")
             }
         }
@@ -265,19 +280,18 @@ fun HomeScreen(
         }
     }
 
-    // Scroll detection
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .collect { (index, offset) ->
-                bottomBarVisible = when {
-                    index == 0 && offset == 0 -> true
-                    offset > 5 -> false
-                    offset < -5 -> true
-                    else -> bottomBarVisible
-                }
-            }
-    }
+    // Scroll detection for bottom bar visibility
+    val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+    val firstVisibleItemScrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
 
+    LaunchedEffect(firstVisibleItemIndex, firstVisibleItemScrollOffset) {
+        bottomBarVisible = when {
+            firstVisibleItemIndex == 0 && firstVisibleItemScrollOffset == 0 -> true
+            firstVisibleItemScrollOffset > 5 -> false
+            firstVisibleItemScrollOffset < -5 -> true
+            else -> bottomBarVisible
+        }
+    }
 
     val stateValue by viewModel.state.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -289,8 +303,6 @@ fun HomeScreen(
         TabItem(icon = Icons.Default.Group, title = "Members", destination = MembersDestination),
         TabItem(icon = Icons.Default.AccountCircle, title = "Profile", destination = ProfileDestination)
     )
-
-
 
     val syncViewModel: SyncViewModel = hiltViewModel()
     val isOnline by syncViewModel.isOnline.collectAsState()
@@ -318,9 +330,6 @@ fun HomeScreen(
         }
     }
 
-
-
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = true,
@@ -331,9 +340,14 @@ fun HomeScreen(
                     penaltyTotal = penaltyTotal,
                     expenseTotal = expenseTotal,
                     benefitTotal = benefitTotal,
-                    groups = userGroups,
-                    onGroupSelected = { /* Handle group selection */ },
-                    onCreateGroup = { navigateToGroupManagement() },
+                    welfares = welfares,
+                    onWelfareSelected = { welfare ->
+                        scope.launch {
+                            drawerState.close()
+                            navController.navigate("${WelfareDestination.route}/${welfare.welfareId}")
+                        }
+                    },
+                    onCreateWelfare = { showCreateWelfareDialog = true },
                     onClose = { scope.launch { drawerState.close() } },
                     onNavToPenalty = {
                         navController.navigate("${PenaltyDestination.route}/$groupId")
@@ -363,8 +377,7 @@ fun HomeScreen(
                             )
                             Text(
                                 text = "${groupData?.members?.size ?: 0} members",
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
+                                color = Color.White.copy(alpha = 0.8f))
                         }
                     },
                     navigationIcon = {
@@ -454,26 +467,33 @@ fun HomeScreen(
                 }
             },
             bottomBar = {
-                NavigationBar {
-                    bottomBarItems.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title) },
-                            selected = false,
-                            onClick = {
-                                when (item.title) {
-                                    "Beneficiaries" -> navController.navigate("${BeneficiaryGroupDestination.route}/$groupId")
-                                    "Home" -> navController.navigate("${HomeDestination.route}/$groupId")
-                                    "Savings" -> navController.navigate("${SavingsDestination.route}/$groupId")
-                                    "Members" -> navController.navigate("${MembersDestination.route}/$groupId")
-                                    "Profile" -> {
-                                        if (currentMemberId != null) {
-                                            navController.navigate("${ProfileDestination.route}/$groupId/$currentMemberId")
+                AnimatedVisibility(
+                    visible = bottomBarVisible,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    // Fixed: Changed to slideOutVertically and fixed lambda syntax
+                    exit = slideOutVertically(targetOffsetY = { it })
+                ) {
+                    NavigationBar {
+                        bottomBarItems.forEachIndexed { index, item ->
+                            NavigationBarItem(
+                                icon = { Icon(item.icon, contentDescription = item.title) },
+                                label = { Text(item.title) },
+                                selected = false,
+                                onClick = {
+                                    when (item.title) {
+                                        "Beneficiaries" -> navController.navigate("${BeneficiaryGroupDestination.route}/$groupId")
+                                        "Home" -> navController.navigate("${HomeDestination.route}/$groupId")
+                                        "Savings" -> navController.navigate("${SavingsDestination.route}/$groupId")
+                                        "Members" -> navController.navigate("${MembersDestination.route}/$groupId")
+                                        "Profile" -> {
+                                            if (currentMemberId != null) {
+                                                navController.navigate("${ProfileDestination.route}/$groupId/$currentMemberId")
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             },
@@ -516,8 +536,7 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                modifier = Modifier.padding(top = 8.dp)
-                            )
+                                modifier = Modifier.padding(top = 8.dp))
                         }
                     }
                 }
@@ -612,6 +631,60 @@ fun HomeScreen(
         }
     }
 
+// In HomeScreen composable
+    if (showCreateWelfareDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateWelfareDialog = false },
+            title = { Text("Create New Welfare") },
+            text = {
+                Column {
+                    TextField(
+                        value = welfareName,
+                        onValueChange = { welfareName = it },
+                        label = { Text("Welfare Name") }
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    TextField(
+                        value = welfareAmount,
+                        onValueChange = {
+                            welfareAmount = it
+                            welfareAmountError = false
+                        },
+                        label = { Text("Default Amount") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = welfareAmountError,
+                        supportingText = {
+                            if (welfareAmountError) Text("Enter valid amount")
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (welfareName.isNotBlank() && welfareAmount.isNotBlank()) {
+                            val amount = welfareAmount.toIntOrNull()
+                            if (amount != null) {
+                                welfareViewModel.createWelfare(
+                                    groupId,
+                                    welfareName,
+                                    currentUserId ?: "",
+                                    amount
+                                )
+                                showCreateWelfareDialog = false
+                                welfareName = ""
+                                welfareAmount = ""
+                            } else {
+                                welfareAmountError = true
+                            }
+                        }
+                    }
+                ) {
+                    Text("Create")
+                }
+            }
+        )
+    }
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
@@ -660,7 +733,6 @@ fun PremiumCycleCard(
             .combinedClickable(
                 onClick = { expanded = !expanded },
                 onLongClick = {
-                    // FIX: Only show delete dialog if admin and callback provided
                     if (isAdmin && onDeleteCycle != null) {
                         showDeleteDialog = true
                     }
@@ -936,18 +1008,23 @@ fun SideNavigationDrawerContent(
     onNavToPenalty: () -> Unit,
     onNavToBenefit: () -> Unit,
     onNavToExpense: () -> Unit,
-    groups: List<Group>,
-    onGroupSelected: (Group) -> Unit,
-    onCreateGroup: () -> Unit,
+    welfares: List<Welfare>,
+    onWelfareSelected: (Welfare) -> Unit,
+    onCreateWelfare: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var expanded by remember { mutableStateOf(false) }
+    val visibleWelfares = if (expanded) welfares else welfares.take(5)
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(PremiumNavy)
             .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
+        // Logo Section
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -964,14 +1041,33 @@ fun SideNavigationDrawerContent(
             )
         }
 
-        Text(
-            "Your Groups",
-            style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
-            modifier = Modifier.padding(vertical = 16.dp)
-        )
+        // Welfare Groups Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Welfare Groups",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White
+            )
+            IconButton(
+                onClick = onCreateWelfare,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Create Welfare",
+                    tint = Color.White
+                )
+            }
+        }
 
-        if (groups.isEmpty()) {
+        // Welfare List or Empty State
+        if (welfares.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -985,36 +1081,53 @@ fun SideNavigationDrawerContent(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        "You haven't joined any groups yet",
+                        "You haven't joined any welfare groups yet",
                         color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
-                        onClick = onCreateGroup,
+                        onClick = onCreateWelfare,
                         colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
                     ) {
-                        Text("Create or Join a Group")
+                        Text("Create or Join a Welfare")
                     }
                 }
             }
         } else {
-            LazyColumn(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0x44FFFFFF))
                     .padding(8.dp)
             ) {
-                items(groups) { group ->
-                    GroupListItem(group = group, onGroupSelected = onGroupSelected)
+                visibleWelfares.forEach { welfare ->
+                    WelfareListItem(welfare = welfare, onWelfareSelected = onWelfareSelected)
+                }
+
+                if (welfares.size > 5 && !expanded) {
+                    TextButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("See More (${welfares.size - 4})", color = Color.White)
+                    }
+                } else if (expanded) {
+                    TextButton(
+                        onClick = { expanded = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("See Less", color = Color.White)
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
-        DrawerItem(
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Drawer Items
+        NavigationDrawerItem(
             icon = Icons.Default.MoneyOff,
             text = "Penalties   Ksh${"%.2f".format(penaltyTotal)}",
             onClick = {
@@ -1022,8 +1135,7 @@ fun SideNavigationDrawerContent(
                 onClose()
             }
         )
-        Spacer(modifier = Modifier.weight(1f))
-        DrawerItem(
+        NavigationDrawerItem(
             icon = Icons.Default.MonetizationOn,
             text = "Benefits   Ksh${"%.2f".format(benefitTotal)}",
             onClick = {
@@ -1031,8 +1143,7 @@ fun SideNavigationDrawerContent(
                 onClose()
             }
         )
-        Spacer(modifier = Modifier.weight(1f))
-        DrawerItem(
+        NavigationDrawerItem(
             icon = Icons.Default.ShoppingCart,
             text = "Expenses   Ksh${"%.2f".format(expenseTotal)}",
             onClick = {
@@ -1040,11 +1151,12 @@ fun SideNavigationDrawerContent(
                 onClose()
             }
         )
-        Spacer(modifier = Modifier.weight(1f))
+
+        // About Section
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 32.dp)
+                .padding(bottom = 32.dp, top = 24.dp)
         ) {
             Text(
                 "About Us",
@@ -1057,7 +1169,6 @@ fun SideNavigationDrawerContent(
                 text = "0795301955",
                 icon = Icons.Default.Phone
             )
-
             ContactItem(
                 text = "alexdemaish@gmail.com",
                 icon = Icons.Default.Email
@@ -1076,12 +1187,12 @@ fun SideNavigationDrawerContent(
 }
 
 @Composable
-fun GroupListItem(
-    group: Group,
-    onGroupSelected: (Group) -> Unit
+fun WelfareListItem(
+    welfare: Welfare,
+    onWelfareSelected: (Welfare) -> Unit
 ) {
     Card(
-        onClick = { onGroupSelected(group) },
+        onClick = { onWelfareSelected(welfare) },
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
@@ -1101,19 +1212,45 @@ fun GroupListItem(
                     .background(LightAccentBlue),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = group.name.take(1).uppercase(),
-                    color = PremiumNavy,
-                    fontWeight = FontWeight.Bold
-                )
+                Icon(Icons.Default.People, contentDescription = "Welfare", tint = PremiumNavy)
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = group.name,
+                text = welfare.name,
                 color = Color.White,
                 modifier = Modifier.weight(1f)
             )
         }
+    }
+}
+
+// Fixed: Renamed to NavigationDrawerItem to resolve ambiguity
+@Composable
+fun NavigationDrawerItem(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = text,
+            tint = Color.White,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        // Fixed: Added missing text parameter to Text composable
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 16.sp
+        )
     }
 }
 
@@ -1149,34 +1286,6 @@ fun SocialIcon(iconRes: Int, description: String) {
             .clickable { /* Handle social link click */ }
     )
 }
-
-//@Composable
-//fun DrawerItem(
-//    icon: ImageVector,
-//    text: String,
-//    onClick: () -> Unit
-//) {
-//    Row(
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .clickable(onClick = onClick)
-//            .padding(vertical = 12.dp, horizontal = 16.dp),
-//        verticalAlignment = Alignment.CenterVertically
-//    ) {
-//        Icon(
-//            icon,
-//            contentDescription = text,
-//            tint = Color.White,
-//            modifier = Modifier.size(24.dp)
-//        )
-//        Spacer(modifier = Modifier.width(16.dp))
-//        Text(
-//            text = text,
-//            color = Color.White,
-//            fontSize = 16.sp
-//        )
-//    }
-//}
 
 data class TabItem(
     val destination: NavigationDestination,

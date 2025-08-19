@@ -15,8 +15,8 @@ interface PenaltyDao {
     @Query("SELECT * FROM penalties WHERE groupId = :groupId")
     fun getPenaltiesForGroup(groupId: String): kotlinx.coroutines.flow.Flow<List<Penalty>>
 
-    @Query("SELECT SUM(amount) FROM penalties WHERE groupId = :groupId")
-    fun getTotalForGroup(groupId: String): kotlinx.coroutines.flow.Flow<Double>
+    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM penalties WHERE groupId = :groupId")
+    fun getTotalForGroup(groupId: String): Flow<Double>
 
     @Query("UPDATE penalties SET is_synced = 1 WHERE penaltyId = :penaltyId")
     suspend fun markAsSynced(penaltyId: String)

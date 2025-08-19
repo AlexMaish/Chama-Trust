@@ -66,6 +66,18 @@ class FirestoreSyncManager @Inject constructor(
     suspend fun syncPenalties(localFetch: suspend () -> List<Penalty>, updateLocal: suspend (Penalty) -> Unit) =
         syncEntity("penalties", localFetch, Penalty::toFirebase, ::toPenalty, updateLocal, Penalty::penaltyId)
 
+    suspend fun syncMemberWelfareContributions(localFetch: suspend () -> List<MemberWelfareContribution>, updateLocal: suspend (MemberWelfareContribution) -> Unit) =
+        syncEntity("member_welfare_contributions", localFetch, MemberWelfareContribution::toFirebase, ::toMemberWelfareContribution, updateLocal, MemberWelfareContribution::contributionId)
+
+    suspend fun syncWelfareBeneficiaries(localFetch: suspend () -> List<WelfareBeneficiary>, updateLocal: suspend (WelfareBeneficiary) -> Unit) =
+        syncEntity("welfare_beneficiaries", localFetch, WelfareBeneficiary::toFirebase, ::toWelfareBeneficiary, updateLocal, WelfareBeneficiary::beneficiaryId)
+
+    suspend fun syncWelfares(localFetch: suspend () -> List<Welfare>, updateLocal: suspend (Welfare) -> Unit) =
+        syncEntity("welfares", localFetch, Welfare::toFirebase, ::toWelfare, updateLocal, Welfare::welfareId)
+
+    suspend fun syncWelfareMeetings(localFetch: suspend () -> List<WelfareMeeting>, updateLocal: suspend (WelfareMeeting) -> Unit) =
+        syncEntity("welfare_meetings", localFetch, WelfareMeeting::toFirebase, ::toWelfareMeeting, updateLocal, WelfareMeeting::meetingId)
+
     private suspend fun <T> syncEntity(
         collectionName: String,
         localFetch: suspend () -> List<T>,
@@ -139,4 +151,9 @@ class FirestoreSyncManager @Inject constructor(
     private fun toBenefitEntity(data: Map<String, Any>) = data.toBenefitEntityFire().toLocal()
     private fun toExpenseEntity(data: Map<String, Any>) = data.toExpenseEntityFire().toLocal()
     private fun toPenalty(data: Map<String, Any>) = data.toPenaltyFire().toLocal()
+
+    private fun toMemberWelfareContribution(data: Map<String, Any>) = data.toMemberWelfareContributionFire().toLocal()
+    private fun toWelfareBeneficiary(data: Map<String, Any>) = data.toWelfareBeneficiaryFire().toLocal()
+    private fun toWelfare(data: Map<String, Any>) = data.toWelfareFire().toLocal()
+    private fun toWelfareMeeting(data: Map<String, Any>) = data.toWelfareMeetingFire().toLocal()
 }

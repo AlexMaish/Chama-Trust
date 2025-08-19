@@ -140,7 +140,7 @@ fun AddBenefitDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String, Double) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") } // Corrected: use 'name' for benefit name
     var desc by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
 
@@ -174,8 +174,9 @@ fun AddBenefitDialog(
             Button(
                 onClick = {
                     val amt = amount.toDoubleOrNull() ?: 0.0
-                    if (title.isNotBlank() && amt > 0) {
-                        onConfirm(title, desc, amt)
+                    // FIX: Use 'name' instead of 'title'
+                    if (name.isNotBlank() && amt > 0) {
+                        onConfirm(name, desc, amt)
                         onDismiss()
                     }
                 }

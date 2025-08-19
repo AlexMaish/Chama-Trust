@@ -138,3 +138,37 @@ object ContributionDestination : NavigationDestination {
     const val meetingIdArg = "meetingId"
     val routeWithArgs = "$route/{$groupIdArg}/{$meetingIdArg}"
 }
+object WelfareDestination : NavigationDestination {
+    override val route = "welfare"
+    override val title = "Welfare Details"
+    const val welfareIdArg = "welfareId"
+    val routeWithArgs = "$route/{$welfareIdArg}"
+}
+
+object WelfareMeetingDestination : NavigationDestination {
+    override val route = "welfare_meeting"
+    override val title = "Welfare Meeting"
+    const val meetingIdArg = "meetingId"
+    val routeWithArgs = "$route/{$meetingIdArg}"
+}
+
+object WelfareBeneficiarySelectionDestination : NavigationDestination {
+    override val route = "welfare_beneficiary_selection"
+    override val title = "Select Beneficiaries"
+    const val meetingIdArg = "meetingId"
+    val routeWithArgs = "$route/{$meetingIdArg}"
+}
+
+object WelfareContributionDestination : NavigationDestination {
+    override val route = "welfare_contribution"
+    override val title = "Welfare Contribution"
+    const val meetingIdArg = "meetingId"
+    val routeWithArgs = "$route/{$meetingIdArg}"
+}
+
+object CreateWelfareDestination : NavigationDestination {
+    override val route = "create_welfare"
+    override val title = "Create Welfare"
+    const val groupIdArg = "groupId"
+    val routeWithArgs = "$route/{$groupIdArg}"
+}

@@ -54,13 +54,19 @@ fun ProfileScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
     val currentUserPhone = currentUser?.phoneNumber
     val members by savingsViewModel.members.collectAsState()
-    // FIXED: Properly initialize currentMember using memberId
-//    val currentMember = remember(memberId) {
-//        members.values.find { it.memberId == memberId }
-//    }
+
+    val currentUserIsAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
+
+    LaunchedEffect(groupId, currentUser?.userId) {
+        currentUser?.userId?.let { userId ->
+            memberViewModel.loadCurrentUserRole(groupId, userId)
+        }
+    }
 
     val currentMember = members[memberId]  // More efficient than find()
     val isAdmin = currentMember?.isAdmin ?: false
+
+
 
     val currentMemberId by authViewModel.currentMemberId.collectAsState()
     var loadingMemberId by remember { mutableStateOf(false) }
@@ -287,8 +293,8 @@ fun ProfileScreen(
             }
         },
         floatingActionButton = {
-            Log.d("ProfileScreen", "Showing FAB for admin: $isAdmin, activeCycle: ${activeCycle?.cycleId}")
-            if (isAdmin && activeCycle != null)  {
+            Log.d("ProfileScreen", "Showing FAB for admin: $currentUserIsAdmin, activeCycle: ${activeCycle?.cycleId}")
+            if (currentUserIsAdmin && activeCycle != null) {
                 FloatingActionButton(
                     onClick = {
                         amount = activeCycle?.monthlySavingsAmount?.toString() ?: ""
@@ -304,8 +310,7 @@ fun ProfileScreen(
                     )
                 }
             } else {
-//                null
-                Log.d("ProfileScreen", "FAB hidden. Admin: $isAdmin, ActiveCycle: $activeCycle")
+                Log.d("ProfileScreen", "FAB hidden. Admin: $currentUserIsAdmin, ActiveCycle: $activeCycle")
             }
         }
     )
@@ -439,7 +444,7 @@ fun ProfileScreen(
                                 },
                                 isActiveCycle = cycleWithSavings.cycle.cycleId == activeCycle?.cycleId,
                                 determinedMonthDisplay = determinedMonthDisplay,
-                                isAdmin = isAdmin,
+                                currentUserIsAdmin = currentUserIsAdmin,
                                 onDeleteEntry = { entry ->
                                     entryToDelete = entry
                                     showDeleteEntryDialog = true
@@ -465,7 +470,7 @@ fun ProfileScreen(
             }
         }
 
-        if (showAddSavingsDialog && isAdmin) {
+        if (showAddSavingsDialog && currentUserIsAdmin) {
             AddSavingsDialog(
                 amount = amount,
                 onAmountChange = { amount = it },
@@ -484,9 +489,11 @@ fun ProfileScreen(
                         }
                         ?.sumOf { it.amount } ?: 0
                 },
+                // ProfileScreen.kt
                 onSave = { cycleId ->
                     scope.launch {
                         try {
+                            // 🔹 Validation: Ensure cycle exists and belongs to group
                             val cycle = allCycles.find { it.cycleId == cycleId }
                                 ?: throw Exception("Selected cycle not found")
 
@@ -504,6 +511,7 @@ fun ProfileScreen(
                             val amountValue = amount.toIntOrNull() ?: 0
                             val displayMonth = convertToDisplayFormat(targetMonth)
 
+                            // 🔹 Local validation: check remaining amount
                             val currentTotalForMonth = allMemberCycles.find { it.cycle.cycleId == cycleId }?.savingsEntries
                                 ?.filter {
                                     try {
@@ -514,12 +522,12 @@ fun ProfileScreen(
                                 ?.sumOf { it.amount } ?: 0
 
                             val remaining = cycle.monthlySavingsAmount - currentTotalForMonth
-
                             if (amountValue > remaining) {
                                 snackbarHostState.showSnackbar("Amount exceeds remaining target! Max: KES $remaining")
                                 return@launch
                             }
 
+                            // 🔹 Repository call (may throw validation errors like oversaving)
                             savingsViewModel.handleEvent(
                                 SavingsEvent.RecordSavings(
                                     cycleId = cycleId,
@@ -534,7 +542,13 @@ fun ProfileScreen(
                             showAddSavingsDialog = false
                             snackbarHostState.showSnackbar("Savings recorded")
                         } catch (e: Exception) {
-                            snackbarHostState.showSnackbar("Error: ${e.message}")
+                            // 🔹 Handle validation errors from repository (like oversaving)
+                            val errorMessage = when {
+                                e.message?.contains("Cannot save more than monthly target") == true ->
+                                    e.message!!
+                                else -> "Error: ${e.message}"
+                            }
+                            snackbarHostState.showSnackbar(errorMessage)
                         }
                     }
                 },
@@ -765,7 +779,7 @@ fun MonthlySavingsCard(
     recorderNames: Map<String, String>,
     isFuture: Boolean,
     isComplete: Boolean,
-    isAdmin: Boolean,
+    currentUserIsAdmin: Boolean,
     onDeleteEntry: (MonthlySavingEntry) -> Unit,
     onDeleteMonth: () -> Unit,
     modifier: Modifier = Modifier
@@ -782,10 +796,10 @@ fun MonthlySavingsCard(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = {
-                        if (isAdmin && isCurrentMonth && !isComplete) onClick()
+                        if (currentUserIsAdmin && isCurrentMonth && !isComplete) onClick()
                     },
                     onLongPress = {
-                        if (isAdmin) {
+                        if (currentUserIsAdmin) {
                             isLongPressed = true
                             onDeleteMonth()
                         }
@@ -840,10 +854,10 @@ fun MonthlySavingsCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
-                            .then(if (isAdmin) Modifier.clickable { onDeleteEntry(entry) } else Modifier),
+                            .then(if (currentUserIsAdmin) Modifier.clickable { onDeleteEntry(entry) } else Modifier),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (isAdmin) {
+                        if (currentUserIsAdmin) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Delete entry",
@@ -889,13 +903,19 @@ fun MonthlySavingsCard(
             if (!isComplete) {
                 Button(
                     onClick = onClick,
-                    enabled = !isFuture,
-                    colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange),
+                    enabled = !isFuture && remaining > 0, // Disable when no remaining
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (remaining > 0) VibrantOrange else Color.Gray
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
                 ) {
-                    Text("Add Savings (KES $remaining left)", color = Color.White)
+                    Text(
+                        if (remaining > 0) "Add Savings (KES $remaining left)"
+                        else "Target Reached",
+                        color = Color.White
+                    )
                 }
             }
         }
@@ -912,7 +932,7 @@ fun CycleSection(
     onAddSavings: (String, Int) -> Unit,
     isActiveCycle: Boolean,
     determinedMonthDisplay: String,
-    isAdmin: Boolean,
+    currentUserIsAdmin: Boolean,
     onDeleteEntry: (MonthlySavingEntry) -> Unit,
     onDeleteMonth: (cycleId: String, monthKey: String) -> Unit
 ) {
@@ -1019,7 +1039,7 @@ fun CycleSection(
                             recorderNames = recorderNames,
                             isFuture = isFuture,
                             isComplete = isComplete,
-                            isAdmin = isAdmin,
+                            currentUserIsAdmin = currentUserIsAdmin,
                             onDeleteEntry = onDeleteEntry,
                             onDeleteMonth = { onDeleteMonth(cycle.cycleId, month) },
                             modifier = Modifier.padding(8.dp)

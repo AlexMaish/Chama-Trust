@@ -101,7 +101,21 @@ interface MonthlySavingEntryDao {
     """)
     suspend fun getMemberSavingsTotalInGroup(groupId: String, memberId: String): Int
 
-
+    @Query("""
+    SELECT COALESCE(SUM(amount), 0) 
+    FROM MonthlySavingEntry 
+    WHERE saving_id IN (
+        SELECT saving_id 
+        FROM MonthlySaving 
+        WHERE cycle_id = :cycleId AND month_year = :monthYear
+    )
+    AND member_id = :memberId
+""")
+    suspend fun getCurrentTotalForMemberMonth(
+        cycleId: String,
+        monthYear: String,
+        memberId: String
+    ): Int
 
     @Query("DELETE FROM MonthlySavingEntry WHERE entry_id = :entryId")
     suspend fun deleteEntry(entryId: String)

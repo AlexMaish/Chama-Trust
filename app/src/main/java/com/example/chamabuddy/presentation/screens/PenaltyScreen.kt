@@ -14,9 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.model.Penalty
 import com.example.chamabuddy.presentation.viewmodel.PenaltyViewModel
 import java.text.SimpleDateFormat
@@ -29,6 +30,8 @@ fun PenaltyScreen(groupId: String) {
     val penalties by viewModel.penalties.collectAsState()
     val total by viewModel.total.collectAsState()
     val showDialog by viewModel.showDialog.collectAsState()
+    val members by viewModel.members.collectAsState()
+    val filteredMembers by viewModel.filteredMembers.collectAsState()
 
     LaunchedEffect(groupId) {
         viewModel.loadData(groupId)
@@ -65,11 +68,15 @@ fun PenaltyScreen(groupId: String) {
 
         if (showDialog) {
             AddPenaltyDialog(
+                members = members,
+                filteredMembers = filteredMembers,
+                onFilter = { viewModel.filterMembers(it) },
                 onDismiss = { viewModel.hideAddDialog() },
-                onConfirm = { name, desc, amount ->
+                onConfirm = { memberId, name, desc, amount ->
                     viewModel.addPenalty(
                         Penalty(
                             groupId = groupId,
+                            memberId = memberId,
                             memberName = name,
                             description = desc,
                             amount = amount,
@@ -130,24 +137,53 @@ fun ExpandablePenaltyItem(penalty: Penalty) {
 
 @Composable
 fun AddPenaltyDialog(
+    members: List<Member>,
+    filteredMembers: List<Member>,
+    onFilter: (String) -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, Double) -> Unit
+    onConfirm: (String, String, String, Double) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
+    var selectedMemberId by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+    var showDropdown by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Penalty") },
         text = {
             Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Member Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Member search field with dropdown
+                Box {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = {
+                            name = it
+                            onFilter(it)
+                            showDropdown = it.isNotBlank()
+                        },
+                        label = { Text("Member Name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    DropdownMenu(
+                        expanded = showDropdown && filteredMembers.isNotEmpty(),
+                        onDismissRequest = { showDropdown = false }
+                    ) {
+                        filteredMembers.forEach { member ->
+                            DropdownMenuItem(
+                                text = { Text(member.name) },
+                                onClick = {
+                                    name = member.name
+                                    selectedMemberId = member.memberId
+                                    showDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = desc,
                     onValueChange = { desc = it },
@@ -167,8 +203,8 @@ fun AddPenaltyDialog(
             Button(
                 onClick = {
                     val amt = amount.toDoubleOrNull() ?: 0.0
-                    if (name.isNotBlank() && amt > 0) {
-                        onConfirm(name, desc, amt)
+                    if (selectedMemberId.isNotBlank() && amt > 0) {
+                        onConfirm(selectedMemberId, name, desc, amt)
                         onDismiss()
                     }
                 }

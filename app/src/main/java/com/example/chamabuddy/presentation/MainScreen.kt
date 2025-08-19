@@ -58,6 +58,9 @@ import com.example.chamabuddy.presentation.screens.ExpenseScreen
 import com.example.chamabuddy.presentation.screens.GroupsHomeScreen
 import com.example.chamabuddy.presentation.screens.PenaltyScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen
+import com.example.chamabuddy.presentation.screens.WelfareBeneficiarySelectionScreen
+import com.example.chamabuddy.presentation.screens.WelfareContributionScreen
+import com.example.chamabuddy.presentation.screens.WelfareDetailScreen
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.MeetingViewModel
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
@@ -476,6 +479,66 @@ fun MainNavHost(
         }
 
 
+
+        // Add these composables to your NavHost
+        composable(WelfareDestination.routeWithArgs) { backStackEntry ->
+            val welfareId = backStackEntry.arguments?.getString(WelfareDestination.welfareIdArg) ?: ""
+            WelfareDetailScreen(
+                welfareId = welfareId,
+                navController = navController,
+                groupId = currentGroupId,
+                navigateToMeetingDetail = { meetingId ->
+                    navController.navigate("${WelfareMeetingDestination.route}/$meetingId")
+                },
+                navigateToContribution = { meetingId ->
+                    navController.navigate("${WelfareContributionDestination.route}/$meetingId")
+                },
+                navigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = WelfareContributionDestination.routeWithArgs,
+            arguments = listOf(navArgument(WelfareContributionDestination.meetingIdArg) {
+                type = NavType.StringType
+            }
+            )) { backStackEntry ->
+                val meetingId = backStackEntry.arguments?.getString(WelfareContributionDestination.meetingIdArg) ?: ""
+                WelfareContributionScreen(
+                    meetingId = meetingId,
+                    navigateToBeneficiarySelection = {
+                        navController.navigate("${WelfareBeneficiarySelectionDestination.route}/$meetingId")
+                    },
+                    navController = navController
+                )
+            }
+
+        composable(WelfareBeneficiarySelectionDestination.routeWithArgs) { entry ->
+            val meetingId = entry.arguments?.getString(WelfareBeneficiarySelectionDestination.meetingIdArg)!!
+            WelfareBeneficiarySelectionScreen(
+                meetingId = meetingId,
+                navigateBack = { navController.popBackStack() },
+                navController = navController
+            )
+        }
+
+
+        composable(
+            route = WelfareBeneficiarySelectionDestination.routeWithArgs,
+            arguments = listOf(navArgument(WelfareBeneficiarySelectionDestination.meetingIdArg) { type = NavType.StringType }
+            )){ entry ->
+                val meetingId = entry.arguments?.getString(WelfareBeneficiarySelectionDestination.meetingIdArg)!!
+                WelfareBeneficiarySelectionScreen(
+                    meetingId = meetingId,
+                    navigateBack = { navController.popBackStack() },
+                    navController = navController
+                )
+            }
+
     }
+
+
+
+
 
 }

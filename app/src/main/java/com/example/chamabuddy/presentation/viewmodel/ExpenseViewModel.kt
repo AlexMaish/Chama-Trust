@@ -28,9 +28,12 @@ class ExpenseViewModel @Inject constructor(
     fun loadData(groupId: String) {
         viewModelScope.launch {
             repository.getExpenses(groupId).collect { _expenses.value = it }
+        }
+        viewModelScope.launch {
             repository.getTotal(groupId).collect { _total.value = it }
         }
     }
+
 
     fun showAddDialog() { _showDialog.value = true }
     fun hideAddDialog() { _showDialog.value = false }

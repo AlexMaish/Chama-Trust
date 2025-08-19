@@ -28,6 +28,13 @@ import com.example.chamabuddy.domain.model.Penalty
 import com.example.chamabuddy.domain.model.User
 import com.example.chamabuddy.domain.model.UserGroup
 import com.example.chamabuddy.domain.model.WeeklyMeeting
+
+import com.example.chamabuddy.domain.Firebase.MemberWelfareContributionFire
+import com.example.chamabuddy.domain.Firebase.WelfareBeneficiaryFire
+import com.example.chamabuddy.domain.Firebase.WelfareFire
+import com.example.chamabuddy.domain.Firebase.WelfareMeetingFire
+import com.google.firebase.Timestamp
+
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -155,6 +162,7 @@ fun PenaltyFire.toLocal() = Penalty(
     memberName = memberName,
     description = description,
     amount = amount,
+    memberId = memberId,
     date = date.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
     isSynced = true
@@ -199,4 +207,56 @@ fun GroupFire.toLocal() = Group(
     totalSavings = totalSavings,
     lastUpdated = lastUpdated.toDate().time,
     isSynced = true
+)
+// MemberWelfareContributionFire -> MemberWelfareContribution
+fun MemberWelfareContributionFire.toLocal() = com.example.chamabuddy.domain.model.MemberWelfareContribution(
+    contributionId = contributionId,
+    meetingId = meetingId,
+    memberId = memberId,
+    amountContributed = amountContributed,
+    // contributionDate is Long in the Fire DTO, domain expects Long -> use directly
+    contributionDate = contributionDate,
+    isLate = isLate,
+    groupId = groupId
+)
+
+// WelfareBeneficiaryFire -> WelfareBeneficiary
+fun WelfareBeneficiaryFire.toLocal() = com.example.chamabuddy.domain.model.WelfareBeneficiary(
+    beneficiaryId = beneficiaryId,
+    meetingId = meetingId,
+    memberId = memberId,
+    amountReceived = amountReceived,
+    // dateAwarded is Long in the Fire DTO -> use directly
+    dateAwarded = dateAwarded,
+    groupId = groupId
+)
+
+// WelfareFire -> Welfare
+fun WelfareFire.toLocal() = com.example.chamabuddy.domain.model.Welfare(
+    welfareId = welfareId,
+    groupId = groupId,
+    name = name,
+    amount = amount,
+    createdBy = createdBy,
+    // createdAt and lastUpdated are Timestamp in WelfareFire -> convert to epoch millis
+    createdAt = createdAt.toDate().time,
+    lastUpdated = lastUpdated.toDate().time,
+    isSynced = true
+)
+
+// WelfareMeetingFire -> WelfareMeeting
+fun WelfareMeetingFire.toLocal() = com.example.chamabuddy.domain.model.WelfareMeeting(
+    meetingId = meetingId,
+    welfareId = welfareId,
+    // meetingDate is Long in the Fire DTO -> use directly
+    meetingDate = meetingDate,
+    welfareAmount = welfareAmount,
+    totalCollected = totalCollected,
+    recordedBy = recordedBy,
+    groupId = groupId,
+    // lastUpdated is Timestamp in WelfareMeetingFire -> convert to epoch millis
+    lastUpdated = lastUpdated.toDate().time,
+    isSynced = true,
+    beneficiaryNames = beneficiaryNames,
+    contributorSummaries = contributorSummaries
 )

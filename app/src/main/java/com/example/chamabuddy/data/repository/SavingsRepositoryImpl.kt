@@ -28,6 +28,7 @@ class SavingsRepositoryImpl @Inject constructor(
     private val dispatcher: CoroutineDispatcher
 ) : SavingsRepository {
 
+    // SavingsRepositoryImpl.kt
     override suspend fun recordMonthlySavings(
         cycleId: String,
         monthYear: String,
@@ -66,6 +67,18 @@ class SavingsRepositoryImpl @Inject constructor(
                 savingDao.insert(saving)
             }
 
+            // 🔹 NEW VALIDATION: Prevent over-saving for the member
+            val currentTotal = savingEntryDao.getCurrentTotalForMemberMonth(
+                cycleId, monthYear, memberId
+            )
+            if (currentTotal + amount > saving.targetAmount) {
+                val remaining = saving.targetAmount - currentTotal
+                throw IllegalArgumentException(
+                    "Cannot save more than monthly target. " +
+                            "Remaining: $remaining, Attempted: $amount"
+                )
+            }
+
             // 4. Create and insert new saving entry
             val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
             val targetDate = monthFormat.parse(monthYear)
@@ -80,10 +93,10 @@ class SavingsRepositoryImpl @Inject constructor(
                     savingId = saving.savingId,
                     memberId = memberId,
                     amount = amount,
-                    entryDate = System.currentTimeMillis(), // Current timestamp
+                    entryDate = System.currentTimeMillis(),
                     recordedBy = recordedBy,
                     groupId = groupId,
-                    monthYear = monthYear ,
+                    monthYear = monthYear,
                     isSynced = false
                 )
             )
@@ -94,8 +107,7 @@ class SavingsRepositoryImpl @Inject constructor(
             savingDao.update(saving.copy(actualAmount = total))
 
             // 6. Optionally auto-create next month if target met
-            val currentTotal = total
-            if (currentTotal >= saving.targetAmount) {
+            if (total >= saving.targetAmount) {
                 val nextMonth = calculateNextMonth(monthYear)
                 createMissingMonthlyEntries(cycleId, nextMonth, saving.targetAmount, groupId)
             }
@@ -105,6 +117,7 @@ class SavingsRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
 
 
     override suspend fun getTotalSavings(): Int = withContext(dispatcher) {

@@ -10,6 +10,7 @@ data class Penalty(
     val penaltyId: String = "",
     val groupId: String,
     val memberName: String,
+    val memberId: String,
     val description: String,
     val amount: Double,
     val date: Long = System.currentTimeMillis(),

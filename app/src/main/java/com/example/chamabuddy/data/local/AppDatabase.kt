@@ -27,9 +27,14 @@ import java.util.Date
         GroupMember::class,
         Penalty::class,
         ExpenseEntity::class,
-        BenefitEntity::class
+        BenefitEntity::class,
+
+        Welfare::class,
+        WelfareMeeting::class,
+        WelfareBeneficiary::class,
+        MemberWelfareContribution::class
     ],
-    version = 30,
+    version = 37,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -49,6 +54,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun penaltyDao(): PenaltyDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun benefitDao(): BenefitDao
+
+    abstract fun welfareDao(): WelfareDao
+    abstract fun welfareMeetingDao(): WelfareMeetingDao
+    abstract fun welfareContributionDao(): WelfareContributionDao
+    abstract fun welfareBeneficiaryDao(): WelfareBeneficiaryDao
 
     suspend fun <T> runInTransaction(block: suspend () -> T): T {
         return withContext(Dispatchers.IO) {
@@ -89,4 +99,22 @@ class Converters {
 
     @TypeConverter
     fun dateToTimestamp(date: Date?): Long? = date?.time
+
+
+
+
+
+    @TypeConverter
+    fun fromStringList(value: List<String>?): String? {
+        return value?.joinToString(",")
+    }
+
+    @TypeConverter
+    fun toStringList(value: String?): List<String>? {
+        return value?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+
+
+    }
+
+
 }
