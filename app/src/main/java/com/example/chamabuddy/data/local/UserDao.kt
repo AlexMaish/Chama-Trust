@@ -4,15 +4,27 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
+import androidx.room.Transaction
 import com.example.chamabuddy.domain.model.User
 
 @Dao
 interface UserDao {
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: User)
 
-    @androidx.room.Update(onConflict = OnConflictStrategy.REPLACE)
+    @Update
     suspend fun updateUser(user: User)
+
+    // Add this new method for upsert operation
+    @Transaction
+    suspend fun upsertUser(user: User) {
+        if (getUserById(user.userId) != null) {
+            updateUser(user)
+        } else {
+            insertUser(user)
+        }
+    }
 
     @Query("SELECT * FROM users WHERE username = :username")
     suspend fun getUserByUsername(username: String): User?
@@ -31,4 +43,18 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE is_synced = 0")
     suspend fun getUnsyncedUsers(): List<User>
+
+
+    // 🔹 Soft delete
+    @Query("UPDATE users SET is_deleted = 1, deleted_at = :timestamp WHERE user_id = :userId")
+    suspend fun markAsDeleted(userId: String, timestamp: Long)
+
+    // 🔹 Get all soft-deleted users
+    @Query("SELECT * FROM users WHERE is_deleted = 1")
+    suspend fun getDeletedUsers(): List<User>
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM users WHERE user_id = :userId")
+    suspend fun permanentDelete(userId: String)
+
 }

@@ -173,4 +173,91 @@ class WelfareRepositoryImpl @Inject constructor(
     override suspend fun markMeetingAsSynced(meetingId: String) {
         welfareMeetingDao.markAsSynced(meetingId)
     }
+
+    override suspend fun getUnsyncedContributions(): List<MemberWelfareContribution> {
+        // You'll need to add this method to your DAO
+        return welfareContributionDao.getUnsyncedContributions()
+    }
+
+    override suspend fun markContributionAsSynced(contributionId: String) {
+        // You'll need to add this method to your DAO
+        welfareContributionDao.markAsSynced(contributionId)
+    }
+
+    override suspend fun getUnsyncedBeneficiaries(): List<WelfareBeneficiary> {
+        // You'll need to add this method to your DAO
+        return welfareBeneficiaryDao.getUnsyncedBeneficiaries()
+    }
+
+    override suspend fun markBeneficiaryAsSynced(beneficiaryId: String) {
+        // You'll need to add this method to your DAO
+        welfareBeneficiaryDao.markAsSynced(beneficiaryId)
+    }
+
+    override suspend fun insertWelfare(welfare: Welfare) {
+        welfareDao.insert(welfare)
+    }
+
+    override suspend fun insertMeeting(meeting: WelfareMeeting) {
+        welfareMeetingDao.insertMeeting(meeting)
+    }
+
+    override suspend fun insertContribution(contribution: MemberWelfareContribution) {
+        welfareContributionDao.insertContribution(contribution)
+    }
+
+    override suspend fun insertBeneficiary(beneficiary: WelfareBeneficiary) {
+        welfareBeneficiaryDao.insertBeneficiary(beneficiary)
+    }
+
+    override suspend fun getContributionById(contributionId: String): MemberWelfareContribution? {
+        // You'll need to add this method to your DAO
+        return welfareContributionDao.getContributionById(contributionId)
+    }
+
+    override suspend fun getBeneficiaryById(beneficiaryId: String): WelfareBeneficiary? {
+        // You'll need to add this method to your DAO
+        return welfareBeneficiaryDao.getBeneficiaryById(beneficiaryId)
+    }
+
+    override suspend fun markAsDeletedBeneficiary(beneficiaryId: String, timestamp: Long) =
+        welfareBeneficiaryDao.markAsDeleted(beneficiaryId, timestamp)
+
+    override suspend fun getDeletedBeneficiaries(): List<WelfareBeneficiary> =
+        welfareBeneficiaryDao.getDeletedBeneficiaries()
+
+    override suspend fun permanentDeleteBeneficiary(beneficiaryId: String) =
+        welfareBeneficiaryDao.permanentDelete(beneficiaryId)
+
+
+    override suspend fun markContributionAsDeleted(contributionId: String, timestamp: Long) =
+        welfareContributionDao.markAsDeleted(contributionId, timestamp)
+
+    override suspend fun getDeletedContributions(): List<MemberWelfareContribution> =
+        welfareContributionDao.getDeletedContributions()
+
+    override suspend fun permanentDeleteContribution(contributionId: String) =
+        welfareContributionDao.permanentDelete(contributionId)
+
+
+    override suspend fun markWelfareAsDeleted(welfareId: String, timestamp: Long) =
+        welfareDao.markAsDeleted(welfareId, timestamp)
+
+    override suspend fun getDeletedWelfares(): List<Welfare> =
+        welfareDao.getDeletedWelfares()
+
+    override suspend fun permanentDeleteWelfare(welfareId: String) =
+        welfareDao.permanentDelete(welfareId)
+
+    override suspend fun markWelfareMeetingAsDeleted(meetingId: String, timestamp: Long) =
+        welfareMeetingDao.markAsDeleted(meetingId, timestamp)
+
+    override suspend fun getDeletedMeetings(): List<WelfareMeeting> =
+        welfareMeetingDao.getDeletedMeetings()
+
+    override suspend fun permanentDeleteWelfareMeetings(meetingId: String) =
+        welfareMeetingDao.permanentDelete(meetingId)
+
+
+
 }

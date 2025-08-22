@@ -36,4 +36,13 @@ class ExpenseRepositoryImpl @Inject constructor(
     }
 
 
+    override suspend fun markAsDeleted(expenseId: String, timestamp: Long) =
+        expenseDao.markAsDeleted(expenseId, timestamp)
+
+    override suspend fun getDeletedExpenses(): List<ExpenseEntity> =
+        expenseDao.getDeletedExpenses()
+
+    override suspend fun permanentDelete(expenseId: String) =
+        expenseDao.permanentDelete(expenseId)
+
 }

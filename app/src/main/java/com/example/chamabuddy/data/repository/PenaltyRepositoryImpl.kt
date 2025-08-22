@@ -43,5 +43,12 @@ class PenaltyRepositoryImpl(
         penaltyDao.insert(penalty)
     }
 
+    override suspend fun markAsDeleted(penaltyId: String, timestamp: Long) =
+        penaltyDao.markAsDeleted(penaltyId, timestamp)
 
+    override suspend fun getDeletedPenalties(): List<Penalty> =
+        penaltyDao.getDeletedPenalties()
+
+    override suspend fun permanentDelete(penaltyId: String) =
+        penaltyDao.permanentDelete(penaltyId)
 }

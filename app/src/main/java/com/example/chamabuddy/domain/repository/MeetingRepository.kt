@@ -42,5 +42,9 @@ interface MeetingRepository {
     suspend fun insertMeeting(meeting: WeeklyMeeting)
 
 
+    suspend fun markAsDeleted(meetingId: String, timestamp: Long)
+    suspend fun getDeletedMeetings(): List<WeeklyMeeting>
+    suspend fun permanentDelete(meetingId: String)
+
 
 }

@@ -50,8 +50,6 @@ interface CycleDao {
     suspend fun getActiveCycleByGroupId(groupId: String): Cycle?
 
 
-    @Query("SELECT * FROM Cycle WHERE group_id = :groupId")
-    suspend fun getCyclesByGroupId(groupId: String): List<Cycle>
 
     @Query("SELECT * FROM Cycle WHERE cycle_id IN (:cycleIds)")
     suspend fun getCyclesByIds(cycleIds: List<String>): List<Cycle>
@@ -60,8 +58,9 @@ interface CycleDao {
     suspend fun getCyclesByGroup(groupId: String): List<Cycle>
 
 
-    @Query("SELECT * FROM cycle WHERE group_id= :groupId ORDER BY start_date DESC LIMIT 1")
-    suspend fun getLastCycleByGroupId(groupId: String): Cycle?
+    @Query("SELECT * FROM cycle WHERE group_id = :groupId AND is_deleted = 0")
+    suspend fun getCyclesByGroupId(groupId: String): List<Cycle>
+
 
     @Query("DELETE FROM Cycle WHERE cycle_id = :cycleId")
     suspend fun deleteCycleById(cycleId: String)
@@ -76,6 +75,29 @@ interface CycleDao {
 
     @Query("SELECT * FROM cycle WHERE group_id = :groupId AND is_synced = 0")
     suspend fun getUnsyncedCyclesForGroup(groupId: String): List<Cycle>
+
+
+
+    // 🔹 Soft delete
+    @Query("UPDATE Cycle SET is_deleted = 1, deleted_at = :timestamp WHERE cycle_id = :cycleId")
+    suspend fun markAsDeleted(cycleId: String, timestamp: Long)
+
+    // 🔹 Get all soft-deleted records
+    @Query("SELECT * FROM Cycle WHERE is_deleted = 1")
+    suspend fun getDeletedCycles(): List<Cycle>
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM Cycle WHERE cycle_id = :cycleId")
+    suspend fun permanentDelete(cycleId: String)
+
+    @Query("SELECT * FROM Cycle WHERE group_id = :groupId ORDER BY start_date DESC LIMIT 1")
+    suspend fun getLastCycleByGroupId(groupId: String): Cycle?
+
+
+
+
+
+
 
 }
 

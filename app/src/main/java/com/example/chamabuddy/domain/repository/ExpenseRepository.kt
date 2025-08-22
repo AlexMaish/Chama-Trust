@@ -16,4 +16,8 @@ interface ExpenseRepository {
     suspend fun getExpenseById(expenseId: String): ExpenseEntity?
     suspend fun insertExpense(expense: ExpenseEntity)
 
+    suspend fun markAsDeleted(expenseId: String, timestamp: Long)
+    suspend fun getDeletedExpenses(): List<ExpenseEntity>
+    suspend fun permanentDelete(expenseId: String)
+
 }

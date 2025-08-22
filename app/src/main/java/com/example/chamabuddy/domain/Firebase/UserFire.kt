@@ -8,5 +8,8 @@ data class UserFire(
     val password: String = "",
     val phoneNumber: String = "",
     val createdAt: Timestamp = Timestamp.now(),
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

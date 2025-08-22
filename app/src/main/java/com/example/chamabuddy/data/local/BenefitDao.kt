@@ -33,4 +33,15 @@ interface BenefitDao {
     suspend fun getBenefitById(benefitId: String): BenefitEntity?
 
 
+
+    @Query("UPDATE benefits SET is_deleted = 1, deleted_at = :timestamp WHERE benefitId = :benefitId")
+    suspend fun markAsDeleted(benefitId: String, timestamp: Long)
+
+    // 🔹 Get soft-deleted records
+    @Query("SELECT * FROM benefits WHERE is_deleted = 1")
+    suspend fun getDeletedBenefits(): List<BenefitEntity>
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM benefits WHERE benefitId = :benefitId")
+    suspend fun permanentDelete(benefitId: String)
 }

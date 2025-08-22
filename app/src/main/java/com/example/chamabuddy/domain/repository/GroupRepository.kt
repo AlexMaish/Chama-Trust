@@ -43,6 +43,15 @@ interface GroupRepository {
     suspend fun getUnsyncedGroup(groupId: String): Group?
 
     fun getUserGroupsFlow(userId: String): Flow<List<Group>>
+
+    suspend fun markGroupsAsDeleted(groupId: String, timestamp: Long)
+    suspend fun getDeletedGroups(): List<Group>
+    suspend fun permanentDeleteGroups(groupId: String)
+
+
+    suspend fun markAsDeleted(groupId: String, userId: String, timestamp: Long)
+    suspend fun getDeletedGroupMembers(): List<GroupMember>
+    suspend fun permanentDelete(groupId: String, userId: String)
 }
 
 

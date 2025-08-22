@@ -26,5 +26,8 @@ data class MemberFire(
     @set:PropertyName("owner")
     var isOwner: Boolean = false,
 
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

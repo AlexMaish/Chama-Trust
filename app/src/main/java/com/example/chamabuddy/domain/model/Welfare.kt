@@ -13,5 +13,8 @@ data class Welfare(
     val createdBy: String,
     val createdAt: Long = System.currentTimeMillis(),
     val lastUpdated: Long = System.currentTimeMillis(),
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

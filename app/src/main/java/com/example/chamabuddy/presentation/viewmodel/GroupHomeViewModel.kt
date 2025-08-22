@@ -47,9 +47,26 @@ class GroupHomeViewModel @Inject constructor(
     val uiState: StateFlow<GroupHomeUiState> = _uiState.asStateFlow()
 
     private var hasPerformedInitialSync = false
+
     init {
         loadUserGroups()
         triggerInitialSync()
+        setupSyncObserver() // observe global sync status and reload when sync finishes
+    }
+
+    private fun setupSyncObserver() {
+        viewModelScope.launch {
+            // Observe sync status changes from the SyncWorker
+            SyncWorker.syncStatus.collect { status ->
+                when (status) {
+                    is SyncWorker.SyncStatus.Success -> {
+                        // Reload groups when sync completes
+                        loadUserGroups()
+                    }
+                    else -> { /* ignore other states */ }
+                }
+            }
+        }
     }
 
     private fun triggerInitialSync() {
@@ -104,6 +121,7 @@ class GroupHomeViewModel @Inject constructor(
             syncHelper.triggerGroupSync(groupIds)
         }
     }
+
     private fun triggerFullUserSync(userId: String) {
         _syncState.value = SyncState.SyncingData
 
@@ -206,6 +224,7 @@ class GroupHomeViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(snackbarMessage = null)
     }
 }
+
 
 
 data class GroupHomeUiState(

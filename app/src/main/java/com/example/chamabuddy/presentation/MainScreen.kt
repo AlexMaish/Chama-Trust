@@ -57,6 +57,7 @@ import com.example.chamabuddy.presentation.screens.ContributionSummaryScreen
 import com.example.chamabuddy.presentation.screens.ExpenseScreen
 import com.example.chamabuddy.presentation.screens.GroupsHomeScreen
 import com.example.chamabuddy.presentation.screens.PenaltyScreen
+import com.example.chamabuddy.presentation.screens.SavingsFilterScreen
 import com.example.chamabuddy.presentation.screens.SavingsScreen
 import com.example.chamabuddy.presentation.screens.WelfareBeneficiarySelectionScreen
 import com.example.chamabuddy.presentation.screens.WelfareContributionScreen
@@ -391,25 +392,24 @@ fun MainNavHost(
                 navController = navController
             )
         }
-
-
-
         composable(
             route = SavingsDestination.routeWithArgs,
             arguments = listOf(navArgument(SavingsDestination.groupIdArg) {
                 type = NavType.StringType
             }
-            ) ){ backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString(SavingsDestination.groupIdArg) ?: ""
-                SavingsScreen(
-                    groupId = groupId,
-                    navigateToProfile = { memberId ->
-                        navController.navigate("${ProfileDestination.route}/$groupId/$memberId")
-                    },
-                    navigateBack = { navController.popBackStack() }
-                )
-            }
-
+            )) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString(SavingsDestination.groupIdArg) ?: ""
+            SavingsScreen(
+                groupId = groupId,
+                navigateToProfile = { memberId ->
+                    navController.navigate("${ProfileDestination.route}/$groupId/$memberId")
+                },
+                navigateBack = { navController.popBackStack() },
+                navigateToSavingsFilter = {
+                    navController.navigate("${SavingsFilterDestination.route}/$groupId")
+                }
+            )
+        }
 
         composable(
             route = ContributionDestination.routeWithArgs,
@@ -535,7 +535,24 @@ fun MainNavHost(
                 )
             }
 
+
+
+        composable(
+            route = SavingsFilterDestination.routeWithArgs,
+            arguments = listOf(navArgument(SavingsFilterDestination.groupIdArg) {
+                type = NavType.StringType
+            })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString(SavingsFilterDestination.groupIdArg) ?: ""
+            SavingsFilterScreen(
+                groupId = groupId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
     }
+
+
 
 
 

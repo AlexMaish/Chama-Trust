@@ -14,17 +14,6 @@ interface MonthlySavingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMonthlySaving(saving: MonthlySaving)
 
-    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId ORDER BY month_year DESC")
-    fun getSavingsForCycle(cycleId: String): Flow<List<MonthlySaving>>
-
-    @Query(
-        """
-        SELECT * FROM MonthlySaving
-        WHERE cycle_id = :cycleId AND month_year = :monthYear
-    """
-    )
-    suspend fun getSavingForMonth(cycleId: String, monthYear: String): MonthlySaving?
-
 
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         suspend fun insert(saving: MonthlySaving)
@@ -61,11 +50,39 @@ interface MonthlySavingDao {
     @Query("UPDATE MonthlySaving SET is_synced = 1 WHERE saving_id = :savingId")
     suspend fun markAsSynced(savingId: String)
 
-    @Query("SELECT * FROM MonthlySaving WHERE is_synced = 0")
+
+
+
+    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId AND month_year = :monthYear AND is_deleted = 0")
+    suspend fun getSavingForMonth(cycleId: String, monthYear: String): MonthlySaving?
+
+    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId AND is_deleted = 0 ORDER BY month_year DESC")
+    fun getSavingsForCycle(cycleId: String): Flow<List<MonthlySaving>>
+
+    @Query("SELECT * FROM MonthlySaving WHERE is_synced = 0 AND is_deleted = 0")
     suspend fun getUnsyncedSavings(): List<MonthlySaving>
 
-    @Query("SELECT * FROM MonthlySaving WHERE saving_id = :savingId LIMIT 1")
+    @Query("SELECT * FROM MonthlySaving WHERE saving_id = :savingId AND is_deleted = 0 LIMIT 1")
     suspend fun getSavingById(savingId: String): MonthlySaving?
 
+    // Add this query to get all entries including deleted ones for sync
+    @Query("SELECT * FROM MonthlySaving WHERE is_deleted = 1")
+    suspend fun getDeletedSavings(): List<MonthlySaving>
+
+
+
+
+
+
+
+
+    // 🔹 Soft delete
+    @Query("UPDATE MonthlySaving SET is_deleted = 1, deleted_at = :timestamp WHERE saving_id = :savingId")
+    suspend fun markAsDeleted(savingId: String, timestamp: Long)
+
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM MonthlySaving WHERE saving_id = :savingId")
+    suspend fun permanentDelete(savingId: String)
 
 }

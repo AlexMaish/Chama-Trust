@@ -11,5 +11,8 @@ data class BeneficiaryFire(
     val dateAwarded: Timestamp = Timestamp.now(),
     val cycleId: String = "",
     val groupId: String = "",
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

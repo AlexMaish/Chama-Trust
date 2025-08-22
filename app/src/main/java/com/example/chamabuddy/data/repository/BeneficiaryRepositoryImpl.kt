@@ -73,6 +73,16 @@ class BeneficiaryRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun markAsDeleted(beneficiaryId: String, timestamp: Long) {
+        beneficiaryDao.markAsDeleted(beneficiaryId, timestamp)
+    }
 
+    override suspend fun getDeletedBeneficiaries(): List<Beneficiary> {
+        return beneficiaryDao.getDeletedBeneficiaries()
+    }
+
+    override suspend fun permanentDelete(beneficiaryId: String) {
+        beneficiaryDao.permanentDelete(beneficiaryId)
+    }
 
 }

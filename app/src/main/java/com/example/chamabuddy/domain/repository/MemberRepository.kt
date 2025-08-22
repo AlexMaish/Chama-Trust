@@ -38,6 +38,9 @@ interface MemberRepository {
 
     suspend fun getUnsyncedMembersForGroup(groupId: String): List<Member>
 
+    suspend fun markAsDeleted(memberId: String, timestamp: Long)
+    suspend fun getDeletedMembers(): List<Member>
+    suspend fun permanentDelete(memberId: String)
 }
 
 

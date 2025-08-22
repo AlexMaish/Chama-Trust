@@ -249,7 +249,12 @@ class UserRepositoryImpl @Inject constructor(
         withContext(dispatcher) {
             userGroupDao.update(userGroup)
         }
-
+    override suspend fun syncUser(user: User) = withContext(dispatcher) {
+        upsertUser(user)
+    }
+    override suspend fun upsertUser(user: User) = withContext(dispatcher) {
+        userDao.upsertUser(user)
+    }
 
     override suspend fun getUserGroup(userId: String, groupId: String): UserGroup? =
         withContext(dispatcher) {
@@ -260,4 +265,23 @@ class UserRepositoryImpl @Inject constructor(
             userGroupDao.getUserGroup(userId, groupId) != null
         }
     }
+
+    override suspend fun markUserAsDeleted(userId: String, timestamp: Long) =
+        userDao.markAsDeleted(userId, timestamp)
+
+    override suspend fun getDeletedUsers(): List<User> =
+        userDao.getDeletedUsers()
+
+    override suspend fun permanentDeleteUser(userId: String) =
+        userDao.permanentDelete(userId)
+
+
+    override suspend fun markUserGroupAsDeleted(userId: String, groupId: String, timestamp: Long) =
+        userGroupDao.markAsDeleted(userId, groupId, timestamp)
+
+    override suspend fun getDeletedUserGroups(): List<UserGroup> =
+        userGroupDao.getDeletedUserGroups()
+
+    override suspend fun permanentDeleteUserGroup(userId: String, groupId: String) =
+        userGroupDao.permanentDelete(userId, groupId)
 }

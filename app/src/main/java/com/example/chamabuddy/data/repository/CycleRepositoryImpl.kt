@@ -189,4 +189,13 @@ override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Uni
         cycleDao.insertCycle(cycle)
     }
 
+    override suspend fun markAsDeleted(cycleId: String, timestamp: Long) =
+        cycleDao.markAsDeleted(cycleId, timestamp)
+
+    override suspend fun getDeletedCycles(): List<Cycle> =
+        cycleDao.getDeletedCycles()
+
+    override suspend fun permanentDelete(cycleId: String) =
+        cycleDao.permanentDelete(cycleId)
+
 }

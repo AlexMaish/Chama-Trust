@@ -49,4 +49,16 @@ interface GroupDao {
     @Query("SELECT * FROM `groups` WHERE group_id  IN (SELECT group_id FROM user_groups WHERE user_id = :userId)")
     fun observeUserGroups(userId: String): Flow<List<Group>>
 
+
+    // 🔹 Soft delete
+    @Query("UPDATE `groups` SET is_deleted = 1, deleted_at = :timestamp WHERE group_id = :groupId")
+    suspend fun markAsDeleted(groupId: String, timestamp: Long)
+
+    // 🔹 Get all soft-deleted records
+    @Query("SELECT * FROM `groups` WHERE is_deleted = 1")
+    suspend fun getDeletedGroups(): List<Group>
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM `groups`WHERE group_id = :groupId")
+    suspend fun permanentDelete(groupId: String)
 }

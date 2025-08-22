@@ -8,6 +8,7 @@ import com.example.chamabuddy.domain.Firebase.GroupFire
 import com.example.chamabuddy.domain.Firebase.GroupMemberFire
 import com.example.chamabuddy.domain.Firebase.MemberContributionFire
 import com.example.chamabuddy.domain.Firebase.MemberFire
+import com.example.chamabuddy.domain.Firebase.MemberWelfareContributionFire
 import com.example.chamabuddy.domain.Firebase.MonthlySavingEntryFire
 import com.example.chamabuddy.domain.Firebase.MonthlySavingFire
 import com.example.chamabuddy.domain.Firebase.PenaltyFire
@@ -29,7 +30,6 @@ import com.example.chamabuddy.domain.model.User
 import com.example.chamabuddy.domain.model.UserGroup
 import com.example.chamabuddy.domain.model.WeeklyMeeting
 
-import com.example.chamabuddy.domain.Firebase.MemberWelfareContributionFire
 import com.example.chamabuddy.domain.Firebase.WelfareBeneficiaryFire
 import com.example.chamabuddy.domain.Firebase.WelfareFire
 import com.example.chamabuddy.domain.Firebase.WelfareMeetingFire
@@ -49,18 +49,22 @@ fun BeneficiaryFire.toLocal() = Beneficiary(
     cycleId = cycleId,
     groupId = groupId,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun BenefitEntityFire.toLocal() = BenefitEntity(
-    benefitId = id.toString(),
+    benefitId = id,
     groupId = groupId,
     name = name,
     description = description,
     amount = amount,
     date = date.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun CycleFire.toLocal() = Cycle(
@@ -76,7 +80,9 @@ fun CycleFire.toLocal() = Cycle(
     beneficiariesPerMeeting = beneficiariesPerMeeting,
     cycleNumber = cycleNumber,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun ExpenseEntityFire.toLocal() = ExpenseEntity(
@@ -87,7 +93,9 @@ fun ExpenseEntityFire.toLocal() = ExpenseEntity(
     amount = amount,
     date = date.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun GroupMemberFire.toLocal() = GroupMember(
@@ -96,7 +104,9 @@ fun GroupMemberFire.toLocal() = GroupMember(
     isAdmin = isAdmin,
     joinedAt = joinedAt.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun MemberContributionFire.toLocal(): MemberContribution = MemberContribution(
@@ -104,13 +114,14 @@ fun MemberContributionFire.toLocal(): MemberContribution = MemberContribution(
     meetingId = meetingId,
     memberId = memberId,
     amountContributed = amountContributed,
-    contributionDate = contributionDate.toDate().time, // ✅ Timestamp → Long
+    contributionDate = contributionDate.toDate().time,
     isLate = isLate,
     groupId = groupId,
-    lastUpdated = lastUpdated.toDate().time, // ✅ Timestamp → Long
-    isSynced = true
+    lastUpdated = lastUpdated.toDate().time,
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
-
 
 fun MemberFire.toLocal() = Member(
     memberId = memberId,
@@ -125,7 +136,9 @@ fun MemberFire.toLocal() = Member(
     groupId = groupId,
     isOwner = isOwner,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun MonthlySavingEntryFire.toLocal(): MonthlySavingEntry {
@@ -134,16 +147,17 @@ fun MonthlySavingEntryFire.toLocal(): MonthlySavingEntry {
         savingId = savingId,
         memberId = memberId,
         amount = amount,
-        entryDate = entryDate.toDate().time, // ✅ Convert Timestamp to Long
+        entryDate = entryDate.toDate().time,
         recordedBy = recordedBy,
         groupId = groupId,
         isPlaceholder = isPlaceholder,
         monthYear = monthYear,
-        lastUpdated = lastUpdated.toDate().time, // ✅ Timestamp to Long
-        isSynced = true
+        lastUpdated = lastUpdated.toDate().time,
+        isSynced = true,
+        isDeleted = isDeleted,
+        deletedAt = deletedAt
     )
 }
-
 
 fun MonthlySavingFire.toLocal() = MonthlySaving(
     savingId = savingId,
@@ -153,7 +167,9 @@ fun MonthlySavingFire.toLocal() = MonthlySaving(
     actualAmount = actualAmount,
     groupId = groupId,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun PenaltyFire.toLocal() = Penalty(
@@ -165,7 +181,9 @@ fun PenaltyFire.toLocal() = Penalty(
     memberId = memberId,
     date = date.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun UserFire.toLocal() = User(
@@ -175,7 +193,9 @@ fun UserFire.toLocal() = User(
     phoneNumber = phoneNumber,
     createdAt = createdAt.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun UserGroupFire.toLocal() = UserGroup(
@@ -184,7 +204,9 @@ fun UserGroupFire.toLocal() = UserGroup(
     isOwner = isOwner,
     joinedAt = joinedAt.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun WeeklyMeetingFire.toLocal() = WeeklyMeeting(
@@ -195,7 +217,9 @@ fun WeeklyMeetingFire.toLocal() = WeeklyMeeting(
     recordedBy = recordedBy,
     groupId = groupId,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
 fun GroupFire.toLocal() = Group(
@@ -206,57 +230,63 @@ fun GroupFire.toLocal() = Group(
     createdAt = createdAt.toDate().time,
     totalSavings = totalSavings,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
-// MemberWelfareContributionFire -> MemberWelfareContribution
+
 fun MemberWelfareContributionFire.toLocal() = com.example.chamabuddy.domain.model.MemberWelfareContribution(
     contributionId = contributionId,
     meetingId = meetingId,
     memberId = memberId,
     amountContributed = amountContributed,
-    // contributionDate is Long in the Fire DTO, domain expects Long -> use directly
     contributionDate = contributionDate,
     isLate = isLate,
-    groupId = groupId
+    groupId = groupId,
+    lastUpdated = lastUpdated.toDate().time,
+    isSynced = isSynced,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
-// WelfareBeneficiaryFire -> WelfareBeneficiary
 fun WelfareBeneficiaryFire.toLocal() = com.example.chamabuddy.domain.model.WelfareBeneficiary(
     beneficiaryId = beneficiaryId,
     meetingId = meetingId,
     memberId = memberId,
     amountReceived = amountReceived,
-    // dateAwarded is Long in the Fire DTO -> use directly
     dateAwarded = dateAwarded,
-    groupId = groupId
+    groupId = groupId,
+    lastUpdated = lastUpdated.toDate().time,
+    isSynced = isSynced,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
-// WelfareFire -> Welfare
 fun WelfareFire.toLocal() = com.example.chamabuddy.domain.model.Welfare(
     welfareId = welfareId,
     groupId = groupId,
     name = name,
     amount = amount,
     createdBy = createdBy,
-    // createdAt and lastUpdated are Timestamp in WelfareFire -> convert to epoch millis
     createdAt = createdAt.toDate().time,
     lastUpdated = lastUpdated.toDate().time,
-    isSynced = true
+    isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt
 )
 
-// WelfareMeetingFire -> WelfareMeeting
 fun WelfareMeetingFire.toLocal() = com.example.chamabuddy.domain.model.WelfareMeeting(
     meetingId = meetingId,
     welfareId = welfareId,
-    // meetingDate is Long in the Fire DTO -> use directly
     meetingDate = meetingDate,
     welfareAmount = welfareAmount,
     totalCollected = totalCollected,
     recordedBy = recordedBy,
     groupId = groupId,
-    // lastUpdated is Timestamp in WelfareMeetingFire -> convert to epoch millis
     lastUpdated = lastUpdated.toDate().time,
     isSynced = true,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt,
     beneficiaryNames = beneficiaryNames,
     contributorSummaries = contributorSummaries
 )

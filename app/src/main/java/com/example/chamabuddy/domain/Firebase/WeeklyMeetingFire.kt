@@ -10,5 +10,8 @@ data class WeeklyMeetingFire(
     val totalCollected: Int = 0,
     val recordedBy: String? = null,
     val groupId: String = "",
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

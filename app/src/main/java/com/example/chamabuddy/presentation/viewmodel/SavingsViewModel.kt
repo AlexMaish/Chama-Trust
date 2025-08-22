@@ -131,6 +131,35 @@ class SavingsViewModel @Inject constructor(
         }
     }
 
+
+    private fun deleteEntry(event: SavingsEvent.DeleteEntry) {
+        viewModelScope.launch {
+            _state.value = SavingsState.Loading
+            try {
+                savingsRepository.markAsDeleted(event.entryId, System.currentTimeMillis())
+                _state.value = SavingsState.EntryDeleted
+                // Refresh data using the memberId from the event
+                getAllMemberCycles(event.memberId)
+            } catch (e: Exception) {
+                _state.value = SavingsState.Error(e.message ?: "Failed to delete entry")
+            }
+        }
+    }
+
+    private fun deleteMonth(event: SavingsEvent.DeleteMonth) {
+        viewModelScope.launch {
+            _state.value = SavingsState.Loading
+            try {
+                savingsRepository.markAsDeleted(event.cycleId, System.currentTimeMillis())
+                _state.value = SavingsState.MonthDeleted
+                // Refresh data using the memberId from the event
+                getAllMemberCycles(event.memberId)
+            } catch (e: Exception) {
+                _state.value = SavingsState.Error(e.message ?: "Failed to delete month")
+            }
+        }
+    }
+
     private fun loadAllMemberSavingsTotalsByCycle() {
         viewModelScope.launch {
             try {
@@ -169,33 +198,7 @@ class SavingsViewModel @Inject constructor(
         }
     }
 
-    private fun deleteEntry(event: SavingsEvent.DeleteEntry) {
-        viewModelScope.launch {
-            _state.value = SavingsState.Loading
-            try {
-                savingsRepository.deleteSavingsEntry(event.entryId)
-                _state.value = SavingsState.EntryDeleted
-            } catch (e: Exception) {
-                _state.value = SavingsState.Error(e.message ?: "Failed to delete entry")
-            }
-        }
-    }
 
-    private fun deleteMonth(event: SavingsEvent.DeleteMonth) {
-        viewModelScope.launch {
-            _state.value = SavingsState.Loading
-            try {
-                savingsRepository.deleteSavingsForMonth(
-                    event.cycleId,
-                    event.monthYear,
-                    event.groupId
-                )
-                _state.value = SavingsState.MonthDeleted
-            } catch (e: Exception) {
-                _state.value = SavingsState.Error(e.message ?: "Failed to delete month")
-            }
-        }
-    }
 
     private fun getAllMemberCycles(memberId: String) {
         viewModelScope.launch {
@@ -403,8 +406,8 @@ sealed class SavingsEvent {
         val groupId: String,
         val memberId: String
     ) : SavingsEvent()
-    data class DeleteEntry(val entryId: String) : SavingsEvent()
-    data class DeleteMonth(val cycleId: String, val monthYear: String, val groupId: String) : SavingsEvent()
+    data class DeleteEntry(val entryId: String, val memberId: String) : SavingsEvent()
+    data class DeleteMonth(val cycleId: String, val monthYear: String, val groupId: String, val memberId: String) : SavingsEvent()
     data class GetAllMemberCycles(val memberId: String) : SavingsEvent()
     data class GetMemberSavingsTotal(val memberId: String) : SavingsEvent()
     data class GetMemberSavings(val cycleId: String, val memberId: String) : SavingsEvent()

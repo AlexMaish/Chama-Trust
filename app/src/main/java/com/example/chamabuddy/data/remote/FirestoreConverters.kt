@@ -15,7 +15,9 @@ fun Beneficiary.toFirebase() = BeneficiaryFire(
     dateAwarded = Timestamp(Date(dateAwarded)),
     cycleId = cycleId,
     groupId = groupId,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly instead of converting to Timestamp
 )
 
 // Welfare Conversions
@@ -27,7 +29,9 @@ fun Welfare.toFirebase() = WelfareFire(
     createdBy = createdBy,
     createdAt = Timestamp(Date(createdAt)),
     lastUpdated = Timestamp(Date(lastUpdated)),
-    isSynced = isSynced
+    isSynced = isSynced,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // WelfareBeneficiary Conversions
@@ -37,7 +41,11 @@ fun WelfareBeneficiary.toFirebase() = WelfareBeneficiaryFire(
     memberId = memberId,
     amountReceived = amountReceived,
     dateAwarded = dateAwarded,
-    groupId = groupId
+    groupId = groupId,
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isSynced = isSynced,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // WelfareMeeting Conversions
@@ -51,10 +59,11 @@ fun WelfareMeeting.toFirebase() = WelfareMeetingFire(
     groupId = groupId,
     lastUpdated = Timestamp(Date(lastUpdated)),
     isSynced = isSynced,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt, // Use Long directly
     beneficiaryNames = beneficiaryNames,
     contributorSummaries = contributorSummaries
 )
-
 
 // MemberWelfareContribution Conversions
 fun MemberWelfareContribution.toFirebase() = MemberWelfareContributionFire(
@@ -64,7 +73,11 @@ fun MemberWelfareContribution.toFirebase() = MemberWelfareContributionFire(
     amountContributed = amountContributed,
     contributionDate = contributionDate,
     isLate = isLate,
-    groupId = groupId
+    groupId = groupId,
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isSynced = isSynced,
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // BenefitEntity Conversions
@@ -75,7 +88,9 @@ fun BenefitEntity.toFirebase() = BenefitEntityFire(
     description = description,
     amount = amount,
     date = Timestamp(Date(date)),
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // Cycle Conversions
@@ -91,7 +106,9 @@ fun Cycle.toFirebase() = CycleFire(
     groupId = groupId,
     beneficiariesPerMeeting = beneficiariesPerMeeting,
     cycleNumber = cycleNumber,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // ExpenseEntity Conversions
@@ -102,7 +119,9 @@ fun ExpenseEntity.toFirebase() = ExpenseEntityFire(
     description = description,
     amount = amount,
     date = Timestamp(Date(date)),
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // GroupMember Conversions
@@ -111,7 +130,9 @@ fun GroupMember.toFirebase() = GroupMemberFire(
     userId = userId,
     isAdmin = isAdmin,
     joinedAt = Timestamp(Date(joinedAt)),
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // MemberContribution Conversions
@@ -123,7 +144,9 @@ fun MemberContribution.toFirebase() = MemberContributionFire(
     contributionDate = Timestamp(Date(contributionDate)),
     isLate = isLate,
     groupId = groupId,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // Member Conversions
@@ -139,7 +162,9 @@ fun Member.toFirebase() = MemberFire(
     userId = userId,
     groupId = groupId,
     isOwner = isOwner,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // MonthlySavingEntry Conversions
@@ -153,7 +178,9 @@ fun MonthlySavingEntry.toFirebase() = MonthlySavingEntryFire(
     groupId = groupId,
     isPlaceholder = isPlaceholder,
     monthYear = monthYear,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // MonthlySaving Conversions
@@ -164,7 +191,9 @@ fun MonthlySaving.toFirebase() = MonthlySavingFire(
     targetAmount = targetAmount,
     actualAmount = actualAmount,
     groupId = groupId,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // Penalty Conversions
@@ -176,7 +205,9 @@ fun Penalty.toFirebase() = PenaltyFire(
     description = description,
     amount = amount,
     date = Timestamp(Date(date)),
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // User Conversions
@@ -186,7 +217,9 @@ fun User.toFirebase() = UserFire(
     password = password,
     phoneNumber = phoneNumber,
     createdAt = Timestamp(Date(createdAt)),
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // UserGroup Conversions
@@ -195,7 +228,9 @@ fun UserGroup.toFirebase() = UserGroupFire(
     groupId = groupId,
     isOwner = isOwner,
     joinedAt = Timestamp(Date(joinedAt)),
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // WeeklyMeeting Conversions
@@ -206,7 +241,9 @@ fun WeeklyMeeting.toFirebase() = WeeklyMeetingFire(
     totalCollected = totalCollected,
     recordedBy = recordedBy,
     groupId = groupId,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // Group Conversions
@@ -217,7 +254,9 @@ fun Group.toFirebase() = GroupFire(
     adminName = adminName,
     createdAt = Timestamp(Date(createdAt)),
     totalSavings = totalSavings,
-    lastUpdated = Timestamp(Date(lastUpdated))
+    lastUpdated = Timestamp(Date(lastUpdated)),
+    isDeleted = isDeleted,
+    deletedAt = deletedAt // Use Long directly
 )
 
 // Map to Firebase Conversions with null safety
@@ -231,7 +270,9 @@ fun Map<String, Any>.toBeneficiaryFire(): BeneficiaryFire {
         dateAwarded = this["dateAwarded"] as? Timestamp ?: Timestamp.now(),
         cycleId = this["cycleId"] as? String ?: "",
         groupId = this["groupId"] as? String ?: "",
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -243,7 +284,9 @@ fun Map<String, Any>.toBenefitEntityFire(): BenefitEntityFire {
         description = this["description"] as? String ?: "",
         amount = (this["amount"] as? Number)?.toDouble() ?: 0.0,
         date = this["date"] as? Timestamp ?: Timestamp.now(),
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -260,7 +303,9 @@ fun Map<String, Any>.toCycleFire(): CycleFire {
         groupId = this["groupId"] as? String ?: "",
         beneficiariesPerMeeting = (this["beneficiariesPerMeeting"] as? Number)?.toInt() ?: 2,
         cycleNumber = (this["cycleNumber"] as? Number)?.toInt() ?: 0,
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -272,7 +317,9 @@ fun Map<String, Any>.toExpenseEntityFire(): ExpenseEntityFire {
         description = this["description"] as? String ?: "",
         amount = (this["amount"] as? Number)?.toDouble() ?: 0.0,
         date = this["date"] as? Timestamp ?: Timestamp.now(),
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -282,7 +329,9 @@ fun Map<String, Any>.toGroupMemberFire(): GroupMemberFire {
         userId = this["userId"] as? String ?: "",
         isAdmin = this["isAdmin"] as? Boolean ?: false,
         joinedAt = this["joinedAt"] as? Timestamp ?: Timestamp.now(),
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -295,7 +344,9 @@ fun Map<String, Any>.toMemberContributionFire(): MemberContributionFire {
         contributionDate = this["contributionDate"] as? Timestamp ?: Timestamp.now(),
         isLate = this["isLate"] as? Boolean ?: false,
         groupId = this["groupId"] as? String ?: "",
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -306,13 +357,15 @@ fun Map<String, Any>.toMemberFire(): MemberFire {
         nickname = this["nickname"] as? String?,
         phoneNumber = this["phoneNumber"] as? String ?: "",
         profilePicture = this["profilePicture"] as? String?,
-        isAdmin = this["admin"] as? Boolean ?: false,  // Match Firestore field name
-        isActive = this["active"] as? Boolean ?: true, // Match Firestore field name
+        isAdmin = this["admin"] as? Boolean ?: false,
+        isActive = this["active"] as? Boolean ?: true,
         joinDate = this["joinDate"] as? Timestamp ?: Timestamp.now(),
         userId = this["userId"] as? String?,
         groupId = this["groupId"] as? String ?: "",
-        isOwner = this["owner"] as? Boolean ?: false,  // Match Firestore field name
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        isOwner = this["owner"] as? Boolean ?: false,
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -327,7 +380,9 @@ fun Map<String, Any>.toMonthlySavingEntryFire(): MonthlySavingEntryFire {
         groupId = this["groupId"] as? String ?: "",
         isPlaceholder = this["isPlaceholder"] as? Boolean ?: false,
         monthYear = this["monthYear"] as? String ?: "",
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -339,7 +394,9 @@ fun Map<String, Any>.toMonthlySavingFire(): MonthlySavingFire {
         targetAmount = (this["targetAmount"] as? Number)?.toInt() ?: 0,
         actualAmount = (this["actualAmount"] as? Number)?.toInt() ?: 0,
         groupId = this["groupId"] as? String ?: "",
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -352,7 +409,9 @@ fun Map<String, Any>.toPenaltyFire(): PenaltyFire {
         description = this["description"] as? String ?: "",
         amount = (this["amount"] as? Number)?.toDouble() ?: 0.0,
         date = this["date"] as? Timestamp ?: Timestamp.now(),
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -363,7 +422,9 @@ fun Map<String, Any>.toUserFire(): UserFire {
         password = this["password"] as? String ?: "",
         phoneNumber = this["phoneNumber"] as? String ?: "",
         createdAt = this["createdAt"] as? Timestamp ?: Timestamp.now(),
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -373,7 +434,9 @@ fun Map<String, Any>.toUserGroupFire(): UserGroupFire {
         groupId = this["groupId"] as? String ?: "",
         isOwner = this["isOwner"] as? Boolean ?: false,
         joinedAt = this["joinedAt"] as? Timestamp ?: Timestamp.now(),
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -385,7 +448,9 @@ fun Map<String, Any>.toWeeklyMeetingFire(): WeeklyMeetingFire {
         totalCollected = (this["totalCollected"] as? Number)?.toInt() ?: 0,
         recordedBy = this["recordedBy"] as? String ?: "",
         groupId = this["groupId"] as? String ?: "",
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -397,9 +462,12 @@ fun Map<String, Any>.toGroupFire(): GroupFire {
         adminName = this["adminName"] as? String ?: "",
         createdAt = this["createdAt"] as? Timestamp ?: Timestamp.now(),
         totalSavings = (this["totalSavings"] as? Number)?.toDouble() ?: 0.0,
-        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now()
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
+
 fun Map<String, Any>.toWelfareFire(): WelfareFire {
     return WelfareFire(
         welfareId = this["welfareId"] as? String ?: "",
@@ -407,10 +475,11 @@ fun Map<String, Any>.toWelfareFire(): WelfareFire {
         name = this["name"] as? String ?: "",
         amount = (this["amount"] as? Number)?.toInt() ?: 0,
         createdBy = this["createdBy"] as? String ?: "",
-        // return Timestamp (not Long)
         createdAt = this["createdAt"] as? Timestamp ?: Timestamp.now(),
         lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
-        isSynced = this["isSynced"] as? Boolean ?: false
+        isSynced = this["isSynced"] as? Boolean ?: false,
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -420,8 +489,12 @@ fun Map<String, Any>.toWelfareBeneficiaryFire(): WelfareBeneficiaryFire {
         meetingId = this["meetingId"] as? String ?: "",
         memberId = this["memberId"] as? String ?: "",
         amountReceived = (this["amountReceived"] as? Number)?.toInt() ?: 0,
-        dateAwarded = (this["dateAwarded"] as? Timestamp ?: Timestamp.now()).toDate().time,
-        groupId = this["groupId"] as? String ?: ""
+        dateAwarded = (this["dateAwarded"] as? Number)?.toLong() ?: 0,
+        groupId = this["groupId"] as? String ?: "",
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isSynced = this["isSynced"] as? Boolean ?: false,
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }
 
@@ -429,7 +502,6 @@ fun Map<String, Any>.toWelfareMeetingFire(): WelfareMeetingFire {
     return WelfareMeetingFire(
         meetingId = this["meetingId"] as? String ?: "",
         welfareId = this["welfareId"] as? String ?: "",
-        // meetingDate in your WelfareMeetingFire data class is Long — keep as Long
         meetingDate = (this["meetingDate"] as? Number)?.toLong()
             ?: (this["meetingDate"] as? Timestamp)?.toDate()?.time
             ?: Timestamp.now().toDate().time,
@@ -437,21 +509,27 @@ fun Map<String, Any>.toWelfareMeetingFire(): WelfareMeetingFire {
         totalCollected = (this["totalCollected"] as? Number)?.toInt() ?: 0,
         recordedBy = this["recordedBy"] as? String,
         groupId = this["groupId"] as? String ?: "",
-        // lastUpdated expects Timestamp in your data class
         lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
         isSynced = this["isSynced"] as? Boolean ?: false,
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 ,
         beneficiaryNames = this["beneficiaryNames"] as? List<String> ?: emptyList(),
         contributorSummaries = this["contributorSummaries"] as? List<String> ?: emptyList()
     )
 }
+
 fun Map<String, Any>.toMemberWelfareContributionFire(): MemberWelfareContributionFire {
     return MemberWelfareContributionFire(
         contributionId = this["contributionId"] as? String ?: "",
         meetingId = this["meetingId"] as? String ?: "",
         memberId = this["memberId"] as? String ?: "",
         amountContributed = (this["amountContributed"] as? Number)?.toInt() ?: 0,
-        contributionDate = (this["contributionDate"] as? Timestamp ?: Timestamp.now()).toDate().time,
+        contributionDate = (this["contributionDate"] as? Number)?.toLong() ?: 0,
         isLate = this["isLate"] as? Boolean ?: false,
-        groupId = this["groupId"] as? String ?: ""
+        groupId = this["groupId"] as? String ?: "",
+        lastUpdated = this["lastUpdated"] as? Timestamp ?: Timestamp.now(),
+        isSynced = this["isSynced"] as? Boolean ?: false,
+        isDeleted = this["isDeleted"] as? Boolean ?: false,
+        deletedAt = (this["deletedAt"] as? Timestamp)?.toDate()?.time ?: 0 // Convert Timestamp to Long
     )
 }

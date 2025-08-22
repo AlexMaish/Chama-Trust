@@ -14,4 +14,10 @@ interface BenefitRepository {
     suspend fun getBenefitById(benefitId: String): BenefitEntity?
     suspend fun insertBenefit(benefit: BenefitEntity)
 
+
+    suspend fun markAsDeleted(benefitId: String, timestamp: Long)
+    suspend fun getDeletedBenefits(): List<BenefitEntity>
+    suspend fun permanentDelete(benefitId: String)
+
+
 }

@@ -54,5 +54,16 @@ interface UserGroupDao {
 
 
 
+    // 🔹 Soft delete
+    @Query("UPDATE user_groups SET is_deleted = 1, deleted_at = :timestamp WHERE user_id = :userId AND group_id = :groupId")
+    suspend fun markAsDeleted(userId: String, groupId: String, timestamp: Long)
+
+    // 🔹 Get all soft-deleted user groups
+    @Query("SELECT * FROM user_groups WHERE is_deleted = 1")
+    suspend fun getDeletedUserGroups(): List<UserGroup>
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM user_groups WHERE user_id = :userId AND group_id = :groupId")
+    suspend fun permanentDelete(userId: String, groupId: String)
 
 }

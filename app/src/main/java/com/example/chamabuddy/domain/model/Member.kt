@@ -49,6 +49,12 @@ data class Member(
     val lastUpdated: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "is_synced")
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+
+    @ColumnInfo(name = "is_deleted")
+    val isDeleted: Boolean = false,
+
+    @ColumnInfo(name = "deleted_at")
+    val deletedAt: Long = 0
 
 )

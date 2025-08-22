@@ -35,6 +35,11 @@ interface CycleRepository {
 
     suspend fun insertCycle(cycle: Cycle)
 
+
+    suspend fun markAsDeleted(cycleId: String, timestamp: Long)
+    suspend fun getDeletedCycles(): List<Cycle>
+    suspend fun permanentDelete(cycleId: String)
+
 }
 
 data class CycleStats(

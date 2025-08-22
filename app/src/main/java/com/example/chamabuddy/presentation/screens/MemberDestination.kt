@@ -142,6 +142,8 @@ fun MembersScreen(
         }
     }
 
+
+
     LaunchedEffect(groupId) {
         viewModel.setGroupId(groupId)
         viewModel.handleEvent(MemberEvent.LoadMembersForGroup(groupId))
@@ -303,7 +305,8 @@ private fun MemberListContent(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(members) { member ->
+        val visibleMembers = members.filter { !it.isDeleted }
+        items(visibleMembers) { member ->
             AnimatedVisibility(
                 visible = true,
                 enter = fadeIn() + expandVertically(),

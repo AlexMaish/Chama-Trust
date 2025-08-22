@@ -302,6 +302,13 @@ class MeetingRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun markAsDeleted(meetingId: String, timestamp: Long) =
+        weeklyMeetingDao.markAsDeleted(meetingId, timestamp)
 
+    override suspend fun getDeletedMeetings(): List<WeeklyMeeting> =
+        weeklyMeetingDao.getDeletedMeetings()
+
+    override suspend fun permanentDelete(meetingId: String) =
+        weeklyMeetingDao.permanentDelete(meetingId)
 
 }

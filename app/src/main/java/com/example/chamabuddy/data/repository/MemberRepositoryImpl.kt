@@ -189,4 +189,13 @@ class MemberRepositoryImpl @Inject constructor(
     }
 
 
+
+    override suspend fun markAsDeleted(memberId: String, timestamp: Long) =
+        memberDao.markAsDeleted(memberId, timestamp)
+
+    override suspend fun getDeletedMembers(): List<Member> {
+        return memberDao.getDeletedMembers()
+    }
+    override suspend fun permanentDelete(memberId: String) =
+        memberDao.permanentDelete(memberId)
 }

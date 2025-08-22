@@ -563,7 +563,7 @@ fun ProfileScreen(
                 message = "Are you sure you want to delete this savings entry?",
                 onConfirm = {
                     entryToDelete?.let {
-                        savingsViewModel.handleEvent(SavingsEvent.DeleteEntry(it.entryId))
+                        savingsViewModel.handleEvent(SavingsEvent.DeleteEntry(it.entryId, memberId))
                     }
                     showDeleteEntryDialog = false
                 },
@@ -571,21 +571,19 @@ fun ProfileScreen(
             )
         }
 
-        if (showDeleteMonthDialog) {
-            DeleteConfirmationDialog(
-                title = "Delete Month",
-                message = "Are you sure you want to delete all entries for this month?",
-                onConfirm = {
-                    monthToDelete?.let { (cycleId, monthYear) ->
-                        savingsViewModel.handleEvent(
-                            SavingsEvent.DeleteMonth(cycleId, monthYear, groupId)
-                        )
-                    }
-                    showDeleteMonthDialog = false
-                },
-                onDismiss = { showDeleteMonthDialog = false }
-            )
-        }
+         if (showDeleteMonthDialog) {
+             DeleteConfirmationDialog(
+                 title = "Delete Month",
+                 message = "Are you sure you want to delete all entries for this month?",
+                 onConfirm = {
+                     monthToDelete?.let { (cycleId, monthYear) ->
+                         savingsViewModel.handleEvent(SavingsEvent.DeleteMonth(cycleId, monthYear, groupId, memberId))
+                     }
+                     showDeleteMonthDialog = false
+                 },
+                 onDismiss = { showDeleteMonthDialog = false }
+             )
+         }
     }
 }
 

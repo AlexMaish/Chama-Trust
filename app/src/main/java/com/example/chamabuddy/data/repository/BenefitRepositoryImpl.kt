@@ -33,4 +33,13 @@ class BenefitRepositoryImpl @Inject constructor(
     }
 
 
+    override suspend fun markAsDeleted(benefitId: String, timestamp: Long) =
+        benefitDao.markAsDeleted(benefitId, timestamp)
+
+    override suspend fun getDeletedBenefits(): List<BenefitEntity> =
+        benefitDao.getDeletedBenefits()
+
+    override suspend fun permanentDelete(benefitId: String) =
+        benefitDao.permanentDelete(benefitId)
+
 }

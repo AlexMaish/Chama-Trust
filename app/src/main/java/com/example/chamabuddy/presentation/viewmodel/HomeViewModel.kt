@@ -124,7 +124,7 @@ class HomeViewModel @Inject constructor(
             _state.value = CycleState.Loading
             try {
                 println("Loading cycles for group: $groupId")
-                var cycles = cycleRepository.getCyclesByGroupId(groupId)
+                var cycles = cycleRepository.getCyclesByGroupId(groupId) // This now filters deleted cycles
 
                 // Update each cycle with its total savings
                 cycles = cycles.map { cycle ->
@@ -141,6 +141,7 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
 
     fun loadUserGroups() {
         viewModelScope.launch {
@@ -159,20 +160,7 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
-    fun deleteCycle(cycleId: String) {
-        viewModelScope.launch {
-            try {
-                cycleRepository.deleteCycle(cycleId)
-                // Refresh cycles after deletion
-                _currentGroupId.value?.let { loadCyclesForGroup(it) }
-                setSnackbarMessage("Cycle deleted successfully")
-                showSnackbar()
-            } catch (e: Exception) {
-                setSnackbarMessage("Failed to delete cycle: ${e.message}")
-                showSnackbar()
-            }
-        }
-    }
+
     fun showGroupRequiredMessage() {
         _snackbarMessage.value = "Create a group or join one first using the navigation menu"
         _showSnackbar.value = true
@@ -279,6 +267,24 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    fun deleteCycle(cycleId: String) {
+        viewModelScope.launch {
+            try {
+                // Use soft delete instead of hard delete
+                cycleRepository.markAsDeleted(cycleId, System.currentTimeMillis())
+
+                // Refresh cycles after deletion - they will be filtered out automatically
+                _currentGroupId.value?.let { loadCyclesForGroup(it) }
+                setSnackbarMessage("Cycle marked for deletion")
+                showSnackbar()
+            } catch (e: Exception) {
+                setSnackbarMessage("Failed to delete cycle: ${e.message}")
+                showSnackbar()
+            }
+        }
+    }
+
 
     private fun endCurrentCycle(event: CycleEvent.EndCurrentCycle) {
         viewModelScope.launch {

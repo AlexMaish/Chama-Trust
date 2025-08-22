@@ -201,4 +201,23 @@ override suspend fun getUserGroups(userId: String): List<Group> {
     }
 
 
+    override suspend fun markGroupsAsDeleted(groupId: String, timestamp: Long) =
+        groupDao.markAsDeleted(groupId, timestamp)
+
+    override suspend fun getDeletedGroups(): List<Group> =
+        groupDao.getDeletedGroups()
+
+    override suspend fun permanentDeleteGroups(groupId: String) =
+        groupDao.permanentDelete(groupId)
+
+    override suspend fun markAsDeleted(groupId: String, userId: String, timestamp: Long) =
+        groupMemberDao.markAsDeleted(groupId, userId, timestamp)
+
+    override suspend fun getDeletedGroupMembers(): List<GroupMember> =
+        groupMemberDao.getDeletedGroupMembers()
+
+    override suspend fun permanentDelete(groupId: String, userId: String) =
+        groupMemberDao.permanentDelete(groupId, userId)
+
+
 }

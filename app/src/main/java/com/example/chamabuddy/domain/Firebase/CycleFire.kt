@@ -14,5 +14,8 @@ data class CycleFire(
     val groupId: String = "",
     val beneficiariesPerMeeting: Int = 2,
     val cycleNumber: Int = 0,
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

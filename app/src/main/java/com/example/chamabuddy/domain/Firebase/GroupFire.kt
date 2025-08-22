@@ -9,5 +9,9 @@ data class GroupFire(
     val adminName: String? = null,
     val createdAt: Timestamp = Timestamp.now(),
     val totalSavings: Double = 0.0,
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+
+    val deletedAt: Long = 0
 )

@@ -28,4 +28,16 @@ interface PenaltyDao {
     suspend fun getPenaltyById(penaltyId: String): Penalty?
 
 
+
+    // 🔹 Soft delete
+    @Query("UPDATE penalties SET is_deleted = 1, deleted_at = :timestamp WHERE penaltyId = :penaltyId")
+    suspend fun markAsDeleted(penaltyId: String, timestamp: Long)
+
+    // 🔹 Get all soft-deleted penalties
+    @Query("SELECT * FROM penalties WHERE is_deleted = 1")
+    suspend fun getDeletedPenalties(): List<Penalty>
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM penalties WHERE penaltyId = :penaltyId")
+    suspend fun permanentDelete(penaltyId: String)
 }

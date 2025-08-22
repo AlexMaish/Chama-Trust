@@ -9,5 +9,9 @@ data class ExpenseEntityFire(
     val description: String = "",
     val amount: Double = 0.0,
     val date: Timestamp = Timestamp.now(),
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+
+    val deletedAt: Long = 0
 )

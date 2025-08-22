@@ -72,21 +72,6 @@ class MeetingViewModel @Inject constructor(
     }
 
 
-    private fun deleteMeeting(meetingId: String) {
-        viewModelScope.launch {
-            _state.value = MeetingState.Loading
-            try {
-                meetingRepository.deleteMeeting(meetingId)
-                // Reload meetings after deletion using current view model instance
-                currentCycleId?.let { cycleId ->
-                    getMeetingsForCycle(MeetingEvent.GetMeetingsForCycle(cycleId))
-                }
-                _state.value = MeetingState.MeetingDeleted(true)
-            } catch (e: Exception) {
-                _state.value = MeetingState.Error(e.message ?: "Failed to delete meeting")
-            }
-        }
-    }
     fun validateAdminAction(action: () -> Unit, onError: () -> Unit) {
         if (currentUserIsAdmin.value) {
             action()
@@ -368,6 +353,24 @@ class MeetingViewModel @Inject constructor(
         return meetingRepository.getMeetingStatus(meetingId)
     }
 
+
+    private fun deleteMeeting(meetingId: String) {
+        viewModelScope.launch {
+            _state.value = MeetingState.Loading
+            try {
+                // Use soft delete
+                meetingRepository.markAsDeleted(meetingId, System.currentTimeMillis())
+
+                // Reload meetings after deletion
+                currentCycleId?.let { cycleId ->
+                    getMeetingsForCycle(MeetingEvent.GetMeetingsForCycle(cycleId))
+                }
+                _state.value = MeetingState.MeetingDeleted(true)
+            } catch (e: Exception) {
+                _state.value = MeetingState.Error(e.message ?: "Failed to delete meeting")
+            }
+        }
+    }
     private fun getMeetingsForCycle(event: MeetingEvent.GetMeetingsForCycle) {
         currentCycleId = event.cycleId
         viewModelScope.launch {

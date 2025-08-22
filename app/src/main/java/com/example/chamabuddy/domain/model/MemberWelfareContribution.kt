@@ -1,5 +1,6 @@
 package com.example.chamabuddy.domain.model
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.*
@@ -12,5 +13,9 @@ data class MemberWelfareContribution(
     val amountContributed: Int,
     val contributionDate: Long = Date().time,
     val isLate: Boolean = false,
-    val groupId: String
+    val groupId: String,
+   val lastUpdated: Long = System.currentTimeMillis(),
+    val isSynced: Boolean = false,
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

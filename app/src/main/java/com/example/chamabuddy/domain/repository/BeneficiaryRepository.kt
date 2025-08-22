@@ -19,4 +19,8 @@ interface BeneficiaryRepository {
     suspend fun getUnsyncedBeneficiaries(): List<Beneficiary>
     suspend fun markBeneficiarySynced(beneficiary: Beneficiary)
 
+
+    suspend fun markAsDeleted(beneficiaryId: String, timestamp: Long)
+    suspend fun getDeletedBeneficiaries(): List<Beneficiary>
+    suspend fun permanentDelete(beneficiaryId: String)
 }

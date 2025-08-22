@@ -29,4 +29,8 @@ interface MemberContributionRepository {
 
     suspend fun getContributionById(contributionId: String): MemberContribution?
 
+
+    suspend fun markAsDeleted(contributionId: String, timestamp: Long)
+    suspend fun getDeletedContributions(): List<MemberContribution>
+    suspend fun permanentDelete(contributionId: String)
 }

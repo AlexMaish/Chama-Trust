@@ -61,4 +61,13 @@ class MemberContributionRepositoryImpl @Inject constructor(
         return dao.getContributionById(contributionId)
     }
 
+    override suspend fun markAsDeleted(contributionId: String, timestamp: Long) =
+        dao.markAsDeleted(contributionId, timestamp)
+
+    override suspend fun getDeletedContributions(): List<MemberContribution> =
+        dao.getDeletedContributions()
+
+    override suspend fun permanentDelete(contributionId: String) =
+        dao.permanentDelete(contributionId)
+
 }

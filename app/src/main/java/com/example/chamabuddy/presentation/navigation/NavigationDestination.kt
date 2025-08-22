@@ -172,3 +172,10 @@ object CreateWelfareDestination : NavigationDestination {
     const val groupIdArg = "groupId"
     val routeWithArgs = "$route/{$groupIdArg}"
 }
+
+object SavingsFilterDestination : NavigationDestination {
+    override val route = "savings_filter"
+    override val title = "Savings Filter"
+    const val groupIdArg = "groupId"
+    val routeWithArgs = "$route/{$groupIdArg}"
+}

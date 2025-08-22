@@ -75,4 +75,19 @@ interface SavingsRepository {
 
     suspend fun insertEntry(entry: MonthlySavingEntry)
 
+    suspend fun markAsDeleted(savingId: String, timestamp: Long)
+    suspend fun getDeletedSavings(): List<MonthlySaving>
+    suspend fun permanentDelete(savingId: String)
+
+
+    suspend fun getDeletedEntries(): List<MonthlySavingEntry>
+    suspend fun permanentDeleteEntry(entryId: String)
+
+  suspend fun getDeletedEntities(): List<MonthlySavingEntry>
+
+    suspend fun getGroupSavingsEntries(groupId: String): List<MonthlySavingEntry>
+
+
+
+    suspend fun getMemberName(memberId: String): String?
 }

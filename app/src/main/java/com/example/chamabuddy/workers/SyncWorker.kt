@@ -1,6 +1,7 @@
 package com.example.chamabuddy.workers
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -83,13 +84,23 @@ class SyncWorker @AssistedInject constructor(
             } else {
                 firestore.collection("users")
             }
+
+            // Replaced user sync: use insert-or-update with SQLiteConstraintException handling
             val firebaseUsers = userQuery.get().await()
             SyncLogger.d("Fetched ${firebaseUsers.size()} users from Firestore for update.")
             for (doc in firebaseUsers) {
                 val firebaseUser = doc.toObject(UserFire::class.java)
                 val localUser = userRepository.getUserById(firebaseUser.userId)
+
+                // Use insertOrUpdate approach instead of separate insert/update
                 if (localUser == null) {
-                    userRepository.insertUser(firebaseUser.toLocal())
+                    try {
+                        userRepository.insertUser(firebaseUser.toLocal())
+                    } catch (e: SQLiteConstraintException) {
+                        // If user already exists (race condition), update instead
+                        SyncLogger.d("User ${firebaseUser.userId} already exists, updating")
+                        userRepository.updateUser(firebaseUser.toLocal())
+                    }
                 } else if (firebaseUser.lastUpdated.toDate().time > localUser.lastUpdated) {
                     userRepository.updateUser(firebaseUser.toLocal())
                 }

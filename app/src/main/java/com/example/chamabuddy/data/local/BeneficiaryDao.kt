@@ -139,5 +139,16 @@ interface BeneficiaryDao {
 
 
 
+    // Add soft delete methods
+    @Query("UPDATE beneficiaries SET is_deleted = 1, deleted_at = :timestamp WHERE beneficiary_id = :beneficiaryId")
+    suspend fun markAsDeleted(beneficiaryId: String, timestamp: Long)
+
+    @Query("SELECT * FROM beneficiaries WHERE is_deleted = 1")
+    suspend fun getDeletedBeneficiaries(): List<Beneficiary>
+
+    @Query("DELETE FROM beneficiaries WHERE beneficiary_id = :beneficiaryId")
+    suspend fun permanentDelete(beneficiaryId: String)
+
+
 
 }

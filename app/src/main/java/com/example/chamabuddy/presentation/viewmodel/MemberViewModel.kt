@@ -62,6 +62,25 @@ class MemberViewModel @Inject constructor(
         currentUserId = userId
     }
 
+    private fun deleteMember(member: Member) {
+        viewModelScope.launch {
+            _state.value = MemberState.Loading
+            try {
+                // Use soft delete instead of immediate deletion
+                memberRepository.markAsDeleted(member.memberId, System.currentTimeMillis())
+
+                // Update UI immediately by filtering out deleted member
+                val currentMembers = (_state.value as? MemberState.MembersLoaded)?.members
+                    ?.filter { it.memberId != member.memberId } ?: emptyList()
+
+                _state.value = MemberState.MembersLoaded(currentMembers)
+
+            } catch (e: Exception) {
+                _state.value = MemberState.Error("Deletion failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
 
     fun loadCurrentUserRole(groupId: String, userId: String) {
         viewModelScope.launch {
@@ -79,8 +98,27 @@ class MemberViewModel @Inject constructor(
 
     fun handleEvent(event: MemberEvent) {
         when (event) {
+
+            is MemberEvent.AddMember -> {
+                viewModelScope.launch {
+                    val existingMembers = state.value.let {
+                        if (it is MemberState.MembersLoaded) it.members else emptyList()
+                    }
+
+                    val alreadyExists = existingMembers.any { member ->
+                        member.phoneNumber == event.member.phoneNumber && member.groupId == event.member.groupId
+                    }
+
+                    if (alreadyExists) {
+                        _snackbarMessage.value = "Member with this phone number is already in the group."
+                    } else {
+                        memberRepository.addMember(event.member)
+                        handleEvent(MemberEvent.LoadMembersForGroup(event.member.groupId))
+                        _snackbarMessage.value = "Member added successfully."
+                    }
+                }
+            }
             is MemberEvent.LoadMembersForGroup -> loadMembersForGroup(event.groupId)
-            is MemberEvent.AddMember -> addMember(event.member)
             is MemberEvent.UpdateMember -> updateMember(event.member)
             is MemberEvent.DeleteMember -> deleteMember(event.member)
             is MemberEvent.GetMemberDetails -> getMemberDetails(event.memberId)
@@ -239,17 +277,7 @@ class MemberViewModel @Inject constructor(
         }
     }
 
-    private fun deleteMember(member: Member) {
-        viewModelScope.launch {
-            _state.value = MemberState.Loading
-            try {
-                memberRepository.deleteMember(member)
-                loadMembersForGroup(currentGroupId) // Reload members
-            } catch (e: Exception) {
-                _state.value = MemberState.Error("Deletion failed: ${e.localizedMessage}")
-            }
-        }
-    }
+
 
     private fun getMemberDetails(memberId: String) {
         viewModelScope.launch {

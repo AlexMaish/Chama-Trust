@@ -55,16 +55,9 @@ interface MemberDao {
     suspend fun getActiveMembersForGroup(groupId: String): List<Member>
 
 
-    @Query("SELECT * FROM member WHERE group_id = :groupId")
-    suspend fun getMembersByGroup(groupId: String): List<Member>
-
-
 
     @Query("SELECT * FROM member WHERE group_id = :groupId")
     fun getMembersByGroupFlow(groupId: String): Flow<List<Member>>
-
-    @Query("SELECT * FROM member WHERE user_id = :userId AND group_id = :groupId")
-    suspend fun getMemberByUserId(userId: String, groupId: String): Member?
 
 
 
@@ -75,8 +68,6 @@ interface MemberDao {
     @Query("SELECT * FROM member WHERE group_id = :groupId AND REPLACE(REPLACE(phone_number, ' ', ''), '-', '') = :normalizedPhone")
     suspend fun getMemberByNormalizedPhone(groupId: String, normalizedPhone: String): Member?
 
-    @Query("SELECT * FROM member WHERE group_id = :groupId AND is_active = 1")
-    suspend fun getActiveMembersByGroup(groupId: String): List<Member>
 
 
     @Query("SELECT COUNT(*) FROM member WHERE group_id = :groupId AND is_admin = 1")
@@ -99,5 +90,27 @@ interface MemberDao {
 
     @Query("SELECT * FROM member WHERE group_id = :groupId AND is_synced = 0")
     suspend fun getUnsyncedMembersForGroup(groupId: String): List<Member>
+
+    // 🔹 Soft delete
+    @Query("UPDATE member SET is_deleted = 1, deleted_at = :timestamp WHERE member_id = :memberId")
+    suspend fun markAsDeleted(memberId: String, timestamp: Long)
+
+    // 🔹 Get all soft-deleted members
+    @Query("SELECT * FROM member WHERE is_deleted = 1")
+    suspend fun getDeletedMembers(): List<Member>
+
+    // 🔹 Permanently delete
+    @Query("DELETE FROM member WHERE member_id = :memberId")
+    suspend fun permanentDelete(memberId: String)
+
+    // Add is_deleted = 0 condition to relevant queries
+    @Query("SELECT * FROM member WHERE group_id = :groupId AND is_deleted = 0")
+    suspend fun getMembersByGroup(groupId: String): List<Member>
+
+    @Query("SELECT * FROM member WHERE group_id = :groupId AND is_active = 1 AND is_deleted = 0")
+    suspend fun getActiveMembersByGroup(groupId: String): List<Member>
+
+    @Query("SELECT * FROM member WHERE user_id = :userId AND group_id = :groupId AND is_deleted = 0")
+    suspend fun getMemberByUserId(userId: String, groupId: String): Member?
 
 }

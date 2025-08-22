@@ -10,5 +10,9 @@ data class MemberContributionFire(
     val contributionDate: Timestamp = Timestamp.now(), // Changed from String
     val isLate: Boolean = false,
     val groupId: String = "",
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+
+    val deletedAt: Long = 0
 )

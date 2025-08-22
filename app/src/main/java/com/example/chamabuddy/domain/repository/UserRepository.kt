@@ -37,16 +37,28 @@ interface UserRepository {
 
     suspend fun markUserGroupSynced(userGroup: UserGroup)
 
+    // keep insert/update for backward compatibility if you still use them
     suspend fun insertUser(user: User)
     suspend fun updateUser(user: User)
 
+    // New API: upsert + sync helper using upsert
+    suspend fun upsertUser(user: User)
+    suspend fun syncUser(user: User)
+
     suspend fun loginWithFirebase(identifier: String, password: String): Result<User>
-
-
 
     suspend fun insertUserGroup(userGroup: UserGroup)
     suspend fun updateUserGroup(userGroup: UserGroup)
     suspend fun getUserGroup(userId: String, groupId: String): UserGroup?
     suspend fun isUserInGroup(userId: String, groupId: String): Boolean
+
+    suspend fun markUserAsDeleted(userId: String, timestamp: Long)
+    suspend fun getDeletedUsers(): List<User>
+    suspend fun permanentDeleteUser(userId: String)
+
+
+    suspend fun markUserGroupAsDeleted(userId: String, groupId: String, timestamp: Long)
+    suspend fun getDeletedUserGroups(): List<UserGroup>
+    suspend fun permanentDeleteUserGroup(userId: String, groupId: String)
 
 }

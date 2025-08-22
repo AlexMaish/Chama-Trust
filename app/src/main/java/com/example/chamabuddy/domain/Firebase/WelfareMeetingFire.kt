@@ -15,5 +15,8 @@ data class WelfareMeetingFire(
     val lastUpdated: Timestamp = Timestamp.now(),
     val isSynced: Boolean = false,
     val beneficiaryNames: List<String> = emptyList(),
-    val contributorSummaries: List<String> = emptyList()
+    val contributorSummaries: List<String> = emptyList(),
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

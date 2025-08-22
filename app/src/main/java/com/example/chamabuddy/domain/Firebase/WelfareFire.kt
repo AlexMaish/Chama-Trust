@@ -11,6 +11,9 @@ data class WelfareFire(
     val createdBy: String = "",
     val createdAt: Timestamp = Timestamp.now(),
     val lastUpdated: Timestamp = Timestamp.now(),
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )
 

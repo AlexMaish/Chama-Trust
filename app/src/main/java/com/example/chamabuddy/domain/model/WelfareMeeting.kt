@@ -18,9 +18,8 @@ data class WelfareMeeting(
     val groupId: String,
     val lastUpdated: Long = System.currentTimeMillis(),
     val isSynced: Boolean = false,
-
     val beneficiaryNames: List<String> = emptyList(),
-    val contributorSummaries: List<String> = emptyList()
-
-
+    val contributorSummaries: List<String> = emptyList(),
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

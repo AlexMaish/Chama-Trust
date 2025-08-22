@@ -12,5 +12,8 @@ data class MonthlySavingEntryFire(
     val groupId: String = "",
     val isPlaceholder: Boolean = false,
     val monthYear: String = "",
-    val lastUpdated: Timestamp = Timestamp.now()
+    val lastUpdated: Timestamp = Timestamp.now(),
+
+    val isDeleted: Boolean = false,
+    val deletedAt: Long = 0
 )

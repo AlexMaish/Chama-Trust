@@ -302,17 +302,6 @@ class SavingsRepositoryImpl @Inject constructor(
         return savingEntryDao.getTotalSavingsByGroup(groupId) ?: 0
     }
 
-    override suspend fun deleteSavingsEntry(entryId: String) {
-        savingEntryDao.deleteEntry(entryId)
-    }
-
-    override suspend fun deleteSavingsForMonth(cycleId: String, monthYear: String, groupId: String) {
-        val saving = savingDao.getSavingForMonth(cycleId, monthYear)
-        saving?.let {
-            savingDao.deleteSaving(it.savingId)
-        }
-    }
-
 
 
 
@@ -355,6 +344,59 @@ class SavingsRepositoryImpl @Inject constructor(
     override suspend fun insertEntry(entry: MonthlySavingEntry) {
         savingEntryDao.insertSavingEntry(entry)
     }
+
+
+    override suspend fun markAsDeleted(savingId: String, timestamp: Long) =
+        savingDao.markAsDeleted(savingId, timestamp)
+
+    override suspend fun getDeletedSavings(): List<MonthlySaving> =
+        savingDao.getDeletedSavings()
+
+    override suspend fun permanentDelete(savingId: String) =
+        savingDao.permanentDelete(savingId)
+
+
+    override suspend fun getDeletedEntries(): List<MonthlySavingEntry> {
+        return savingEntryDao.getDeletedEntries()
+    }
+
+    override suspend fun getDeletedEntities(): List<MonthlySavingEntry> =
+        savingEntryDao.getDeletedEntries()
+
+    override suspend fun permanentDeleteEntry(entryId: String) {
+        savingEntryDao.permanentDelete(entryId)
+    }
+
+    override suspend fun deleteSavingsEntry(entryId: String) {
+        savingEntryDao.markAsDeleted(entryId, System.currentTimeMillis())
+    }
+
+    override suspend fun deleteSavingsForMonth(cycleId: String, monthYear: String, groupId: String) {
+        val saving = savingDao.getSavingForMonth(cycleId, monthYear)
+        saving?.let {
+            savingDao.markAsDeleted(it.savingId, System.currentTimeMillis())
+            // Also mark all entries for this saving as deleted
+            savingEntryDao.getEntriesForSaving(it.savingId).first().forEach { entry ->
+                savingEntryDao.markAsDeleted(entry.entryId, System.currentTimeMillis())
+            }
+        }
+    }
+
+
+
+    override suspend fun getGroupSavingsEntries(groupId: String): List<MonthlySavingEntry> {
+        return withContext(dispatcher) {
+            savingEntryDao.getGroupSavingsEntries(groupId)
+        }
+    }
+
+
+    override suspend fun getMemberName(memberId: String): String? = withContext(dispatcher) {
+        memberDao.getMemberById(memberId)?.name
+    }
+
+
+
 
 
 }

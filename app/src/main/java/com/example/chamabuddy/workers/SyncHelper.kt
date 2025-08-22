@@ -3,33 +3,60 @@ package com.example.chamabuddy.workers
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.example.chamabuddy.util.SyncLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
-import androidx.work.await
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Singleton
 class SyncHelper @Inject constructor(
     @ApplicationContext private val context: Context,
     private val workManager: WorkManager
 ) {
+    private var isSyncing = AtomicBoolean(false)
 
-    fun triggerGroupSync(groupIds: Set<String>) {
-        if (!isNetworkAvailable()) {
-            SyncLogger.d("Network unavailable - skipping group sync")
+    fun triggerFullSync() {
+        if (isSyncing.getAndSet(true)) {
+            SyncLogger.d("Sync already in progress, skipping")
             return
         }
 
-        SyncLogger.d("Triggering sync for groups: $groupIds")
+        SyncLogger.d("🚀 Enqueuing full sync work")
+        val request = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
+            .addTag("full_sync_work")
+            .build()
 
-        if (groupIds.isEmpty()) {
-            SyncLogger.d("No groups to sync - skipping")
+        workManager.enqueueUniqueWork(
+            "full_sync_work",
+            ExistingWorkPolicy.KEEP, // Changed from REPLACE to KEEP
+            request
+        )
+
+        // Reset sync flag when work completes
+        workManager.getWorkInfoByIdLiveData(request.id)
+            .observeForever { workInfo ->
+                if (workInfo?.state?.isFinished == true) {
+                    isSyncing.set(false)
+                }
+            }
+
+        SyncLogger.d("📝 Work enqueued with ID: ${request.id}")
+    }
+
+    // Add similar coordination to triggerGroupSync
+    fun triggerGroupSync(groupIds: Set<String>) {
+        if (groupIds.isEmpty() || !isNetworkAvailable()) {
+            if (groupIds.isEmpty()) SyncLogger.d("No groups to sync - skipping")
+            else SyncLogger.d("Network unavailable - skipping group sync")
             return
         }
 
@@ -39,13 +66,16 @@ class SyncHelper @Inject constructor(
 
         val request = OneTimeWorkRequestBuilder<GroupSyncWorker>()
             .setInputData(data)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            )
             .build()
-
-
 
         workManager.enqueueUniqueWork(
             "group_sync_${System.currentTimeMillis()}",
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP, // Changed from REPLACE to KEEP
             request
         )
     }
@@ -82,29 +112,6 @@ class SyncHelper @Inject constructor(
             ExistingPeriodicWorkPolicy.KEEP,
             groupSyncRequest
         )
-    }
-
-
-
-    fun triggerFullSync() {
-        SyncLogger.d("🚀 Enqueuing full sync work")
-
-        val request = OneTimeWorkRequestBuilder<SyncWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            )
-            .addTag("full_sync_work")
-            .build()
-
-        workManager.enqueueUniqueWork(
-            "full_sync_work",
-            ExistingWorkPolicy.REPLACE,
-            request
-        )
-
-        SyncLogger.d("📝 Work enqueued with ID: ${request.id}")
     }
 
     private fun isNetworkAvailable(): Boolean {
