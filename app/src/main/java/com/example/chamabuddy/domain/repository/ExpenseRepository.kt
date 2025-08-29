@@ -19,5 +19,8 @@ interface ExpenseRepository {
     suspend fun markAsDeleted(expenseId: String, timestamp: Long)
     suspend fun getDeletedExpenses(): List<ExpenseEntity>
     suspend fun permanentDelete(expenseId: String)
+    suspend fun updateExpense(expense: ExpenseEntity)
+
+    suspend fun findSimilarExpense(groupId: String, title: String, amount: Double, date: Long): ExpenseEntity?
 
 }

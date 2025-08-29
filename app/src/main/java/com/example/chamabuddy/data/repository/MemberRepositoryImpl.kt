@@ -198,4 +198,9 @@ class MemberRepositoryImpl @Inject constructor(
     }
     override suspend fun permanentDelete(memberId: String) =
         memberDao.permanentDelete(memberId)
+
+
+    override suspend fun getMemberByUserIdAndGroupId(userId: String, groupId: String): Member? {
+        return memberDao.getMemberByUserIdAndGroupId(userId, groupId)
+    }
 }

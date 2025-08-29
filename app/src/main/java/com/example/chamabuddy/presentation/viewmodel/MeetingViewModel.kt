@@ -358,14 +358,18 @@ class MeetingViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = MeetingState.Loading
             try {
-                // Use soft delete
+                // Immediate soft delete in local DB
                 meetingRepository.markAsDeleted(meetingId, System.currentTimeMillis())
 
-                // Reload meetings after deletion
+                // Update UI by filtering out the deleted meeting
                 currentCycleId?.let { cycleId ->
-                    getMeetingsForCycle(MeetingEvent.GetMeetingsForCycle(cycleId))
+                    val currentMeetings = (state.value as? MeetingState.MeetingsLoaded)?.meetings
+                    val updatedMeetings = currentMeetings?.filter {
+                        it.meeting.meetingId != meetingId
+                    } ?: emptyList()
+
+                    _state.value = MeetingState.MeetingsLoaded(updatedMeetings)
                 }
-                _state.value = MeetingState.MeetingDeleted(true)
             } catch (e: Exception) {
                 _state.value = MeetingState.Error(e.message ?: "Failed to delete meeting")
             }

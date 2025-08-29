@@ -1,6 +1,7 @@
 package com.example.chamabuddy.workers
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -88,15 +89,14 @@ class GroupSyncWorker @AssistedInject constructor(
         SyncLogger.d("Syncing data for group: $groupId")
         val lastSync = preferences.getLastGroupSync(groupId)
 
-        // Run sequentially in this exact order
         syncGroupDetails(groupId, lastSync)
         syncMembers(groupId, lastSync)
         syncCycles(groupId, lastSync)
         syncMeetings(groupId, lastSync)
-        syncBeneficiaries(groupId, lastSync)
-        syncContributions(groupId, lastSync)
         syncSavings(groupId, lastSync)
         syncMonthlySavingEntries(groupId, lastSync)
+        syncBeneficiaries(groupId, lastSync)
+        syncContributions(groupId, lastSync)
         syncBenefitEntities(groupId, lastSync)
         syncExpenseEntities(groupId, lastSync)
         syncPenalties(groupId, lastSync)
@@ -379,9 +379,14 @@ class GroupSyncWorker @AssistedInject constructor(
     private suspend fun syncSavings(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing savings for: $groupId")
         try {
-            val savingsSnapshot = firestore.collection("groups/$groupId/monthly_savings")
-                .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync)))
-                .get().await()
+            // For initial sync, fetch all savings without timestamp filter
+            val savingsQuery = if (lastSync == 0L) {
+                firestore.collection("groups/$groupId/monthly_savings").get()
+            } else {
+                firestore.collection("groups/$groupId/monthly_savings")
+                    .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync))).get()
+            }
+            val savingsSnapshot = savingsQuery.await()
 
             savingsSnapshot.documents.forEach { doc ->
                 withForeignKeyRetry {
@@ -395,7 +400,6 @@ class GroupSyncWorker @AssistedInject constructor(
                     }
                 }
             }
-
             savingRepository.getUnsyncedSavings().filter { it.groupId == groupId }.forEach { saving ->
                 firestore.collection("groups/$groupId/monthly_savings").document(saving.savingId)
                     .set(saving.toFirebase()).await()
@@ -421,6 +425,39 @@ class GroupSyncWorker @AssistedInject constructor(
         }
     }
 
+
+    private suspend fun syncSingleSaving(groupId: String, savingId: String) {
+        try {
+            val doc = firestore.collection("groups/$groupId/monthly_savings")
+                .document(savingId)
+                .get()
+                .await()
+
+            doc.toObject(MonthlySavingFire::class.java)?.let { firebaseSaving ->
+                savingRepository.insertSaving(firebaseSaving.toLocal())
+                SyncLogger.d("Synced missing saving: $savingId")
+            }
+        } catch (e: Exception) {
+            SyncLogger.e("Error syncing single saving $savingId: ${e.message}")
+        }
+    }
+
+    private suspend fun syncSingleMember(groupId: String, memberId: String) {
+        try {
+            val doc = firestore.collection("groups/$groupId/members")
+                .document(memberId)
+                .get()
+                .await()
+
+            doc.toObject(MemberFire::class.java)?.let { firebaseMember ->
+                memberRepository.syncMember(firebaseMember.toLocal())
+                SyncLogger.d("Synced missing member: $memberId")
+            }
+        } catch (e: Exception) {
+            SyncLogger.e("Error syncing single member $memberId: ${e.message}")
+        }
+    }
+
     private suspend fun syncBenefitEntities(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing benefits for: $groupId")
         try {
@@ -428,24 +465,111 @@ class GroupSyncWorker @AssistedInject constructor(
                 .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync)))
                 .get().await()
 
+            val processedIds = mutableSetOf<String>()
+
             benefitsSnapshot.documents.forEach { doc ->
                 withForeignKeyRetry {
                     doc.toObject(BenefitEntityFire::class.java)?.let { firebaseBenefit ->
+                        // Check for duplicate processing
+                        if (processedIds.contains(firebaseBenefit.id)) {
+                            SyncLogger.d("Skipping duplicate benefit: ${firebaseBenefit.id}")
+                            return@let
+                        }
+                        processedIds.add(firebaseBenefit.id)
+
                         val localBenefit = benefitRepository.getBenefitById(firebaseBenefit.id)
                         val firebaseTime = firebaseBenefit.lastUpdated.toDate().time
 
-                        if (localBenefit == null || firebaseTime > localBenefit.lastUpdated) {
-                            benefitRepository.insertBenefit(firebaseBenefit.toLocal())
+                        // Check if we need to update local data
+                        if (localBenefit == null) {
+                            // Check for similar benefits before inserting
+                            val similarBenefit = benefitRepository.findSimilarBenefit(
+                                firebaseBenefit.groupId,
+                                firebaseBenefit.name,
+                                firebaseBenefit.amount,
+                                firebaseBenefit.date.toDate().time
+                            )
+
+                            if (similarBenefit == null) {
+                                SyncLogger.d("Inserting new benefit: ${firebaseBenefit.id}")
+                                benefitRepository.insertBenefit(firebaseBenefit.toLocal())
+                            } else {
+                                SyncLogger.d("Merging with existing similar benefit: ${similarBenefit.benefitId}")
+                                // Update existing with firebase data
+                                val mergedBenefit = similarBenefit.copy(
+                                    description = firebaseBenefit.description,
+                                    lastUpdated = firebaseTime,
+                                    isSynced = true
+                                )
+                                benefitRepository.updateBenefit(mergedBenefit)
+                            }
+                        } else if (firebaseTime > localBenefit.lastUpdated) {
+                            SyncLogger.d("Updating existing benefit: ${firebaseBenefit.id}")
+                            benefitRepository.updateBenefit(firebaseBenefit.toLocal())
+                        } else if (firebaseTime < localBenefit.lastUpdated) {
+                            // Local version is newer, we will upload it in the upload step
+                            SyncLogger.d("Local benefit is newer, will upload: ${firebaseBenefit.id}")
                         }
                     }
                 }
             }
 
-            benefitRepository.getUnsyncedBenefits().filter { it.groupId == groupId }.forEach { benefit ->
-                firestore.collection("groups/$groupId/benefits").document(benefit.benefitId)
-                    .set(benefit.toFirebase()).await()
-                benefitRepository.markBenefitSynced(benefit)
-            }
+            // Upload local unsynced benefits
+            benefitRepository.getUnsyncedBenefits()
+                .filter { it.groupId == groupId }
+                .forEach { benefit ->
+                    val firestoreDoc = firestore.collection("groups/$groupId/benefits")
+                        .document(benefit.benefitId)
+
+                    // Check if document exists and compare timestamps
+                    val existingDoc = firestoreDoc.get().await()
+                    if (!existingDoc.exists()) {
+                        // Check for similar documents in Firebase before creating new
+                        val similarQuery = firestore.collection("groups/$groupId/benefits")
+                            .whereEqualTo("name", benefit.name)
+                            .whereEqualTo("amount", benefit.amount)
+                            .whereEqualTo("date", benefit.date)
+                            .get().await()
+
+                        if (similarQuery.isEmpty) {
+                            firestoreDoc.set(benefit.toFirebase()).await()
+                            benefitRepository.markBenefitSynced(benefit)
+                            SyncLogger.d("Created new benefit in Firebase: ${benefit.benefitId}")
+                        } else {
+                            // Merge with existing Firebase document
+                            val existingBenefit = similarQuery.documents[0].toObject(BenefitEntityFire::class.java)
+                            existingBenefit?.let {
+                                val mergedBenefit = benefit.copy(
+                                    benefitId = it.id,
+                                    lastUpdated = System.currentTimeMillis(),
+                                    isSynced = true
+                                )
+                                benefitRepository.updateBenefit(mergedBenefit)
+                                firestore.collection("groups/$groupId/benefits")
+                                    .document(it.id)
+                                    .set(mergedBenefit.toFirebase()).await()
+                                SyncLogger.d("Merged with existing Firebase benefit: ${it.id}")
+                            }
+                        }
+                    } else {
+                        val existingBenefit = existingDoc.toObject(BenefitEntityFire::class.java)
+                        val existingTime = existingBenefit?.lastUpdated?.toDate()?.time ?: 0
+
+                        if (benefit.lastUpdated > existingTime) {
+                            // Local version is newer, update Firebase
+                            firestoreDoc.set(benefit.toFirebase()).await()
+                            benefitRepository.markBenefitSynced(benefit)
+                            SyncLogger.d("Updated benefit in Firebase: ${benefit.benefitId}")
+                        } else if (benefit.lastUpdated < existingTime) {
+                            // Firebase version is newer, update local
+                            existingBenefit?.let {
+                                benefitRepository.updateBenefit(it.toLocal())
+                                SyncLogger.d("Updated local benefit from Firebase: ${benefit.benefitId}")
+                            }
+                        }
+                        // If timestamps are equal, no action needed
+                    }
+                }
 
             // Handle deleted benefits
             val deletedBenefits = benefitRepository.getDeletedBenefits().filter { it.groupId == groupId }
@@ -462,7 +586,6 @@ class GroupSyncWorker @AssistedInject constructor(
             SyncLogger.e("Error syncing benefits: ${e.message}", e)
         }
     }
-
     private suspend fun syncExpenseEntities(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing expenses for: $groupId")
         try {
@@ -470,24 +593,111 @@ class GroupSyncWorker @AssistedInject constructor(
                 .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync)))
                 .get().await()
 
+            val processedIds = mutableSetOf<String>()
+
             expensesSnapshot.documents.forEach { doc ->
                 withForeignKeyRetry {
                     doc.toObject(ExpenseEntityFire::class.java)?.let { firebaseExpense ->
+                        // Check for duplicate processing
+                        if (processedIds.contains(firebaseExpense.id)) {
+                            SyncLogger.d("Skipping duplicate expense: ${firebaseExpense.id}")
+                            return@let
+                        }
+                        processedIds.add(firebaseExpense.id)
+
                         val localExpense = expenseRepository.getExpenseById(firebaseExpense.id)
                         val firebaseTime = firebaseExpense.lastUpdated.toDate().time
 
-                        if (localExpense == null || firebaseTime > localExpense.lastUpdated) {
-                            expenseRepository.insertExpense(firebaseExpense.toLocal())
+                        // Check if we need to update local data
+                        if (localExpense == null) {
+                            // Check for similar expenses before inserting
+                            val similarExpense = expenseRepository.findSimilarExpense(
+                                firebaseExpense.groupId,
+                                firebaseExpense.title,
+                                firebaseExpense.amount,
+                                firebaseExpense.date.toDate().time
+                            )
+
+                            if (similarExpense == null) {
+                                SyncLogger.d("Inserting new expense: ${firebaseExpense.id}")
+                                expenseRepository.insertExpense(firebaseExpense.toLocal())
+                            } else {
+                                SyncLogger.d("Merging with existing similar expense: ${similarExpense.expenseId}")
+                                // Update existing with firebase data
+                                val mergedExpense = similarExpense.copy(
+                                    description = firebaseExpense.description,
+                                    lastUpdated = firebaseTime,
+                                    isSynced = true
+                                )
+                                expenseRepository.updateExpense(mergedExpense)
+                            }
+                        } else if (firebaseTime > localExpense.lastUpdated) {
+                            SyncLogger.d("Updating existing expense: ${firebaseExpense.id}")
+                            expenseRepository.updateExpense(firebaseExpense.toLocal())
+                        } else if (firebaseTime < localExpense.lastUpdated) {
+                            // Local version is newer, we will upload it in the upload step
+                            SyncLogger.d("Local expense is newer, will upload: ${firebaseExpense.id}")
                         }
                     }
                 }
             }
 
-            expenseRepository.getUnsyncedExpenses().filter { it.groupId == groupId }.forEach { expense ->
-                firestore.collection("groups/$groupId/expenses").document(expense.expenseId)
-                    .set(expense.toFirebase()).await()
-                expenseRepository.markExpenseSynced(expense)
-            }
+            // Upload local unsynced expenses
+            expenseRepository.getUnsyncedExpenses()
+                .filter { it.groupId == groupId }
+                .forEach { expense ->
+                    val firestoreDoc = firestore.collection("groups/$groupId/expenses")
+                        .document(expense.expenseId)
+
+                    // Check if document exists and compare timestamps
+                    val existingDoc = firestoreDoc.get().await()
+                    if (!existingDoc.exists()) {
+                        // Check for similar documents in Firebase before creating new
+                        val similarQuery = firestore.collection("groups/$groupId/expenses")
+                            .whereEqualTo("title", expense.title)
+                            .whereEqualTo("amount", expense.amount)
+                            .whereEqualTo("date", expense.date)
+                            .get().await()
+
+                        if (similarQuery.isEmpty) {
+                            firestoreDoc.set(expense.toFirebase()).await()
+                            expenseRepository.markExpenseSynced(expense)
+                            SyncLogger.d("Created new expense in Firebase: ${expense.expenseId}")
+                        } else {
+                            // Merge with existing Firebase document
+                            val existingExpense = similarQuery.documents[0].toObject(ExpenseEntityFire::class.java)
+                            existingExpense?.let {
+                                val mergedExpense = expense.copy(
+                                    expenseId = it.id,
+                                    lastUpdated = System.currentTimeMillis(),
+                                    isSynced = true
+                                )
+                                expenseRepository.updateExpense(mergedExpense)
+                                firestore.collection("groups/$groupId/expenses")
+                                    .document(it.id)
+                                    .set(mergedExpense.toFirebase()).await()
+                                SyncLogger.d("Merged with existing Firebase expense: ${it.id}")
+                            }
+                        }
+                    } else {
+                        val existingExpense = existingDoc.toObject(ExpenseEntityFire::class.java)
+                        val existingTime = existingExpense?.lastUpdated?.toDate()?.time ?: 0
+
+                        if (expense.lastUpdated > existingTime) {
+                            // Local version is newer, update Firebase
+                            firestoreDoc.set(expense.toFirebase()).await()
+                            expenseRepository.markExpenseSynced(expense)
+                            SyncLogger.d("Updated expense in Firebase: ${expense.expenseId}")
+                        } else if (expense.lastUpdated < existingTime) {
+                            // Firebase version is newer, update local
+                            existingExpense?.let {
+                                expenseRepository.updateExpense(it.toLocal())
+                                SyncLogger.d("Updated local expense from Firebase: ${expense.expenseId}")
+                            }
+                        }
+                        // If timestamps are equal, no action needed
+                    }
+                }
 
             // Handle deleted expenses
             val deletedExpenses = expenseRepository.getDeletedExpenses().filter { it.groupId == groupId }
@@ -512,23 +722,109 @@ class GroupSyncWorker @AssistedInject constructor(
                 .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync)))
                 .get().await()
 
+            val processedIds = mutableSetOf<String>()
+
             penaltiesSnapshot.documents.forEach { doc ->
                 withForeignKeyRetry {
                     doc.toObject(PenaltyFire::class.java)?.let { firebasePenalty ->
+                        // Check for duplicate processing
+                        if (processedIds.contains(firebasePenalty.id)) {
+                            SyncLogger.d("Skipping duplicate penalty: ${firebasePenalty.id}")
+                            return@let
+                        }
+                        processedIds.add(firebasePenalty.id)
+
                         val localPenalty = penaltyRepository.getPenaltyById(firebasePenalty.id)
                         val firebaseTime = firebasePenalty.lastUpdated.toDate().time
 
-                        if (localPenalty == null || firebaseTime > localPenalty.lastUpdated) {
-                            penaltyRepository.insertPenalty(firebasePenalty.toLocal())
+                        // Check if we need to update local data
+                        if (localPenalty == null) {
+                            // Check for similar penalties before inserting
+                            val similarPenalty = penaltyRepository.findSimilarPenalty(
+                                firebasePenalty.groupId,
+                                firebasePenalty.memberId,
+                                firebasePenalty.description,
+                                firebasePenalty.amount,
+                                firebasePenalty.date.toDate().time
+                            )
+
+                            if (similarPenalty == null) {
+                                SyncLogger.d("Inserting new penalty: ${firebasePenalty.id}")
+                                penaltyRepository.insertPenalty(firebasePenalty.toLocal())
+                            } else {
+                                SyncLogger.d("Merging with existing similar penalty: ${similarPenalty.penaltyId}")
+                                // Update existing with firebase data
+                                val mergedPenalty = similarPenalty.copy(
+                                    lastUpdated = firebaseTime,
+                                    isSynced = true
+                                )
+                                penaltyRepository.updatePenalty(mergedPenalty)
+                            }
+                        } else if (firebaseTime > localPenalty.lastUpdated) {
+                            SyncLogger.d("Updating existing penalty: ${firebasePenalty.id}")
+                            penaltyRepository.updatePenalty(firebasePenalty.toLocal())
+                        } else if (firebaseTime < localPenalty.lastUpdated) {
+                            // Local version is newer, we will upload it in the upload step
+                            SyncLogger.d("Local penalty is newer, will upload: ${firebasePenalty.id}")
                         }
                     }
                 }
             }
 
+            // Upload local unsynced penalties
             penaltyRepository.getUnsyncedPenalties().filter { it.groupId == groupId }.forEach { penalty ->
-                firestore.collection("groups/$groupId/penalties").document(penalty.penaltyId)
-                    .set(penalty.toFirebase()).await()
-                penaltyRepository.markPenaltySynced(penalty)
+                val firestoreDoc = firestore.collection("groups/$groupId/penalties")
+                    .document(penalty.penaltyId)
+
+                // Check if document exists and compare timestamps
+                val existingDoc = firestoreDoc.get().await()
+                if (!existingDoc.exists()) {
+                    // Check for similar documents in Firebase before creating new
+                    val similarQuery = firestore.collection("groups/$groupId/penalties")
+                        .whereEqualTo("memberId", penalty.memberId)
+                        .whereEqualTo("description", penalty.description)
+                        .whereEqualTo("amount", penalty.amount)
+                        .whereEqualTo("date", penalty.date)
+                        .get().await()
+
+                    if (similarQuery.isEmpty) {
+                        firestoreDoc.set(penalty.toFirebase()).await()
+                        penaltyRepository.markPenaltySynced(penalty)
+                        SyncLogger.d("Created new penalty in Firebase: ${penalty.penaltyId}")
+                    } else {
+                        // Merge with existing Firebase document
+                        val existingPenalty = similarQuery.documents[0].toObject(PenaltyFire::class.java)
+                        existingPenalty?.let {
+                            val mergedPenalty = penalty.copy(
+                                penaltyId = it.id,
+                                lastUpdated = System.currentTimeMillis(),
+                                isSynced = true
+                            )
+                            penaltyRepository.updatePenalty(mergedPenalty)
+                            firestore.collection("groups/$groupId/penalties")
+                                .document(it.id)
+                                .set(mergedPenalty.toFirebase()).await()
+                            SyncLogger.d("Merged with existing Firebase penalty: ${it.id}")
+                        }
+                    }
+                } else {
+                    val existingPenalty = existingDoc.toObject(PenaltyFire::class.java)
+                    val existingTime = existingPenalty?.lastUpdated?.toDate()?.time ?: 0
+
+                    if (penalty.lastUpdated > existingTime) {
+                        // Local version is newer, update Firebase
+                        firestoreDoc.set(penalty.toFirebase()).await()
+                        penaltyRepository.markPenaltySynced(penalty)
+                        SyncLogger.d("Updated penalty in Firebase: ${penalty.penaltyId}")
+                    } else if (penalty.lastUpdated < existingTime) {
+                        // Firebase version is newer, update local
+                        existingPenalty?.let {
+                            penaltyRepository.updatePenalty(it.toLocal())
+                            SyncLogger.d("Updated local penalty from Firebase: ${penalty.penaltyId}")
+                        }
+                    }
+                    // If timestamps are equal, no action needed
+                }
             }
 
             // Handle deleted penalties
@@ -546,7 +842,6 @@ class GroupSyncWorker @AssistedInject constructor(
             SyncLogger.e("Error syncing penalties: ${e.message}", e)
         }
     }
-
     private suspend fun syncUserGroups(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing user groups for: $groupId")
         try {
@@ -605,67 +900,145 @@ class GroupSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun syncMonthlySavingEntries(groupId: String, lastSync: Long) {
-        SyncLogger.d("Syncing monthly saving entries for: $groupId")
-        try {
-            // Download entries from Firestore
-            val entriesSnapshot = firestore.collection("groups/$groupId/monthly_saving_entries")
-                .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync)))
-                .get().await()
+        var retryCount = 0
+        val maxRetries = 3
 
-            entriesSnapshot.documents.forEach { doc ->
-                withForeignKeyRetry {
-                    doc.toObject(MonthlySavingEntryFire::class.java)?.let { firebaseEntry ->
-                        if (!verifyMonthlySavingEntryReferences(firebaseEntry)) {
-                            SyncLogger.e("Skipping saving entry with missing references: ${firebaseEntry.entryId}")
-                            return@let
-                        }
+        while (retryCount < maxRetries) {
+            try {
+                SyncLogger.d("Syncing monthly saving entries for: $groupId, lastSync: $lastSync")
+                try {
+                    // For initial sync, fetch all entries without timestamp filter
+                    val entriesQuery = if (lastSync == 0L) {
+                        SyncLogger.d("Performing initial sync for monthly saving entries")
+                        firestore.collection("groups/$groupId/monthly_saving_entries").get()
+                    } else {
+                        SyncLogger.d("Performing incremental sync for monthly saving entries")
+                        firestore.collection("groups/$groupId/monthly_saving_entries")
+                            .whereGreaterThanOrEqualTo("lastUpdated", Timestamp(Date(lastSync))).get()
+                    }
+                    val entriesSnapshot = entriesQuery.await()
+                    SyncLogger.d("Found ${entriesSnapshot.size()} monthly saving entries in Firestore")
 
-                        val localEntry = savingRepository.getEntryById(firebaseEntry.entryId)
-                        val firebaseTime = firebaseEntry.lastUpdated.toDate().time
+                    entriesSnapshot.documents.forEach { doc ->
+                        withForeignKeyRetry {
+                            doc.toObject(MonthlySavingEntryFire::class.java)?.let { firebaseEntry ->
+                                SyncLogger.d("Processing entry: ${firebaseEntry.entryId}, lastUpdated: ${firebaseEntry.lastUpdated.toDate().time}")
 
-                        if (localEntry == null) {
-                            savingRepository.insertEntry(firebaseEntry.toLocal())
-                        } else if (firebaseTime > localEntry.lastUpdated) {
-                            savingRepository.updateEntry(firebaseEntry.toLocal())
+
+                                if (!verifyMonthlySavingEntryReferences(firebaseEntry)) {
+                                    SyncLogger.e("Skipping saving entry with missing references: ${firebaseEntry.entryId}")
+                                    return@let
+                                }
+                                // Check if this entry is marked as deleted locally
+                                val localEntry = savingRepository.getEntryById(firebaseEntry.entryId)
+                                if (localEntry?.isDeleted == true) {
+                                    SyncLogger.d("Skipping deleted entry: ${firebaseEntry.entryId}")
+                                    return@let
+                                }
+
+                                // Verify references exist
+                                if (!verifyMonthlySavingEntryReferences(firebaseEntry)) {
+                                    SyncLogger.e("Skipping saving entry with missing references: ${firebaseEntry.entryId}")
+                                    SyncLogger.e("Saving ID: ${firebaseEntry.savingId}, Member ID: ${firebaseEntry.memberId}")
+
+                                    // Try to sync missing references
+                                    if (savingRepository.getSavingById(firebaseEntry.savingId) == null) {
+                                        SyncLogger.d("Attempting to sync missing saving: ${firebaseEntry.savingId}")
+                                        syncSingleSaving(groupId, firebaseEntry.savingId)
+                                    }
+                                    if (memberRepository.getMemberById(firebaseEntry.memberId) == null) {
+                                        SyncLogger.d("Attempting to sync missing member: ${firebaseEntry.memberId}")
+                                        syncSingleMember(groupId, firebaseEntry.memberId)
+                                    }
+                                    return@let
+                                }
+
+                                val firebaseTime = firebaseEntry.lastUpdated.toDate().time
+                                if (localEntry == null) {
+                                    SyncLogger.d("Inserting new monthly saving entry: ${firebaseEntry.entryId}")
+                                    savingRepository.insertEntry(firebaseEntry.toLocal())
+                                } else if (firebaseTime > localEntry.lastUpdated) {
+                                    SyncLogger.d("Updating existing monthly saving entry: ${firebaseEntry.entryId}")
+                                    savingRepository.updateEntry(firebaseEntry.toLocal())
+                                } else {
+                                    SyncLogger.d("No update needed for entry: ${firebaseEntry.entryId}")
+                                }
+                            }
                         }
                     }
-                }
-            }
 
-            // Upload local unsynced entries
-            savingRepository.getUnsyncedEntries()
-                .filter { it.groupId == groupId }
-                .forEach { entry ->
-                    firestore.collection("groups/$groupId/monthly_saving_entries")
-                        .document(entry.entryId)
-                        .set(entry.toFirebase()).await()
-                    savingRepository.markEntrySynced(entry)
-                }
+                    // Upload local unsynced entries (excluding deleted ones)
+                    val unsyncedEntries = savingRepository.getUnsyncedEntries()
+                        .filter { it.groupId == groupId && !it.isDeleted }
+                    SyncLogger.d("Found ${unsyncedEntries.size} unsynced local entries")
 
-            // Handle deleted saving entries
-            val deletedEntries = savingRepository.getDeletedEntries().filter { it.groupId == groupId }
-            for (entry in deletedEntries) {
-                try {
-                    firestore.collection("groups/$groupId/monthly_saving_entries")
-                        .document(entry.entryId)
-                        .delete()
-                        .await()
-                    savingRepository.permanentDeleteEntry(entry.entryId)
-                    SyncLogger.d("Deleted saving entry ${entry.entryId} from Firebase")
+                    unsyncedEntries.forEach { entry ->
+                        firestore.collection("groups/$groupId/monthly_saving_entries")
+                            .document(entry.entryId)
+                            .set(entry.toFirebase()).await()
+                        savingRepository.markEntrySynced(entry)
+                        SyncLogger.d("Uploaded unsynced entry: ${entry.entryId}")
+                    }
+
+                    // Handle deleted saving entries
+                    val deletedEntries = savingRepository.getDeletedEntries().filter { it.groupId == groupId }
+                    SyncLogger.d("Found ${deletedEntries.size} deleted entries to process")
+
+                    for (entry in deletedEntries) {
+                        try {
+                            firestore.collection("groups/$groupId/monthly_saving_entries")
+                                .document(entry.entryId)
+                                .delete()
+                                .await()
+                            savingRepository.permanentDeleteEntry(entry.entryId)
+                            SyncLogger.d("Deleted entry from remote: ${entry.entryId}")
+                        } catch (e: Exception) {
+                            if (e.message?.contains("NOT_FOUND") == true) {
+                                savingRepository.permanentDeleteEntry(entry.entryId)
+                                SyncLogger.d("Entry already deleted remotely: ${entry.entryId}")
+                            } else {
+                                SyncLogger.e("Error deleting entry ${entry.entryId}: ${e.message}")
+                            }
+                        }
+                    }
                 } catch (e: Exception) {
-                    SyncLogger.e("Error deleting saving entry ${entry.entryId}: ${e.message}")
+                    SyncLogger.e("Error syncing saving entries: ${e.message}", e)
+                }
+
+                break // ✅ success, exit retry loop
+            } catch (e: SQLiteConstraintException) {
+                if (e.message?.contains("FOREIGN KEY") == true) {
+                    retryCount++
+                    SyncLogger.d("Foreign key constraint violation, retry $retryCount/$maxRetries")
+                    delay(1000L * retryCount) // exponential backoff
+
+                    // Force re-sync dependencies before retry
+                    syncSavings(groupId, 0)
+                    syncMembers(groupId, 0)
+                } else {
+                    throw e
                 }
             }
-        } catch (e: Exception) {
-            SyncLogger.e("Error syncing saving entries: ${e.message}", e)
         }
     }
 
-    private suspend fun verifyMonthlySavingEntryReferences(entry: MonthlySavingEntryFire): Boolean {
-        return savingRepository.getSavingById(entry.savingId) != null &&
-                memberRepository.getMemberById(entry.memberId) != null
-    }
 
+    private suspend fun verifyMonthlySavingEntryReferences(entry: MonthlySavingEntryFire): Boolean {
+        val savingExists = savingRepository.getSavingById(entry.savingId) != null
+        val memberExists = memberRepository.getMemberById(entry.memberId) != null
+
+        if (!savingExists) {
+            SyncLogger.d("Missing saving reference: ${entry.savingId}")
+            syncSingleSaving(entry.groupId, entry.savingId)
+        }
+
+        if (!memberExists) {
+            SyncLogger.d("Missing member reference: ${entry.memberId}")
+            syncSingleMember(entry.groupId, entry.memberId)
+        }
+
+        return savingExists && memberExists
+    }
     private suspend fun syncWelfares(groupId: String, lastSync: Long) {
         SyncLogger.d("Syncing welfares for: $groupId")
         try {

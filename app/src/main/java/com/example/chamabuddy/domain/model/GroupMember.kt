@@ -22,7 +22,7 @@ data class GroupMember(
     val groupId: String,
 
     @ColumnInfo(name = "user_id")
-    val userId: String, // Changed from memberId to userId
+    val userId: String,
 
     @ColumnInfo(name = "is_admin")
     val isAdmin: Boolean = false,

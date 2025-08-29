@@ -24,6 +24,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
 import com.example.chamabuddy.domain.model.WelfareMeeting
 import com.example.chamabuddy.presentation.navigation.HomeDestination
+import com.example.chamabuddy.presentation.navigation.WelfareContributionDestination
 import com.example.chamabuddy.presentation.navigation.WelfareDestination
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
@@ -112,32 +113,9 @@ fun WelfareDetailScreen(
             if (isAdmin) {
                 FloatingActionButton(
                     onClick = {
-                        coroutineScope.launch {
-                            val recordedByName = currentUser?.username ?: "Unknown"
-                            println("Creating new welfare meeting...")
-
-                            try {
-                                val meetingId = viewModel.createWelfareMeeting(
-                                    welfareId = welfareId,
-                                    meetingDate = Date(),
-                                    recordedBy = recordedByName,
-                                    groupId = groupId,
-                                    welfareAmount = 200
-                                )
-
-                                if (meetingId != null) {
-                                    println("Meeting created successfully. ID: $meetingId")
-                                    println("Navigating to contribution screen...")
-                                    navigateToContribution(meetingId)
-                                } else {
-                                    println("Meeting creation returned null ID")
-                                    snackbarHostState.showSnackbar("Failed to create meeting")
-                                }
-                            } catch (e: Exception) {
-                                println("Error creating meeting: ${e.message}")
-                                snackbarHostState.showSnackbar("Error: ${e.message}")
-                            }
-                        }
+                        navController.navigate(
+                            "${WelfareContributionDestination.route}/new/$welfareId/$groupId"
+                        )
                     },
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
@@ -159,8 +137,9 @@ fun WelfareDetailScreen(
                     }
                 },
                 onClick = { meeting ->
-                    // All users can view contributions, but only admin can edit
-                    navigateToContribution(meeting.meetingId)
+                    navController.navigate(
+                        "${WelfareContributionDestination.route}/${meeting.meetingId}/$welfareId/$groupId"
+                    )
                 }
             )
         }

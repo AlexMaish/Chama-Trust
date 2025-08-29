@@ -432,7 +432,7 @@ fun MemberListItem(
                     text = member.name,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        fontSize = 15.sp
                     ),
                     color = PremiumNavy,
                     maxLines = 1,
@@ -561,7 +561,7 @@ fun AddMemberDialog(
                 OutlinedTextField(
                     value = nickname,
                     onValueChange = { nickname = it },
-                    label = { Text("Nickname (Optional)") },
+                    label = { Text("Popular Name (Optional)") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp),

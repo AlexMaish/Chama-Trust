@@ -7,7 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically // Fixed: Added missing import
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -54,7 +54,6 @@ import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -62,6 +61,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -162,49 +162,47 @@ fun HomeScreen(
 ) {
     val viewModel: HomeViewModel = hiltViewModel()
     var showCreateDialog by remember { mutableStateOf(false) }
-
     val listState = rememberLazyListState()
     var bottomBarVisible by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val snackbarHostState = remember { SnackbarHostState() }
-
     val userGroups by viewModel.userGroups.collectAsState()
     val showSnackbar by viewModel.showSnackbar.collectAsState()
     val snackbarMessage by viewModel.snackbarMessage.collectAsState()
-
     val groupData by viewModel.groupData.collectAsState()
-
     val currentBackStackEntry = navController.currentBackStackEntry
     val savedStateHandle = currentBackStackEntry?.savedStateHandle
     var refreshTrigger by remember { mutableStateOf(0) }
-
     val totalSavings by viewModel.totalGroupSavings.collectAsState()
-
+    val totalSavingsDouble = totalSavings.toDouble()
     val authViewModel: AuthViewModel = hiltViewModel()
     val currentMemberId by authViewModel.currentMemberId.collectAsState()
-
     val memberViewModel: MemberViewModel = hiltViewModel()
     val currentUserIsAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
     val currentUserIsOwner by memberViewModel.currentUserIsOwner.collectAsState()
-
     val expenseViewModel: ExpenseViewModel = hiltViewModel()
     val benefitViewModel: BenefitViewModel = hiltViewModel()
     val penaltyViewModel: PenaltyViewModel = hiltViewModel()
-
     val welfareViewModel: WelfareViewModel = hiltViewModel()
     val welfares by welfareViewModel.welfares.collectAsState()
-
     var showCreateWelfareDialog by remember { mutableStateOf(false) }
-
     var welfareName by remember { mutableStateOf("") }
-    var welfareAmount by remember { mutableStateOf("") } // Add this line
+    var welfareAmount by remember { mutableStateOf("") }
     var welfareAmountError by remember { mutableStateOf(false) }
+    var welfareToDelete by remember { mutableStateOf<Welfare?>(null) }
+    var showDeleteWelfareDialog by remember { mutableStateOf(false) }
+    val expenseTotal by expenseViewModel.total.collectAsState()
+    val benefitTotal by benefitViewModel.total.collectAsState()
+    val penaltyTotal by penaltyViewModel.total.collectAsState()
+    val netTotal = remember(totalSavingsDouble, penaltyTotal, benefitTotal, expenseTotal) {
+        totalSavingsDouble + penaltyTotal + benefitTotal - expenseTotal
+    }
 
     LaunchedEffect(groupId) {
         if (groupId.isNotEmpty()) {
             authViewModel.loadCurrentMemberId(groupId)
-            welfareViewModel.loadWelfares(groupId) // Load welfares when groupId changes
+            welfareViewModel.loadWelfares(groupId)
         }
     }
 
@@ -228,13 +226,9 @@ fun HomeScreen(
             expenseViewModel.loadData(groupId)
             benefitViewModel.loadData(groupId)
             penaltyViewModel.loadData(groupId)
-            welfareViewModel.loadWelfares(groupId) // Ensure welfares are loaded
+            welfareViewModel.loadWelfares(groupId)
         }
     }
-
-    val expenseTotal by expenseViewModel.total.collectAsState()
-    val benefitTotal by benefitViewModel.total.collectAsState()
-    val penaltyTotal by penaltyViewModel.total.collectAsState()
 
     LaunchedEffect(savedStateHandle) {
         savedStateHandle?.get<Boolean>("cycle_created")?.let { created ->
@@ -245,7 +239,6 @@ fun HomeScreen(
         }
     }
 
-    // Add refreshTrigger as key to reload cycles
     LaunchedEffect(groupId, refreshTrigger) {
         if (groupId.isNotEmpty()) {
             viewModel.loadGroupData(groupId)
@@ -253,7 +246,6 @@ fun HomeScreen(
         }
     }
 
-    // Show snackbar when needed
     LaunchedEffect(showSnackbar) {
         if (showSnackbar) {
             snackbarHostState.showSnackbar(snackbarMessage)
@@ -261,7 +253,6 @@ fun HomeScreen(
         }
     }
 
-    // Drawer state handling
     LaunchedEffect(drawerState) {
         snapshotFlow { drawerState.isOpen }
             .collect { isOpen ->
@@ -275,12 +266,11 @@ fun HomeScreen(
             viewModel.loadGroupData(groupId)
             viewModel.loadCyclesForGroup(groupId)
         } else {
-            viewModel.setSnackbarMessage("No group selected. Please select a group first.")
+            viewModel.setSnackbarMessage("Please select a group first")
             viewModel.showSnackbar()
         }
     }
 
-    // Scroll detection for bottom bar visibility
     val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     val firstVisibleItemScrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
 
@@ -295,7 +285,6 @@ fun HomeScreen(
 
     val stateValue by viewModel.state.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     val bottomBarItems = listOf(
         TabItem(icon = Icons.Default.Home, title = "Home", destination = HomeDestination),
         TabItem(icon = Icons.Default.Person, title = "Beneficiaries", destination = BeneficiaryGroupDestination),
@@ -303,32 +292,9 @@ fun HomeScreen(
         TabItem(icon = Icons.Default.Group, title = "Members", destination = MembersDestination),
         TabItem(icon = Icons.Default.AccountCircle, title = "Profile", destination = ProfileDestination)
     )
-
     val syncViewModel: SyncViewModel = hiltViewModel()
     val isOnline by syncViewModel.isOnline.collectAsState()
     val syncStatus by syncViewModel.syncStatus.collectAsState()
-    val showNetworkRestored by syncViewModel.showNetworkRestored.collectAsState()
-
-    // Show network restored snackbar
-    LaunchedEffect(showNetworkRestored) {
-        if (showNetworkRestored) {
-            snackbarHostState.showSnackbar("Back online - synchronizing data")
-            syncViewModel.resetNetworkRestored()
-        }
-    }
-
-    // Show sync status snackbars
-    LaunchedEffect(syncStatus) {
-        when (syncStatus) {
-            is SyncWorker.SyncStatus.Success -> {
-                snackbarHostState.showSnackbar("Data synchronized")
-            }
-            is SyncWorker.SyncStatus.Failed -> {
-                snackbarHostState.showSnackbar("Sync failed: ${(syncStatus as SyncWorker.SyncStatus.Failed).message}")
-            }
-            else -> {}
-        }
-    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -345,6 +311,12 @@ fun HomeScreen(
                         scope.launch {
                             drawerState.close()
                             navController.navigate("${WelfareDestination.route}/${welfare.welfareId}")
+                        }
+                    },
+                    onWelfareLongClick = { welfare ->
+                        if (currentUserIsAdmin || currentUserIsOwner) {
+                            welfareToDelete = welfare
+                            showDeleteWelfareDialog = true
                         }
                     },
                     onCreateWelfare = { showCreateWelfareDialog = true },
@@ -367,81 +339,88 @@ fun HomeScreen(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                LargeTopAppBar(
-                    title = {
-                        Column {
-                            Text(
-                                text = groupData?.group?.name ?: "Loading...",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "${groupData?.members?.size ?: 0} members",
-                                color = Color.White.copy(alpha = 0.8f))
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(
-                                Icons.Default.Menu,
-                                contentDescription = "Navigation Menu",
-                                tint = Color.White
-                            )
-                        }
-                    },
-                    actions = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            when {
-                                !isOnline -> {
-                                    Icon(
-                                        imageVector = Icons.Default.CloudOff,
-                                        contentDescription = "Offline",
-                                        tint = Color.LightGray
-                                    )
-                                }
-                                syncStatus is SyncWorker.SyncStatus.InProgress -> {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(20.dp)
-                                            .padding(end = 4.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
-                                    )
-                                }
-                                syncStatus is SyncWorker.SyncStatus.Success -> {
-                                    Icon(
-                                        imageVector = Icons.Default.CloudDone,
-                                        contentDescription = "Synced",
-                                        tint = Color.Green
-                                    )
-                                }
-                                else -> {
-                                    Icon(
-                                        imageVector = Icons.Default.Cloud,
-                                        contentDescription = "Online",
-                                        tint = Color.White
-                                    )
-                                }
+                Column {
+                    LargeTopAppBar(
+                        title = {
+                            Column {
+                                Text(
+                                    text = groupData?.group?.name ?: "Loading...",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "${groupData?.members?.size ?: 0} members",
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
                             }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(
+                                    Icons.Default.Menu,
+                                    contentDescription = "Navigation Menu",
+                                    tint = Color.White
+                                )
+                            }
+                        },
+                        actions = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                when {
+                                    !isOnline -> {
+                                        Icon(
+                                            imageVector = Icons.Default.CloudOff,
+                                            contentDescription = "Offline",
+                                            tint = Color.LightGray
+                                        )
+                                    }
+                                    syncStatus is SyncWorker.SyncStatus.InProgress -> {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .padding(end = 4.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
+                                    syncStatus is SyncWorker.SyncStatus.Success -> {
+                                        Icon(
+                                            imageVector = Icons.Default.CloudDone,
+                                            contentDescription = "Synced",
+                                            tint = Color.Green
+                                        )
+                                    }
+                                    else -> {
+                                        Icon(
+                                            imageVector = Icons.Default.Cloud,
+                                            contentDescription = "Online",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
 
-                            Spacer(modifier = Modifier.width(16.dp))
+                                Spacer(modifier = Modifier.height(25.dp))
 
-                            Text(
-                                text = "KES $totalSavings",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(end = 16.dp)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.largeTopAppBarColors(
-                        containerColor = PremiumNavy,
-                        scrolledContainerColor = PremiumNavy,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White
-                    ),
-                    scrollBehavior = scrollBehavior
-                )
+                                FinancialSummaryCompact(
+                                    netTotal = netTotal,
+                                    totalSavings = totalSavingsDouble,
+                                    penaltyTotal = penaltyTotal,
+                                    benefitTotal = benefitTotal,
+                                    expenseTotal = expenseTotal,
+                                    modifier = Modifier.padding(end = 16.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        },
+                        colors = TopAppBarDefaults.largeTopAppBarColors(
+                            containerColor = PremiumNavy,
+                            scrolledContainerColor = PremiumNavy,
+                            titleContentColor = Color.White,
+                            navigationIconContentColor = Color.White
+                        ),
+                        scrollBehavior = scrollBehavior
+                    )
+                }
             },
             floatingActionButton = {
                 if (currentUserIsAdmin || currentUserIsOwner) {
@@ -470,7 +449,6 @@ fun HomeScreen(
                 AnimatedVisibility(
                     visible = bottomBarVisible,
                     enter = slideInVertically(initialOffsetY = { it }),
-                    // Fixed: Changed to slideOutVertically and fixed lambda syntax
                     exit = slideOutVertically(targetOffsetY = { it })
                 ) {
                     NavigationBar {
@@ -504,7 +482,6 @@ fun HomeScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -536,7 +513,8 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                modifier = Modifier.padding(top = 8.dp))
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
                         }
                     }
                 }
@@ -562,7 +540,6 @@ fun HomeScreen(
                     }
                     is CycleState.CycleHistory -> {
                         val cycles = (stateValue as CycleState.CycleHistory).cycles
-
                         val sortedCycles = remember(cycles) {
                             cycles.sortedBy { it.startDate }
                                 .mapIndexed { index, cycle ->
@@ -575,7 +552,8 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
-                                .background(Color.White),
+                                .background(Color.White)
+                                .padding(top = 16.dp),
                             color = Color.White
                         ) {
                             Column(
@@ -631,7 +609,6 @@ fun HomeScreen(
         }
     }
 
-// In HomeScreen composable
     if (showCreateWelfareDialog) {
         AlertDialog(
             onDismissRequest = { showCreateWelfareDialog = false },
@@ -685,6 +662,40 @@ fun HomeScreen(
             }
         )
     }
+
+    if (showDeleteWelfareDialog && welfareToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteWelfareDialog = false
+                welfareToDelete = null
+            },
+            title = { Text("Delete Welfare Group") },
+            text = { Text("Are you sure you want to delete '${welfareToDelete?.name}'? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        welfareViewModel.deleteWelfare(welfareToDelete!!.welfareId, groupId)
+                        showDeleteWelfareDialog = false
+                        welfareToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showDeleteWelfareDialog = false
+                        welfareToDelete = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
@@ -707,6 +718,128 @@ fun HomeScreen(
     }
 }
 
+@Composable
+fun FinancialSummarySection(
+    totalSavings: Double,
+    penaltyTotal: Double,
+    benefitTotal: Double,
+    expenseTotal: Double,
+    netTotal: Double,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .background(Color.White)
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "Net Total",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PremiumNavy.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        "KES ${"%.2f".format(netTotal)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = PremiumNavy
+                    )
+                }
+
+                IconButton(
+                    onClick = { expanded = !expanded },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.Check else Icons.Default.Add,
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        tint = PremiumNavy
+                    )
+                }
+            }
+
+            AnimatedVisibility(visible = expanded) {
+                Column(
+                    modifier = Modifier.padding(top = 16.dp)
+                ) {
+                    FinancialBreakdownRow(
+                        label = "Total Savings",
+                        amount = totalSavings,
+                        isPositive = true
+                    )
+                    FinancialBreakdownRow(
+                        label = "Total Penalties",
+                        amount = penaltyTotal,
+                        isPositive = true
+                    )
+                    FinancialBreakdownRow(
+                        label = "Total Benefits",
+                        amount = benefitTotal,
+                        isPositive = true
+                    )
+                    FinancialBreakdownRow(
+                        label = "Total Expenses",
+                        amount = expenseTotal,
+                        isPositive = false
+                    )
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    FinancialBreakdownRow(
+                        label = "Net Total",
+                        amount = netTotal,
+                        isPositive = netTotal >= 0,
+                        isTotal = true
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FinancialBreakdownRow(
+    label: String,
+    amount: Double,
+    isPositive: Boolean,
+    isTotal: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = if (isTotal) MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            else MaterialTheme.typography.bodyMedium,
+            color = PremiumNavy.copy(alpha = if (isTotal) 1f else 0.8f)
+        )
+        Text(
+            text = "${if (isPositive) "+" else "-"} KES ${"%.2f".format(amount)}",
+            style = if (isTotal) MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+            else MaterialTheme.typography.bodyMedium,
+            color = when {
+                isTotal -> if (isPositive) ActiveGreen else VibrantOrange
+                isPositive -> ActiveGreen
+                else -> VibrantOrange
+            }
+        )
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PremiumCycleCard(
@@ -719,8 +852,6 @@ fun PremiumCycleCard(
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     var expanded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var isLongPressed by remember { mutableStateOf(false) }
-
     val isActive = cycle.endDate == null
     val statusText = if (isActive) "ACTIVE" else "COMPLETED"
     val statusColor = if (isActive) ActiveGreen else CompletedGray
@@ -742,7 +873,6 @@ fun PremiumCycleCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -856,7 +986,6 @@ fun PremiumCycleCard(
         AlertDialog(
             onDismissRequest = {
                 showDeleteDialog = false
-                isLongPressed = false
             },
             title = { Text("Delete Cycle?") },
             text = { Text("Are you sure you want to permanently delete this cycle?") },
@@ -864,7 +993,6 @@ fun PremiumCycleCard(
                 TextButton(
                     onClick = {
                         showDeleteDialog = false
-                        isLongPressed = false
                         onDeleteCycle?.invoke()
                     }
                 ) {
@@ -874,7 +1002,6 @@ fun PremiumCycleCard(
             dismissButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
-                    isLongPressed = false
                 }) {
                     Text("Cancel")
                 }
@@ -1000,6 +1127,8 @@ fun EmptyDashboard(onCreateClick: () -> Unit) {
     }
 }
 
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SideNavigationDrawerContent(
     currentGroupId: String,
@@ -1011,6 +1140,7 @@ fun SideNavigationDrawerContent(
     onNavToExpense: () -> Unit,
     welfares: List<Welfare>,
     onWelfareSelected: (Welfare) -> Unit,
+    onWelfareLongClick: (Welfare) -> Unit,
     onCreateWelfare: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -1025,7 +1155,6 @@ fun SideNavigationDrawerContent(
             .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // Logo Section
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1042,7 +1171,6 @@ fun SideNavigationDrawerContent(
             )
         }
 
-        // Welfare Groups Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1067,7 +1195,6 @@ fun SideNavigationDrawerContent(
             }
         }
 
-        // Welfare List or Empty State
         if (welfares.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -1104,7 +1231,11 @@ fun SideNavigationDrawerContent(
                     .padding(8.dp)
             ) {
                 visibleWelfares.forEach { welfare ->
-                    WelfareListItem(welfare = welfare, onWelfareSelected = onWelfareSelected)
+                    WelfareListItem(
+                        welfare = welfare,
+                        onWelfareSelected = onWelfareSelected,
+                        onWelfareLongClick = onWelfareLongClick
+                    )
                 }
 
                 if (welfares.size > 5 && !expanded) {
@@ -1127,7 +1258,6 @@ fun SideNavigationDrawerContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Drawer Items
         NavigationDrawerItem(
             icon = Icons.Default.MoneyOff,
             text = "Penalties   Ksh${"%.2f".format(penaltyTotal)}",
@@ -1153,7 +1283,6 @@ fun SideNavigationDrawerContent(
             }
         )
 
-        // About Section
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1188,15 +1317,96 @@ fun SideNavigationDrawerContent(
 }
 
 @Composable
+fun FinancialSummaryCompact(
+    netTotal: Double,
+    totalSavings: Double,
+    penaltyTotal: Double,
+    benefitTotal: Double,
+    expenseTotal: Double,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { expanded = !expanded }
+        ) {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "Net Total",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+                Text(
+                    "KES ${"%.2f".format(netTotal)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            Icon(
+                imageVector = if (expanded) Icons.Default.Check else Icons.Default.Add,
+                contentDescription = if (expanded) "Collapse" else "Expand",
+                tint = Color.White,
+                modifier = Modifier
+                    .size(30.dp)
+                    .padding(start = 8.dp)
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(Color.White)
+        ) {
+            FinancialBreakdownRow(
+                label = "Total Savings",
+                amount = totalSavings,
+                isPositive = true
+            )
+            FinancialBreakdownRow(
+                label = "Total Penalties",
+                amount = penaltyTotal,
+                isPositive = true
+            )
+            FinancialBreakdownRow(
+                label = "Total Benefits",
+                amount = benefitTotal,
+                isPositive = true
+            )
+            FinancialBreakdownRow(
+                label = "Total Expenses",
+                amount = expenseTotal,
+                isPositive = false
+            )
+            Divider(modifier = Modifier.padding(vertical = 4.dp))
+            FinancialBreakdownRow(
+                label = "Net Total",
+                amount = netTotal,
+                isPositive = netTotal >= 0,
+                isTotal = true
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 fun WelfareListItem(
     welfare: Welfare,
-    onWelfareSelected: (Welfare) -> Unit
+    onWelfareSelected: (Welfare) -> Unit,
+    onWelfareLongClick: (Welfare) -> Unit
 ) {
     Card(
-        onClick = { onWelfareSelected(welfare) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .combinedClickable(
+                onClick = { onWelfareSelected(welfare) },
+                onLongClick = { onWelfareLongClick(welfare) }
+            ),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -1225,7 +1435,6 @@ fun WelfareListItem(
     }
 }
 
-// Fixed: Renamed to NavigationDrawerItem to resolve ambiguity
 @Composable
 fun NavigationDrawerItem(
     icon: ImageVector,
@@ -1246,7 +1455,6 @@ fun NavigationDrawerItem(
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
-        // Fixed: Added missing text parameter to Text composable
         Text(
             text = text,
             color = Color.White,
@@ -1284,7 +1492,7 @@ fun SocialIcon(iconRes: Int, description: String) {
         tint = Color.White,
         modifier = Modifier
             .size(32.dp)
-            .clickable { /* Handle social link click */ }
+            .clickable { }
     )
 }
 

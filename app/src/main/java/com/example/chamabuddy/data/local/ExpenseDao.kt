@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.chamabuddy.domain.model.ExpenseEntity
 import kotlinx.coroutines.flow.Flow
 @Dao
@@ -44,5 +45,12 @@ interface ExpenseDao {
     @Query("DELETE FROM expenses WHERE expenseId = :expenseId")
     suspend fun permanentDelete(expenseId: String)
 
+    @Update
+    suspend fun update(expense: ExpenseEntity)
+
+
+
+    @Query("SELECT * FROM expenses WHERE groupId = :groupId AND title = :title AND amount = :amount AND date = :date AND is_deleted = 0")
+    suspend fun findSimilarExpense(groupId: String, title: String, amount: Double, date: Long): ExpenseEntity?
 
 }

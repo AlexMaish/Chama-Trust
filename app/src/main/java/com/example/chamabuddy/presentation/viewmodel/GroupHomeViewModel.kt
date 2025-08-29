@@ -91,12 +91,33 @@ class GroupHomeViewModel @Inject constructor(
                 val groups = groupRepository.getUserGroups(userId)
 
                 if (groups.isEmpty()) {
-                    triggerFullUserSync(userId)
+                    if (!hasPerformedInitialSync) {
+                        _syncState.value = SyncState.SyncingData
+                        syncHelper.triggerFullSync()
+                        hasPerformedInitialSync = true
+
+                        // Set a timeout to prevent infinite loading
+                        delay(10000) // 10 seconds timeout
+                        if (_uiState.value.groups.isEmpty()) {
+                            _uiState.value = _uiState.value.copy(
+                                groups = emptyList(),
+                                isLoading = false,
+                                isSyncComplete = true
+                            )
+                            _syncState.value = SyncState.Complete
+                        }
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            groups = emptyList(),
+                            isLoading = false,
+                            isSyncComplete = true
+                        )
+                        _syncState.value = SyncState.Complete
+                    }
                 } else {
                     val groupIds = groups.map { it.groupId }.toSet()
                     syncPreferences.setUserGroups(groupIds)
 
-                    // Replace deep sync with generic sync
                     triggerDataSync(groupIds)
 
                     _uiState.value = _uiState.value.copy(
@@ -186,6 +207,29 @@ class GroupHomeViewModel @Inject constructor(
         )
     }
 
+    fun updateMemberCounts(counts: Map<String, Int>) {
+        _uiState.value = _uiState.value.copy(groupMemberCounts = counts)
+    }
+
+
+    fun deleteGroup(groupId: String) {
+        viewModelScope.launch {
+            try {
+                groupRepository.permanentDeleteGroups(groupId)
+                // Refresh the list after deletion
+                loadUserGroups()
+                _uiState.value = _uiState.value.copy(
+                    snackbarMessage = "Group deleted successfully"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    snackbarMessage = "Failed to delete group: ${e.message}"
+                )
+            }
+        }
+    }
+
+
     fun validateAndCreateGroup(name: String) {
         viewModelScope.launch {
             if (name.isBlank()) {
@@ -234,5 +278,6 @@ data class GroupHomeUiState(
     val nameValidationError: String? = null,
     val showCreateGroupDialog: Boolean = false,
     val isSyncComplete: Boolean = false,
+    val groupMemberCounts: Map<String, Int> = emptyMap(),
     val isUpToDate: Boolean = false
 )

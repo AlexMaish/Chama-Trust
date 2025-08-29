@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chamabuddy.domain.model.Cycle
+import com.example.chamabuddy.domain.model.Group
 import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.model.MonthlySaving
 import com.example.chamabuddy.domain.model.MonthlySavingEntry
@@ -13,10 +14,12 @@ import com.example.chamabuddy.domain.repository.CycleRepository
 import com.example.chamabuddy.domain.repository.MemberRepository
 import com.example.chamabuddy.domain.repository.SavingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,6 +28,10 @@ class SavingsViewModel @Inject constructor(
     private val memberRepository: MemberRepository,
     private val cycleRepository: CycleRepository,
 ) : ViewModel() {
+
+
+    private val _savingsData = MutableStateFlow<Map<String, List<Int>>>(emptyMap())
+    val savingsData: StateFlow<Map<String, List<Int>>> = _savingsData
 
     private val _state = MutableStateFlow<SavingsState>(SavingsState.Idle)
     val state: StateFlow<SavingsState> = _state.asStateFlow()
@@ -45,6 +52,14 @@ class SavingsViewModel @Inject constructor(
     private val _allMemberCycles = MutableStateFlow<List<CycleWithSavings>>(emptyList())
     val allMemberCycles: StateFlow<List<CycleWithSavings>> = _allMemberCycles.asStateFlow()
 
+
+    fun updateUiAfterEntryDeletion(entryId: String) {
+        val currentCycles = _allMemberCycles.value
+        val updatedCycles = currentCycles.map { cycle ->
+            cycle.copy(savingsEntries = cycle.savingsEntries.filterNot { it.entryId == entryId })
+        }
+        _allMemberCycles.value = updatedCycles
+    }
     private var _groupId: String by mutableStateOf("")
     private var _cycleId: String by mutableStateOf("")
 
@@ -58,27 +73,73 @@ class SavingsViewModel @Inject constructor(
     private fun loadAllMemberSavingsTotalsByGroup() {
         viewModelScope.launch {
             try {
+                println("DEBUG: Loading all member savings for group $_groupId")
+
                 val activeMembers = memberRepository.getMembersByGroup(_groupId)
+                println("DEBUG: Active members in group $_groupId -> $activeMembers")
+
                 val totals = mutableMapOf<String, Int>()
                 var groupTotal = 0
 
                 activeMembers.forEach { member ->
+                    println("DEBUG: Fetching savings for member ${member.memberId} (${member.name})")
                     val total = savingsRepository.getMemberSavingsTotalInGroup(
                         groupId = _groupId,
                         memberId = member.memberId
                     )
+                    println("DEBUG: Member ${member.memberId} total savings = $total")
+
                     totals[member.memberId] = total
                     groupTotal += total
+                    println("DEBUG: Running groupTotal = $groupTotal")
                 }
 
                 _groupMemberTotals.value = totals
                 _totalGroupSavings.value = groupTotal
+                println("DEBUG: Final memberTotals = $totals")
+                println("DEBUG: Final totalGroupSavings = $groupTotal")
+
             } catch (e: Exception) {
-                // Handle error
+                println("ERROR: Failed to load member savings for group $_groupId -> ${e.message}")
+                e.printStackTrace()
             }
         }
     }
 
+
+    suspend fun getMemberIdForUser(groupId: String, userId: String): String? {
+        return withContext(Dispatchers.IO) {
+            memberRepository.getMemberByUserIdAndGroupId(userId, groupId)?.memberId
+        }
+    }
+
+    fun loadUserSavingsData(groups: List<Group>, userId: String) {
+        viewModelScope.launch {
+            println("DEBUG: Loading user $userId savings across ${groups.size} groups")
+            val savingsData = mutableMapOf<String, List<Int>>()
+            if (userId.isNullOrEmpty()) {
+                println("DEBUG: User ID is null, skipping load")
+                return@launch
+            }
+            groups.forEach { group ->
+                println("DEBUG: Fetching monthly savings progress for user $userId in group ${group.groupId} (${group.name})")
+                val savings = savingsRepository.getMemberMonthlySavingsProgress(userId)
+                println("DEBUG: Raw savings data for group ${group.name}: $savings")
+
+                savingsData[group.name] = savings.map { it.second }
+                println("DEBUG: Processed savings values for chart in group ${group.name}: ${savingsData[group.name]}")
+            }
+
+            _savingsData.value = savingsData
+            println("DEBUG: Final _savingsData for chart: ${_savingsData.value}")
+        }
+    }
+
+    suspend fun getGroupSavingsEntries(groupId: String): List<MonthlySavingEntry> {
+        return withContext(Dispatchers.IO) {
+            savingsRepository.getGroupSavingsEntries(groupId)
+        }
+    }
     fun initializeCycleId(id: String) {
         _cycleId = id
         viewModelScope.launch {
@@ -130,15 +191,21 @@ class SavingsViewModel @Inject constructor(
             }
         }
     }
+    private val _memberMonthlySavings = MutableStateFlow<List<Pair<String, Int>>>(emptyList())
+    val memberMonthlySavings: StateFlow<List<Pair<String, Int>>> = _memberMonthlySavings.asStateFlow()
 
+    fun loadMemberMonthlySavings(memberId: String) {
+        viewModelScope.launch {
+            _memberMonthlySavings.value = savingsRepository.getMemberMonthlySavingsProgress(memberId)
+        }
+    }
 
     private fun deleteEntry(event: SavingsEvent.DeleteEntry) {
         viewModelScope.launch {
             _state.value = SavingsState.Loading
             try {
-                savingsRepository.markAsDeleted(event.entryId, System.currentTimeMillis())
+                savingsRepository.deleteSavingsEntryImmediately(event.entryId)
                 _state.value = SavingsState.EntryDeleted
-                // Refresh data using the memberId from the event
                 getAllMemberCycles(event.memberId)
             } catch (e: Exception) {
                 _state.value = SavingsState.Error(e.message ?: "Failed to delete entry")
@@ -150,16 +217,18 @@ class SavingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = SavingsState.Loading
             try {
-                savingsRepository.markAsDeleted(event.cycleId, System.currentTimeMillis())
+                savingsRepository.deleteSavingsForMonthImmediately(
+                    event.cycleId,
+                    event.monthYear,
+                    event.groupId
+                )
                 _state.value = SavingsState.MonthDeleted
-                // Refresh data using the memberId from the event
                 getAllMemberCycles(event.memberId)
             } catch (e: Exception) {
                 _state.value = SavingsState.Error(e.message ?: "Failed to delete month")
             }
         }
     }
-
     private fun loadAllMemberSavingsTotalsByCycle() {
         viewModelScope.launch {
             try {
@@ -273,6 +342,12 @@ class SavingsViewModel @Inject constructor(
                 // 🔹 Catch validation errors thrown above
                 _state.value = SavingsState.Error(e.message ?: "Failed to record savings")
             }
+        }
+    }
+
+    suspend fun getTotalSavingsForMonth(groupId: String, monthYear: String): Int {
+        return withContext(Dispatchers.IO) {
+            savingsRepository.getTotalSavingsForMonth(groupId, monthYear)
         }
     }
 

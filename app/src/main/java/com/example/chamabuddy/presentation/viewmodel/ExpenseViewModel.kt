@@ -35,6 +35,12 @@ class ExpenseViewModel @Inject constructor(
     }
 
 
+    fun deleteExpense(expenseId: String) {
+        viewModelScope.launch {
+            repository.markAsDeleted(expenseId, System.currentTimeMillis())
+        }
+    }
+
     fun showAddDialog() { _showDialog.value = true }
     fun hideAddDialog() { _showDialog.value = false }
 

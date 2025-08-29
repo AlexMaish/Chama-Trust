@@ -66,6 +66,11 @@ object ProfileDestination : NavigationDestination {
     val routeWithArgs = "$route/{$groupIdArg}/{$memberIdArg}"
 }
 
+object ChangePasswordDestination : NavigationDestination {
+    override val route = "change_password"
+    override val title = "Change Password"
+}
+
 object SavingsDestination : NavigationDestination {
     override val route = "savings"
     override val title = "Savings"
@@ -162,8 +167,12 @@ object WelfareBeneficiarySelectionDestination : NavigationDestination {
 object WelfareContributionDestination : NavigationDestination {
     override val route = "welfare_contribution"
     override val title = "Welfare Contribution"
+
     const val meetingIdArg = "meetingId"
-    val routeWithArgs = "$route/{$meetingIdArg}"
+    const val welfareIdArg = "welfareId"
+    const val groupIdArg = "groupId"
+
+    val routeWithArgs = "$route/{$meetingIdArg}/{$welfareIdArg}/{$groupIdArg}"
 }
 
 object CreateWelfareDestination : NavigationDestination {

@@ -65,7 +65,11 @@ class SyncWorker @AssistedInject constructor(
 
             var lastSync = preferences.getLastSyncTimestamp()
             val isInitialSync = lastSync == 0L
-            if (isInitialSync) lastSync = 0
+            if (isInitialSync) {
+                // Trigger full sync for all groups
+                val userGroups = preferences.getUserGroups()
+                syncHelper.triggerGroupSync(userGroups)
+            }
 
             // ----------- USERS SYNC (UPLOAD UNSYNCED & PULL UPDATES) ------------
             val unsyncedUsers = userRepository.getUnsyncedUsers()

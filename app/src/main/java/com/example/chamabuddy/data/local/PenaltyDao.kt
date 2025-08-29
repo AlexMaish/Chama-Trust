@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.chamabuddy.domain.model.Penalty
 import kotlinx.coroutines.flow.Flow
 
@@ -27,7 +28,8 @@ interface PenaltyDao {
     @Query("SELECT * FROM penalties WHERE penaltyId = :penaltyId LIMIT 1")
     suspend fun getPenaltyById(penaltyId: String): Penalty?
 
-
+    @Query("SELECT * FROM penalties WHERE groupId = :groupId AND memberId = :memberId AND description = :description AND amount = :amount AND date = :date AND is_deleted = 0")
+    suspend fun findSimilarPenalty(groupId: String, memberId: String, description: String, amount: Double, date: Long): Penalty?
 
     // 🔹 Soft delete
     @Query("UPDATE penalties SET is_deleted = 1, deleted_at = :timestamp WHERE penaltyId = :penaltyId")
@@ -40,4 +42,7 @@ interface PenaltyDao {
     // 🔹 Permanently delete
     @Query("DELETE FROM penalties WHERE penaltyId = :penaltyId")
     suspend fun permanentDelete(penaltyId: String)
+
+    @Update
+    suspend fun update(penalty: Penalty)
 }

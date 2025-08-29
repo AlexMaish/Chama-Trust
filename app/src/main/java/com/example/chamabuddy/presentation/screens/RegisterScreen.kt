@@ -3,10 +3,15 @@ package com.example.chamabuddy.presentation.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +31,8 @@ import com.example.chamabuddy.Common.Resource
 import com.example.chamabuddy.R
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 
+
+
 @Composable
 fun RegisterScreen(
     viewModel: AuthViewModel = hiltViewModel(),
@@ -37,6 +44,7 @@ fun RegisterScreen(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    val scrollState = rememberScrollState()
 
     Box(
         modifier = Modifier
@@ -70,13 +78,18 @@ fun RegisterScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(scrollState)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_chama_logo),
                     contentDescription = "App Logo",
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(SoftOffWhite)
+                        .padding(16.dp),
                     contentScale = ContentScale.Fit
                 )
 
@@ -202,6 +215,8 @@ fun RegisterScreen(
                         Text("Login", color = PremiumNavy, fontWeight = FontWeight.Bold)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.example.chamabuddy.data.repository
 
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.example.chamabuddy.data.local.AppDatabase
 import com.example.chamabuddy.data.local.CycleDao
 import com.example.chamabuddy.data.local.MemberDao
@@ -10,10 +12,13 @@ import com.example.chamabuddy.domain.model.MonthlySavingEntry
 import com.example.chamabuddy.domain.model.SavingsProgress
 import com.example.chamabuddy.domain.repository.SavingsRepository
 import com.example.chamabuddy.presentation.viewmodel.CycleWithSavings
+import com.example.chamabuddy.util.SyncLogger
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
@@ -25,7 +30,9 @@ class SavingsRepositoryImpl @Inject constructor(
     private val savingEntryDao: MonthlySavingEntryDao,
     private val cycleDao: CycleDao,
     private val memberDao: MemberDao,
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcher: CoroutineDispatcher,
+    private val firestore: FirebaseFirestore,
+    private val connectivityManager: ConnectivityManager
 ) : SavingsRepository {
 
     // SavingsRepositoryImpl.kt
@@ -368,22 +375,34 @@ class SavingsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteSavingsEntry(entryId: String) {
-        savingEntryDao.markAsDeleted(entryId, System.currentTimeMillis())
+        withContext(dispatcher) {
+            savingEntryDao.markAsDeleted(entryId, System.currentTimeMillis())
+        }
     }
 
     override suspend fun deleteSavingsForMonth(cycleId: String, monthYear: String, groupId: String) {
-        val saving = savingDao.getSavingForMonth(cycleId, monthYear)
-        saving?.let {
-            savingDao.markAsDeleted(it.savingId, System.currentTimeMillis())
-            // Also mark all entries for this saving as deleted
-            savingEntryDao.getEntriesForSaving(it.savingId).first().forEach { entry ->
-                savingEntryDao.markAsDeleted(entry.entryId, System.currentTimeMillis())
+        withContext(dispatcher) {
+            val saving = savingDao.getSavingForMonth(cycleId, monthYear)
+            saving?.let {
+                // Mark the MonthlySaving as deleted
+                savingDao.markAsDeleted(it.savingId, System.currentTimeMillis())
+
+                // Mark all entries for this saving as deleted
+                val entries = savingEntryDao.getEntriesForSaving(it.savingId).first()
+                entries.forEach { entry ->
+                    savingEntryDao.markAsDeleted(entry.entryId, System.currentTimeMillis())
+                }
             }
         }
     }
 
 
 
+    override suspend fun getTotalSavingsForMonth(groupId: String, monthYear: String): Int {
+        return withContext(dispatcher) {
+            savingDao.getTotalSavingsForMonth(groupId, monthYear) ?: 0
+        }
+    }
     override suspend fun getGroupSavingsEntries(groupId: String): List<MonthlySavingEntry> {
         return withContext(dispatcher) {
             savingEntryDao.getGroupSavingsEntries(groupId)
@@ -397,6 +416,117 @@ class SavingsRepositoryImpl @Inject constructor(
 
 
 
+    // Replace these functions in your SavingsRepositoryImpl.kt
+
+    override suspend fun deleteSavingsEntryImmediately(entryId: String) {
+        withContext(dispatcher) {
+            val entry = savingEntryDao.getEntryById(entryId)
+            entry?.let {
+                // Mark as deleted locally
+                savingEntryDao.markAsDeleted(entryId, System.currentTimeMillis())
+
+                // Delete from Firebase immediately if online
+                if (isOnline()) {
+                    try {
+                        firestore.collection("groups/${it.groupId}/monthly_saving_entries")
+                            .document(entryId)
+                            .delete()
+                            .await()
+                        savingEntryDao.permanentDelete(entryId)
+                    } catch (e: Exception) {
+                        // If Firebase deletion fails, keep it marked for sync
+                        SyncLogger.e("Immediate entry deletion failed: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun deleteSavingsForMonthImmediately(cycleId: String, monthYear: String, groupId: String) {
+        withContext(dispatcher) {
+            val saving = savingDao.getSavingForMonth(cycleId, monthYear)
+            saving?.let {
+                // Mark as deleted locally
+                savingDao.markAsDeleted(it.savingId, System.currentTimeMillis())
+
+                // Mark all entries as deleted
+                val entries = savingEntryDao.getEntriesForSaving(it.savingId).first()
+                entries.forEach { entry ->
+                    savingEntryDao.markAsDeleted(entry.entryId, System.currentTimeMillis())
+                }
+
+                // Delete from Firebase immediately if online
+                if (isOnline()) {
+                    try {
+                        // Delete all entries first
+                        entries.forEach { entry ->
+                            firestore.collection("groups/$groupId/monthly_saving_entries")
+                                .document(entry.entryId)
+                                .delete()
+                                .await()
+                            savingEntryDao.permanentDelete(entry.entryId)
+                        }
+
+                        // Delete the monthly saving
+                        firestore.collection("groups/$groupId/monthly_savings")
+                            .document(it.savingId)
+                            .delete()
+                            .await()
+                        savingDao.permanentDelete(it.savingId)
+                    } catch (e: Exception) {
+                        SyncLogger.e("Immediate month deletion failed: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun getAllUserSavingsEntries(userId: String): List<MonthlySavingEntry> {
+        return withContext(dispatcher) {
+            savingEntryDao.getMemberSavingsEntries(userId)
+        }
+    }
+
+    private fun isOnline(): Boolean {
+        val network = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }
 
 
+    override suspend fun getMemberMonthlySavingsProgress(memberId: String): List<Pair<String, Int>> {
+        return withContext(dispatcher) {
+            // Add debug logging
+            println("DEBUG: Getting savings entries for member: $memberId")
+
+            val entries = savingEntryDao.getMemberSavingsEntries(memberId)
+            println("DEBUG: Found ${entries.size} entries for member $memberId")
+            entries.forEach { entry ->
+                println("DEBUG: Entry: ${entry.entryId}, Amount: ${entry.amount}, Month: ${entry.monthYear}")
+            }
+            // Group by month and calculate cumulative sums
+            val monthlySums = entries.groupBy { it.monthYear }
+                .map { (monthYear, entries) ->
+                    val sum = entries.sumOf { it.amount }
+                    println("DEBUG: Month $monthYear total: $sum")
+                    monthYear to sum
+                }
+                .sortedBy { (monthYear, _) ->
+                    val format = SimpleDateFormat("MM/yyyy", Locale.getDefault())
+                    format.parse(monthYear)?.time ?: 0
+                }
+
+            // Calculate cumulative savings
+            val cumulativeSavings = mutableListOf<Pair<String, Int>>()
+            var total = 0
+
+            monthlySums.forEach { (month, amount) ->
+                total += amount
+                println("DEBUG: Cumulative for $month: $total")
+                cumulativeSavings.add(month to total)
+            }
+
+            cumulativeSavings
+        }
+    }
 }

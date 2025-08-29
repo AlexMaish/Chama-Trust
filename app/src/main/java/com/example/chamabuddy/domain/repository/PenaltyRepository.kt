@@ -18,4 +18,9 @@ interface PenaltyRepository {
     suspend fun markAsDeleted(penaltyId: String, timestamp: Long)
     suspend fun getDeletedPenalties(): List<Penalty>
     suspend fun permanentDelete(penaltyId: String)
+
+    suspend fun updatePenalty(penalty: Penalty)
+
+    suspend fun findSimilarPenalty(groupId: String, memberId: String, description: String, amount: Double, date: Long): Penalty?
+
 }

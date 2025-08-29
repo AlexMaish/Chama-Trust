@@ -61,5 +61,8 @@ interface WelfareRepository {
     suspend fun markWelfareMeetingAsDeleted(meetingId: String, timestamp: Long)
     suspend fun getDeletedMeetings(): List<WelfareMeeting>
     suspend fun permanentDeleteWelfareMeetings(meetingId: String)
+
+
+
 }
 

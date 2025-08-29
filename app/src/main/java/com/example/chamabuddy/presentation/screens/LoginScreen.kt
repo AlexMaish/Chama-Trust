@@ -3,8 +3,11 @@ package com.example.chamabuddy.presentation.screens
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -28,6 +31,7 @@ import com.example.chamabuddy.R
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
 
 
+
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel(),
@@ -38,6 +42,7 @@ fun LoginScreen(
 
     var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val scrollState = rememberScrollState()
 
     Box(
         modifier = Modifier
@@ -71,13 +76,18 @@ fun LoginScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(scrollState)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_chama_logo),
                     contentDescription = "App Logo",
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(SoftOffWhite)
+                        .padding(16.dp),
                     contentScale = ContentScale.Fit
                 )
 
@@ -178,6 +188,8 @@ fun LoginScreen(
                         Text("Register", color = PremiumNavy, fontWeight = FontWeight.Bold)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }

@@ -41,6 +41,9 @@ interface MemberRepository {
     suspend fun markAsDeleted(memberId: String, timestamp: Long)
     suspend fun getDeletedMembers(): List<Member>
     suspend fun permanentDelete(memberId: String)
+
+    suspend fun getMemberByUserIdAndGroupId(userId: String, groupId: String): Member?
+
 }
 
 

@@ -9,10 +9,31 @@ import javax.inject.Inject
 class BenefitRepositoryImpl @Inject constructor(
     private val benefitDao: BenefitDao
 ) : BenefitRepository {
-    override suspend fun addBenefit(benefit: BenefitEntity) {
-        val newId = UUID.randomUUID().toString()
-        benefitDao.insert(benefit.copy(benefitId = newId, isSynced = false))
+    override suspend fun findSimilarBenefit(groupId: String, name: String, amount: Double, date: Long): BenefitEntity? {
+        return benefitDao.findSimilarBenefit(groupId, name, amount, date)
     }
+
+    override suspend fun addBenefit(benefit: BenefitEntity) {
+        val existingSimilar = findSimilarBenefit(
+            benefit.groupId,
+            benefit.name,
+            benefit.amount,
+            benefit.date
+        )
+
+        if (existingSimilar == null) {
+            val newId = UUID.randomUUID().toString()
+            benefitDao.insert(benefit.copy(benefitId = newId, isSynced = false))
+        } else {
+            val updatedBenefit = existingSimilar.copy(
+                description = benefit.description,
+                lastUpdated = System.currentTimeMillis(),
+                isSynced = false
+            )
+            benefitDao.update(updatedBenefit)
+        }
+    }
+
     override fun getBenefits(groupId: String) = benefitDao.getBenefits(groupId)
     override fun getTotal(groupId: String) = benefitDao.getTotal(groupId)
 
@@ -42,4 +63,8 @@ class BenefitRepositoryImpl @Inject constructor(
     override suspend fun permanentDelete(benefitId: String) =
         benefitDao.permanentDelete(benefitId)
 
+
+    override suspend fun updateBenefit(benefit: BenefitEntity) {
+        benefitDao.update(benefit)
+    }
 }

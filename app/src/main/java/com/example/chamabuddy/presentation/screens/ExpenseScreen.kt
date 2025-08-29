@@ -1,6 +1,8 @@
 package com.example.chamabuddy.presentation.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,9 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.chamabuddy.domain.model.ExpenseEntity
-import com.example.chamabuddy.domain.model.BenefitEntity
 import com.example.chamabuddy.presentation.viewmodel.ExpenseViewModel
-import com.example.chamabuddy.presentation.viewmodel.BenefitViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -61,7 +63,10 @@ fun ExpenseScreen(groupId: String) {
             contentPadding = PaddingValues(16.dp)
         ) {
             items(items) { expense ->
-                ExpandableExpenseItem(expense)
+                ExpandableExpenseItem(
+                    expense = expense,
+                    onDelete = { viewModel.deleteExpense(expense.expenseId) }
+                )
             }
         }
 
@@ -85,10 +90,35 @@ fun ExpenseScreen(groupId: String) {
 }
 
 @Composable
-fun ExpandableExpenseItem(expense: ExpenseEntity) {
+fun ExpandableExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val date = remember {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(expense.date))
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Expense") },
+            text = { Text("Are you sure you want to delete this expense?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDelete()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Card(
@@ -121,10 +151,21 @@ fun ExpandableExpenseItem(expense: ExpenseEntity) {
             )
 
             AnimatedVisibility(visible = expanded) {
-                Text(
-                    text = expense.description,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Column {
+                    Text(
+                        text = expense.description,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    Button(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Delete Expense")
+                    }
+                }
             }
         }
     }

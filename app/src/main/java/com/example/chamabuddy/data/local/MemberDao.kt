@@ -113,4 +113,7 @@ interface MemberDao {
     @Query("SELECT * FROM member WHERE user_id = :userId AND group_id = :groupId AND is_deleted = 0")
     suspend fun getMemberByUserId(userId: String, groupId: String): Member?
 
+
+    @Query("SELECT * FROM member WHERE user_id = :userId AND group_id = :groupId")
+    suspend fun getMemberByUserIdAndGroupId(userId: String, groupId: String): Member?
 }

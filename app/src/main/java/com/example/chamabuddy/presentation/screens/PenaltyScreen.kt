@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.domain.model.Penalty
 import com.example.chamabuddy.presentation.viewmodel.PenaltyViewModel
 import java.text.SimpleDateFormat
@@ -29,9 +29,9 @@ fun PenaltyScreen(groupId: String) {
     val viewModel: PenaltyViewModel = hiltViewModel()
     val penalties by viewModel.penalties.collectAsState()
     val total by viewModel.total.collectAsState()
-    val showDialog by viewModel.showDialog.collectAsState()
     val members by viewModel.members.collectAsState()
     val filteredMembers by viewModel.filteredMembers.collectAsState()
+    val showDialog by viewModel.showDialog.collectAsState()
 
     LaunchedEffect(groupId) {
         viewModel.loadData(groupId)
@@ -62,38 +62,66 @@ fun PenaltyScreen(groupId: String) {
             contentPadding = PaddingValues(16.dp)
         ) {
             items(penalties) { penalty ->
-                ExpandablePenaltyItem(penalty)
+                ExpandablePenaltyItem(
+                    penalty = penalty,
+                    onDelete = { viewModel.deletePenalty(penalty.penaltyId) }
+                )
             }
         }
 
         if (showDialog) {
             AddPenaltyDialog(
-                members = members,
-                filteredMembers = filteredMembers,
-                onFilter = { viewModel.filterMembers(it) },
                 onDismiss = { viewModel.hideAddDialog() },
-                onConfirm = { memberId, name, desc, amount ->
+                onConfirm = { memberId, memberName, description, amount ->
                     viewModel.addPenalty(
                         Penalty(
                             groupId = groupId,
                             memberId = memberId,
-                            memberName = name,
-                            description = desc,
+                            memberName = memberName,
+                            description = description,
                             amount = amount,
                             date = System.currentTimeMillis()
                         )
                     )
-                }
+                },
+                members = members,
+                filteredMembers = filteredMembers,
+                onFilterMembers = { query -> viewModel.filterMembers(query) }
             )
         }
     }
 }
 
 @Composable
-fun ExpandablePenaltyItem(penalty: Penalty) {
+fun ExpandablePenaltyItem(penalty: Penalty, onDelete: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val date = remember {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(penalty.date))
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Penalty") },
+            text = { Text("Are you sure you want to delete this penalty?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDelete()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Card(
@@ -111,7 +139,7 @@ fun ExpandablePenaltyItem(penalty: Penalty) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = penalty.memberName,
+                    text = penalty.description,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
@@ -126,67 +154,87 @@ fun ExpandablePenaltyItem(penalty: Penalty) {
             )
 
             AnimatedVisibility(visible = expanded) {
-                Text(
-                    text = penalty.description,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Column {
+                    Text(
+                        text = "Member ID: ${penalty.memberId}",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    Button(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Delete Penalty")
+                    }
+                }
             }
         }
     }
 }
-
 @Composable
 fun AddPenaltyDialog(
-    members: List<Member>,
-    filteredMembers: List<Member>,
-    onFilter: (String) -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Double) -> Unit
+    // now: memberId, memberName, description, amount
+    onConfirm: (String, String, String, Double) -> Unit,
+    members: List<com.example.chamabuddy.domain.model.Member>,
+    filteredMembers: List<com.example.chamabuddy.domain.model.Member>,
+    onFilterMembers: (String) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var selectedMemberId by remember { mutableStateOf("") }
-    var desc by remember { mutableStateOf("") }
+    var memberQuery by remember { mutableStateOf("") }
+    var selectedMember by remember { mutableStateOf<com.example.chamabuddy.domain.model.Member?>(null) }
+    var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
-    var showDropdown by remember { mutableStateOf(false) }
+    var showMemberDropdown by remember { mutableStateOf(false) }
+
+    LaunchedEffect(memberQuery) {
+        onFilterMembers(memberQuery)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Penalty") },
         text = {
             Column {
-                // Member search field with dropdown
+                // Member selection
                 Box {
                     OutlinedTextField(
-                        value = name,
+                        value = memberQuery,
                         onValueChange = {
-                            name = it
-                            onFilter(it)
-                            showDropdown = it.isNotBlank()
+                            memberQuery = it
+                            showMemberDropdown = it.isNotBlank()
                         },
-                        label = { Text("Member Name") },
+                        label = { Text("Search Member") },
+                        trailingIcon = {
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select Member")
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    DropdownMenu(
-                        expanded = showDropdown && filteredMembers.isNotEmpty(),
-                        onDismissRequest = { showDropdown = false }
-                    ) {
-                        filteredMembers.forEach { member ->
-                            DropdownMenuItem(
-                                text = { Text(member.name) },
-                                onClick = {
-                                    name = member.name
-                                    selectedMemberId = member.memberId
-                                    showDropdown = false
-                                }
-                            )
+                    // Member dropdown
+                    if (showMemberDropdown && filteredMembers.isNotEmpty()) {
+                        DropdownMenu(
+                            expanded = showMemberDropdown,
+                            onDismissRequest = { showMemberDropdown = false }
+                        ) {
+                            filteredMembers.forEach { member ->
+                                DropdownMenuItem(
+                                    text = { Text(member.name) },
+                                    onClick = {
+                                        selectedMember = member
+                                        memberQuery = member.name
+                                        showMemberDropdown = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
 
                 OutlinedTextField(
-                    value = desc,
-                    onValueChange = { desc = it },
+                    value = description,
+                    onValueChange = { description = it },
                     label = { Text("Description") },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -203,8 +251,9 @@ fun AddPenaltyDialog(
             Button(
                 onClick = {
                     val amt = amount.toDoubleOrNull() ?: 0.0
-                    if (selectedMemberId.isNotBlank() && amt > 0) {
-                        onConfirm(selectedMemberId, name, desc, amt)
+                    if (selectedMember != null && description.isNotBlank() && amt > 0) {
+                        // pass memberId AND memberName now
+                        onConfirm(selectedMember!!.memberId, selectedMember!!.name, description, amt)
                         onDismiss()
                     }
                 }

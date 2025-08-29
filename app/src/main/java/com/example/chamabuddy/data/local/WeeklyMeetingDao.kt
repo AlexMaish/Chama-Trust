@@ -26,8 +26,9 @@ interface WeeklyMeetingDao {
     @Query("SELECT * FROM WeeklyMeeting WHERE meeting_id = :meetingId")
     suspend fun getMeetingById(meetingId: String): WeeklyMeeting?
 
-    @Query("SELECT * FROM WeeklyMeeting WHERE cycle_id = :cycleId ORDER BY meeting_date DESC")
+    @Query("SELECT * FROM WeeklyMeeting WHERE cycle_id = :cycleId AND is_deleted = 0 ORDER BY meeting_date DESC")
     fun getMeetingsForCycle(cycleId: String): Flow<List<WeeklyMeeting>>
+
 
     @Query(
         """

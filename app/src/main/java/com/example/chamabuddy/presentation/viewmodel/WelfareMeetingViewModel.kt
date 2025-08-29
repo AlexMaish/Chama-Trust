@@ -56,7 +56,7 @@ class WelfareMeetingViewModel @Inject constructor(
 
             // Initialize with default amount for members without existing contributions
             val contributions = activeMembers.associate { member ->
-                member.memberId to (existingContributions[member.memberId] ?: welfareAmount)
+                member.memberId to (existingContributions[member.memberId] ?: 0)
             }
             val totalCollected = contributions.values.sum()
 
@@ -137,6 +137,28 @@ class WelfareMeetingViewModel @Inject constructor(
         }
     }
 
+
+    suspend fun loadMembersForNewMeeting(groupId: String, welfareAmount: Int) {
+        _contributionState.value = WelfareContributionTrackingState(isLoading = true)
+
+        try {
+            val activeMembers = memberRepository.getActiveMembersByGroup(groupId)
+            val contributions = activeMembers.associate { it.memberId to 0 } // Initialize with 0
+
+            _contributionState.value = WelfareContributionTrackingState(
+                isLoading = false,
+                members = activeMembers,
+                contributions = contributions,
+                totalCollected = 0,
+                welfareAmount = welfareAmount
+            )
+        } catch (e: Exception) {
+            _contributionState.value = WelfareContributionTrackingState(
+                isLoading = false,
+                error = e.message ?: "Failed to load members"
+            )
+        }
+    }
     fun loadAllMembersForBeneficiarySelection(meetingId: String) {
         viewModelScope.launch {
             _beneficiaryState.value = WelfareBeneficiarySelectionState(isLoading = true)

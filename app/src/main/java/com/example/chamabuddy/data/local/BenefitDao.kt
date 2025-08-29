@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.chamabuddy.domain.model.BenefitEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -15,6 +16,11 @@ interface BenefitDao {
     @Query("SELECT * FROM benefits WHERE groupId = :groupId ORDER BY date DESC")
     fun getBenefits(groupId: String): kotlinx.coroutines.flow.Flow<List<BenefitEntity>>
 
+
+
+
+    @Query("SELECT * FROM benefits WHERE groupId = :groupId AND name = :name AND amount = :amount AND date = :date AND is_deleted = 0")
+    suspend fun findSimilarBenefit(groupId: String, name: String, amount: Double, date: Long): BenefitEntity?
 
 //    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM benefits WHERE groupId = :groupId")
 //    fun getTotal(groupId: String): Flow<Double>
@@ -44,4 +50,7 @@ interface BenefitDao {
     // 🔹 Permanently delete
     @Query("DELETE FROM benefits WHERE benefitId = :benefitId")
     suspend fun permanentDelete(benefitId: String)
+
+    @Update
+    suspend fun update(benefit: BenefitEntity)
 }

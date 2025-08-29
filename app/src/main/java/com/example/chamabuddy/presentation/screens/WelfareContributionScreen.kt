@@ -35,16 +35,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.runtime.mutableStateMapOf
 import com.example.chamabuddy.presentation.viewmodel.AuthViewModel
+import com.example.chamabuddy.presentation.viewmodel.WelfareViewModel
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WelfareContributionScreen(
-    meetingId: String,
-    navigateToBeneficiarySelection: () -> Unit,
+    meetingId: String, // This can be "new" for new meetings or an actual ID for existing ones
+    welfareId: String,
+    groupId: String,
+    navigateToBeneficiarySelection: (String) -> Unit,
     navController: NavHostController,
     viewModel: WelfareMeetingViewModel = hiltViewModel(),
+    welfareViewModel: WelfareViewModel = hiltViewModel(),
     memberViewModel: MemberViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
@@ -52,21 +56,48 @@ fun WelfareContributionScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val recordedByName = currentUser?.username ?: "Unknown"
 
-    // Dialog state for setting custom amount
+    // Dialog state for setting custom amount - only for admin
     var showAmountDialog by remember { mutableStateOf(false) }
     var selectedMember by remember { mutableStateOf<Member?>(null) }
     var customAmount by remember { mutableStateOf("") }
     var customAmountError by remember { mutableStateOf(false) }
 
     var hasInitialized by rememberSaveable(meetingId) { mutableStateOf(false) }
-    val activeMembersCount = remember(state.members) { state.members.count { it.isActive } }
+    var isNewMeeting by remember { mutableStateOf(meetingId == "new") }
+    var actualMeetingId by remember { mutableStateOf(if (isNewMeeting) "" else meetingId) }
 
+
+    var isMeetingCreated by remember { mutableStateOf(false) }
+    var currentMeetingId by remember { mutableStateOf(if (meetingId == "new") "" else meetingId) }
+
+
+    val activeMembersCount = remember(state.members) { state.members.count { it.isActive } }
     val baseTarget = activeMembersCount * state.welfareAmount
     val extraTotal = state.contributions.values.sumOf { amount ->
         maxOf(0, amount - state.welfareAmount)
     }
     val expectedTotal = baseTarget + extraTotal
+
+
+    if (groupId.isBlank() || welfareId.isBlank()) {
+        Text("Error: Missing group or welfare ID")
+        return
+    }
+
+
+    LaunchedEffect(meetingId) {
+        if (meetingId != "new" && meetingId.isNotBlank()) {
+            viewModel.loadMembersForContribution(meetingId)
+        }
+    }
+    LaunchedEffect(groupId, currentUser) {
+        currentUser?.let { user ->
+            memberViewModel.loadCurrentUserRole(groupId, user.userId)
+        }
+    }
     LaunchedEffect(state.meeting) {
         state.meeting?.let { meeting ->
             val groupId = meeting.groupId
@@ -77,18 +108,73 @@ fun WelfareContributionScreen(
         }
     }
 
-    LaunchedEffect(meetingId) {
+    LaunchedEffect(meetingId, welfareId, groupId) {
         if (!hasInitialized) {
-            viewModel.loadMembersForContribution(meetingId)
+            if (isNewMeeting) {
+                // Get welfare amount from repository
+                val welfareAmount = welfareViewModel.getWelfareAmount(welfareId)
+                viewModel.loadMembersForNewMeeting(groupId, welfareAmount)
+            } else {
+                viewModel.loadMembersForContribution(meetingId)
+            }
             hasInitialized = true
         }
     }
 
-    BackHandler {
-        coroutineScope.launch {
-            viewModel.saveContributionState(state.contributions)
-            navController.popBackStack()
+    LaunchedEffect(meetingId, welfareId, groupId) {
+        if (!hasInitialized) {
+            if (isNewMeeting) {
+                // Get the welfare amount from the welfare group
+                val welfareAmount = welfareViewModel.getWelfareAmount(welfareId)
+                viewModel.loadMembersForNewMeeting(groupId, welfareAmount)
+            } else {
+                // Load existing meeting
+                viewModel.loadMembersForContribution(meetingId)
+            }
+            hasInitialized = true
         }
+    }
+
+    var isCreatingMeeting by remember { mutableStateOf(false) }
+
+
+//    BackHandler {
+//        if (isNewMeeting && state.contributions.isNotEmpty() &&
+//            state.contributions.any { it.value > 0 } && !isMeetingCreated && !isCreatingMeeting) {
+//            isCreatingMeeting = true
+//            coroutineScope.launch {
+//                try {
+//                    val newMeetingId = welfareViewModel.createWelfareMeeting(
+//                        welfareId = welfareId,
+//                        meetingDate = Date(),
+//                        recordedBy = recordedByName,
+//                        groupId = groupId,
+//                        welfareAmount = state.welfareAmount
+//                    )
+//
+//                    if (newMeetingId != null) {
+//                        viewModel.recordContributions(newMeetingId, state.contributions)
+//                        isMeetingCreated = true
+//                        snackbarHostState.showSnackbar("Meeting created successfully")
+//                    }
+//                } catch (e: Exception) {
+//                    snackbarHostState.showSnackbar("Error creating meeting: ${e.message}")
+//                } finally {
+//                    isCreatingMeeting = false
+//                    navController.popBackStack()
+//                }
+//            }
+//        } else {
+//            coroutineScope.launch {
+//                viewModel.saveContributionState(state.contributions)
+//                navController.popBackStack()
+//            }
+//        }
+//    }
+
+
+    BackHandler {
+        navController.popBackStack()
     }
 
     Scaffold(
@@ -103,7 +189,7 @@ fun WelfareContributionScreen(
                 ),
                 title = {
                     Text(
-                        "Record Welfare Contributions",
+                        if (isNewMeeting) "New Welfare Meeting" else "Record Welfare Contributions",
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
@@ -111,33 +197,63 @@ fun WelfareContributionScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            coroutineScope.launch {
-                                viewModel.saveContributionState(state.contributions)
-                                navController.popBackStack()
-                            }
+                            navController.popBackStack()
                         }
                     ) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
                 actions = {
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                viewModel.saveContributionState(state.contributions)
-                                navigateToBeneficiarySelection()
-                            }
-                        },
-                        enabled = state.members.isNotEmpty(),
-                        shape = MaterialTheme.shapes.large,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3BBA9C),
-                            disabledContainerColor = Color(0xFFA0A0A0)
-                        )
-                    ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Select Beneficiaries")
+                    if (isAdmin) {
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    if (isNewMeeting && !isMeetingCreated && !isCreatingMeeting) {
+                                        isCreatingMeeting = true
+                                        try {
+                                            val newMeetingId = welfareViewModel.createWelfareMeeting(
+                                                welfareId = welfareId,
+                                                meetingDate = Date(),
+                                                recordedBy = recordedByName,
+                                                groupId = groupId,
+                                                welfareAmount = state.welfareAmount
+                                            )
+
+                                            if (newMeetingId != null) {
+                                                viewModel.recordContributions(newMeetingId, state.contributions)
+                                                currentMeetingId = newMeetingId
+                                                isMeetingCreated = true
+                                                isNewMeeting = false
+                                                navigateToBeneficiarySelection(newMeetingId)
+                                            }
+                                        } catch (e: Exception) {
+                                            snackbarHostState.showSnackbar("Error creating meeting: ${e.message}")
+                                        } finally {
+                                            isCreatingMeeting = false
+                                        }
+                                    } else {
+                                        // For existing meetings
+                                        try {
+                                            viewModel.recordContributions(currentMeetingId, state.contributions)
+                                            snackbarHostState.showSnackbar("Contributions saved successfully")
+                                            navigateToBeneficiarySelection(currentMeetingId)
+                                        } catch (e: Exception) {
+                                            snackbarHostState.showSnackbar("Error saving contributions: ${e.message}")
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = state.members.isNotEmpty() && !(isNewMeeting && isMeetingCreated) && !isCreatingMeeting,
+                            shape = MaterialTheme.shapes.large,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF3BBA9C),
+                                disabledContainerColor = Color(0xFFA0A0A0)
+                            )
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Select Beneficiaries")
+                        }
                     }
                 }
             )
@@ -146,18 +262,49 @@ fun WelfareContributionScreen(
             if (isAdmin) {
                 ExtendedFloatingActionButton(
                     onClick = {
+                        if (isNewMeeting && isMeetingCreated) {
+                            // Meeting already created, just navigate back
+                            navController.popBackStack()
+                            return@ExtendedFloatingActionButton
+                        }
+
                         coroutineScope.launch {
-                            viewModel.recordContributions(
-                                meetingId,
-                                state.contributions
-                            )
-                            snackbarHostState.showSnackbar("Contributions saved successfully")
+                            if (isNewMeeting) {
+                                try {
+                                    val newMeetingId = welfareViewModel.createWelfareMeeting(
+                                        welfareId = welfareId,
+                                        meetingDate = Date(),
+                                        recordedBy = recordedByName,
+                                        groupId = groupId,
+                                        welfareAmount = state.welfareAmount
+                                    )
+
+                                    if (newMeetingId != null) {
+                                        viewModel.recordContributions(newMeetingId, state.contributions)
+                                        isMeetingCreated = true
+                                        snackbarHostState.showSnackbar("Meeting created successfully")
+                                        navController.popBackStack()
+                                    }
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("Error creating meeting: ${e.message}")
+                                }
+                            } else {
+                                try {
+                                    viewModel.recordContributions(
+                                        meetingId,
+                                        state.contributions
+                                    )
+                                    snackbarHostState.showSnackbar("Contributions saved successfully")
+                                } catch (e: Exception) {
+                                    snackbarHostState.showSnackbar("Error saving contributions: ${e.message}")
+                                }
+                            }
                         }
                     },
                     containerColor = Color(0xFF4A55A2),
                     contentColor = Color.White,
                     icon = { Icon(Icons.Default.Check, contentDescription = "Save") },
-                    text = { Text("Save Contribution") }
+                    text = { Text(if (isNewMeeting) "Create Meeting" else "Save Contribution") }
                 )
             }
         },
@@ -240,7 +387,7 @@ fun WelfareContributionScreen(
                             member = member,
                             amount = amount,
                             defaultAmount = state.welfareAmount,
-                            hasContributed = amount > 0, // FIXED: Use amount to determine contribution status
+                            hasContributed = amount > 0,
                             onContributionChange = { contributed ->
                                 coroutineScope.launch {
                                     viewModel.updateContributionStatus(member.memberId, contributed)
@@ -251,13 +398,14 @@ fun WelfareContributionScreen(
                                 customAmount = amount.toString()
                                 customAmountError = false
                                 showAmountDialog = true
-                            }
+                            },
+                            isAdmin = isAdmin // Pass admin status to item
                         )
                     }
                 }
             }
 
-            if (showAmountDialog && selectedMember != null) {
+            if (showAmountDialog && selectedMember != null && isAdmin) {
                 AlertDialog(
                     onDismissRequest = {
                         showAmountDialog = false
@@ -296,8 +444,7 @@ fun WelfareContributionScreen(
                         Button(
                             onClick = {
                                 val amount = customAmount.toIntOrNull()
-                                if (amount != null && amount >= 0) { // Allow 0 amount
-                                    // Use coroutine scope to call suspend function
+                                if (amount != null && amount >= 0) {
                                     coroutineScope.launch {
                                         try {
                                             viewModel.updateContributionAmount(
@@ -331,6 +478,7 @@ fun WelfareContributionScreen(
         }
     }
 }
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WelfareContributionItem(
@@ -339,7 +487,8 @@ fun WelfareContributionItem(
     defaultAmount: Int,
     hasContributed: Boolean,
     onContributionChange: (Boolean) -> Unit,
-    onSetAmount: () -> Unit
+    onSetAmount: () -> Unit,
+    isAdmin: Boolean // New parameter
 ) {
     val containerColor = when {
         !member.isActive -> Color(0xFFE0E0E0).copy(alpha = 0.6f)
@@ -355,6 +504,7 @@ fun WelfareContributionItem(
             .height(60.dp)
             .border(1.dp, borderColor, MaterialTheme.shapes.medium)
             .combinedClickable(
+                enabled = isAdmin && member.isActive, // Only clickable for admin
                 onClick = {
                     if (member.isActive) {
                         onContributionChange(!hasContributed)
@@ -399,24 +549,42 @@ fun WelfareContributionItem(
             }
 
             if (member.isActive) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Button to set custom amount
-                    OutlinedButton(
-                        onClick = onSetAmount,
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        Text("Set", fontSize = 12.sp)
+                if (isAdmin) {
+                    // Show admin controls
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Button to set custom amount
+                        OutlinedButton(
+                            onClick = onSetAmount,
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text("Set", fontSize = 12.sp)
+                        }
+                        Checkbox(
+                            checked = hasContributed,
+                            onCheckedChange = onContributionChange,
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color(0xFF3BBA9C),
+                                uncheckedColor = Color(0xFF4A55A2),
+                                checkmarkColor = Color.White
+                            ),
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
-                    Checkbox(
-                        checked = hasContributed,
-                        onCheckedChange = onContributionChange,
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Color(0xFF3BBA9C),
-                            uncheckedColor = Color(0xFF4A55A2),
-                            checkmarkColor = Color.White
-                        ),
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
+                } else {
+                    // Show view-only status for non-admin users
+                    if (hasContributed) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Contributed",
+                            tint = Color(0xFF3BBA9C)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Cancel,
+                            contentDescription = "Not contributed",
+                            tint = Color(0xFFA0A0A0)
+                        )
+                    }
                 }
             } else {
                 Text(

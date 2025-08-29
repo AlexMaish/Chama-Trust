@@ -1,9 +1,6 @@
 package com.example.chamabuddy.presentation.screens
 
-
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,10 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.*
-
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,7 +18,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.chamabuddy.domain.model.BenefitEntity
-import com.example.chamabuddy.presentation.navigation.AuthDestination.title
 import com.example.chamabuddy.presentation.viewmodel.BenefitViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -66,7 +59,10 @@ fun BenefitScreen(groupId: String) {
             contentPadding = PaddingValues(16.dp)
         ) {
             items(items) { benefit ->
-                ExpandableBenefitItem(benefit)
+                ExpandableBenefitItem(
+                    benefit = benefit,
+                    onDelete = { viewModel.deleteBenefit(benefit.benefitId) }
+                )
             }
         }
 
@@ -77,7 +73,7 @@ fun BenefitScreen(groupId: String) {
                     viewModel.addBenefit(
                         BenefitEntity(
                             groupId = groupId,
-                            name = name, // ✅ FIXED
+                            name = name,
                             description = desc,
                             amount = amount,
                             date = System.currentTimeMillis()
@@ -90,10 +86,35 @@ fun BenefitScreen(groupId: String) {
 }
 
 @Composable
-fun ExpandableBenefitItem(benefit: BenefitEntity) {
+fun ExpandableBenefitItem(benefit: BenefitEntity, onDelete: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val date = remember {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(benefit.date))
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Benefit") },
+            text = { Text("Are you sure you want to delete this benefit?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDelete()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Card(
@@ -126,10 +147,21 @@ fun ExpandableBenefitItem(benefit: BenefitEntity) {
             )
 
             AnimatedVisibility(visible = expanded) {
-                Text(
-                    text = benefit.description,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Column {
+                    Text(
+                        text = benefit.description,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    Button(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                    ) {
+                        Text("Delete Benefit")
+                    }
+                }
             }
         }
     }
@@ -140,7 +172,7 @@ fun AddBenefitDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String, Double) -> Unit
 ) {
-    var name by remember { mutableStateOf("") } // Corrected: use 'name' for benefit name
+    var name by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
 
@@ -174,7 +206,6 @@ fun AddBenefitDialog(
             Button(
                 onClick = {
                     val amt = amount.toDoubleOrNull() ?: 0.0
-                    // FIX: Use 'name' instead of 'title'
                     if (name.isNotBlank() && amt > 0) {
                         onConfirm(name, desc, amt)
                         onDismiss()

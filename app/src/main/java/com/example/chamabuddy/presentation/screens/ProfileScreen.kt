@@ -99,6 +99,9 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+
+
+
     val allMemberCycles by savingsViewModel.allMemberCycles.collectAsState()
     val totalSavings = remember(allMemberCycles) {
         allMemberCycles.flatMap { it.savingsEntries }.sumOf { it.amount }
@@ -108,6 +111,9 @@ fun ProfileScreen(
 
     // State for expanded/collapsed cycles
     val expandedCycles = remember { mutableStateMapOf<String, Boolean>() }
+
+
+
 
     LaunchedEffect(memberId) {
         savingsViewModel.handleEvent(SavingsEvent.GetAllMemberCycles(memberId))
@@ -513,12 +519,7 @@ fun ProfileScreen(
 
                             // 🔹 Local validation: check remaining amount
                             val currentTotalForMonth = allMemberCycles.find { it.cycle.cycleId == cycleId }?.savingsEntries
-                                ?.filter {
-                                    try {
-                                        val date = Date(it.entryDate.toLong())
-                                        SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date) == displayMonth
-                                    } catch (e: Exception) { false }
-                                }
+                                ?.filter { it.monthYear == targetMonth }  // Filter by monthYear instead of date
                                 ?.sumOf { it.amount } ?: 0
 
                             val remaining = cycle.monthlySavingsAmount - currentTotalForMonth
@@ -556,20 +557,24 @@ fun ProfileScreen(
             )
         }
 
-        // Deletion dialogs
-        if (showDeleteEntryDialog) {
-            DeleteConfirmationDialog(
-                title = "Delete Entry",
-                message = "Are you sure you want to delete this savings entry?",
-                onConfirm = {
-                    entryToDelete?.let {
-                        savingsViewModel.handleEvent(SavingsEvent.DeleteEntry(it.entryId, memberId))
-                    }
-                    showDeleteEntryDialog = false
-                },
-                onDismiss = { showDeleteEntryDialog = false }
-            )
-        }
+
+         if (showDeleteEntryDialog) {
+             DeleteConfirmationDialog(
+                 title = "Delete Entry",
+                 message = "Are you sure you want to delete this savings entry?",
+                 onConfirm = {
+                     entryToDelete?.let {
+                         savingsViewModel.handleEvent(
+                             SavingsEvent.DeleteEntry(it.entryId, memberId)
+                         )
+                         // Immediately remove from UI
+                         savingsViewModel.updateUiAfterEntryDeletion(it.entryId)
+                     }
+                     showDeleteEntryDialog = false
+                 },
+                 onDismiss = { showDeleteEntryDialog = false }
+             )
+         }
 
          if (showDeleteMonthDialog) {
              DeleteConfirmationDialog(
@@ -577,7 +582,9 @@ fun ProfileScreen(
                  message = "Are you sure you want to delete all entries for this month?",
                  onConfirm = {
                      monthToDelete?.let { (cycleId, monthYear) ->
-                         savingsViewModel.handleEvent(SavingsEvent.DeleteMonth(cycleId, monthYear, groupId, memberId))
+                         savingsViewModel.handleEvent(
+                             SavingsEvent.DeleteMonth(cycleId, monthYear, groupId, memberId)
+                         )
                      }
                      showDeleteMonthDialog = false
                  },

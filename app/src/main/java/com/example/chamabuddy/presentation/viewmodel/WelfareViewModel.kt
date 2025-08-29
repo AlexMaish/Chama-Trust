@@ -30,6 +30,16 @@ class WelfareViewModel @Inject constructor(
         }
     }
 
+    suspend fun getWelfareAmount(welfareId: String): Int {
+        return repository.getWelfareById(welfareId)?.amount ?: 200
+    }
+    fun deleteWelfare(welfareId: String, groupId: String) {
+        viewModelScope.launch {
+            repository.markWelfareAsDeleted(welfareId, System.currentTimeMillis())
+            loadWelfares(groupId)
+        }
+    }
+
     fun createWelfare(groupId: String, name: String, userId: String, amount: Int) {
         viewModelScope.launch {
             repository.createWelfare(groupId, name, userId, amount)
@@ -51,24 +61,20 @@ class WelfareViewModel @Inject constructor(
     }
 
 
-    fun createWelfareMeeting(
+    suspend fun createWelfareMeeting(
         welfareId: String,
         meetingDate: Date,
         recordedBy: String?,
         groupId: String,
         welfareAmount: Int
     ): String? {
-        var newMeetingId: String? = null
-        viewModelScope.launch {
-            newMeetingId = repository.createWelfareMeeting(
-                welfareId,
-                meetingDate,
-                recordedBy,
-                groupId,
-                welfareAmount
-            )
-        }
-        return newMeetingId
+        return repository.createWelfareMeeting(
+            welfareId,
+            meetingDate,
+            recordedBy,
+            groupId,
+            welfareAmount
+        )
     }
 
     suspend fun deleteMeeting(meetingId: String) {

@@ -35,6 +35,11 @@ class BenefitViewModel @Inject constructor(
         }
     }
 
+    fun deleteBenefit(benefitId: String) {
+        viewModelScope.launch {
+            repository.markAsDeleted(benefitId, System.currentTimeMillis())
+        }
+    }
 
     fun showAddDialog() { _showDialog.value = true }
     fun hideAddDialog() { _showDialog.value = false }

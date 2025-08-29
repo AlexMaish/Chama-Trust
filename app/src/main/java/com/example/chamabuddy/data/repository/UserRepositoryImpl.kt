@@ -17,6 +17,8 @@ import com.example.chamabuddy.domain.model.UserGroup
 import com.example.chamabuddy.domain.repository.MemberRepository
 import com.example.chamabuddy.domain.repository.UserRepository
 import com.example.chamabuddy.util.EncryptionHelper
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -124,6 +126,51 @@ class UserRepositoryImpl @Inject constructor(
         } catch (localError: Exception) {
             loginWithFirebase(identifier, password)
         }
+    }
+
+    override suspend fun changePassword(
+        userId: String,
+        oldPassword: String,
+        newPassword: String
+    ): Result<Unit> = withContext(dispatcher) {
+        try {
+            val user = getUserById(userId) ?: throw Exception("User not found locally")
+            val email = "${user.phoneNumber}@chamabuddy.com" // Construct email from stored phone
+
+            // Ensure Firebase Auth is signed in with the current user
+            if (firebaseAuth.currentUser?.uid != userId) {
+                firebaseAuth.signInWithEmailAndPassword(email, oldPassword).await()
+            }
+
+            val firebaseUser = firebaseAuth.currentUser ?: throw Exception("Not authenticated in Firebase")
+
+            // Re-authenticate using the provided old password
+            val credential = EmailAuthProvider.getCredential(email, oldPassword)
+            firebaseUser.reauthenticate(credential).await()
+
+            // Update password
+            firebaseUser.updatePassword(newPassword).await()
+
+            // Update local database
+            val updatedUser = user.copy(password = newPassword, isSynced = false)
+            userDao.insertUser(updatedUser)
+
+            // Update Firestore
+            firestore.collection("users").document(userId)
+                .update(
+                    "password", newPassword,
+                    "lastUpdated", Timestamp.now()
+                )
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    override   suspend fun ensureFirebaseAuthSignIn(identifier: String, password: String) {
+        val normalizedPhone = identifier.normalizePhone()
+        val email = "$normalizedPhone@chamabuddy.com"
+        firebaseAuth.signInWithEmailAndPassword(email, password).await()
     }
 
     override suspend fun loginWithFirebase(identifier: String, password: String): Result<User> {

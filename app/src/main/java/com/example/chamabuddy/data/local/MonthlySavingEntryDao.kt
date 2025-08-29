@@ -12,26 +12,7 @@ interface MonthlySavingEntryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSavingEntry(entry: MonthlySavingEntry)
 
-    @Query("""
-        SELECT * FROM MonthlySavingEntry
-        WHERE saving_id = :savingId
-        ORDER BY entry_date DESC
-    """)
-    fun getEntriesForSaving(savingId: String): Flow<List<MonthlySavingEntry>>
 
-//    @Query("""
-//        SELECT SUM(amount) FROM MonthlySavingEntry
-//        WHERE saving_id = :savingId AND member_id = :memberId
-//    """)
-//    suspend fun getMemberSavingsTotal(savingId: String, memberId: String): Int
-
-    @Query("""
-        SELECT mse.* FROM MonthlySavingEntry mse
-        JOIN MonthlySaving ms ON mse.saving_id = ms.saving_id
-        WHERE ms.cycle_id = :cycleId AND mse.member_id = :memberId
-        ORDER BY mse.entry_date DESC
-    """)
-    fun getMemberSavingsForCycle(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>>
 
     @Query("""
     SELECT SUM(amount) FROM MonthlySavingEntry
@@ -41,14 +22,6 @@ interface MonthlySavingEntryDao {
     suspend fun getMemberSavingsTotalByCycle(cycleId: String, memberId: String): Int
 
 
-    @Query("SELECT SUM(amount) FROM MonthlySavingEntry WHERE member_id = :memberId")
-    suspend fun getMemberSavingsTotal(memberId: String): Int?
-
-    @Query("""
-    SELECT SUM(amount) FROM MonthlySavingEntry
-    WHERE saving_id IN (SELECT saving_id FROM MonthlySaving WHERE cycle_id = :cycleId)
-""")
-    suspend fun getTotalSavingsByCycle(cycleId: String): Int?
 
     @Query("SELECT SUM(amount) FROM MonthlySavingEntry")
     suspend fun getTotalSavings(): Int?
@@ -151,4 +124,48 @@ interface MonthlySavingEntryDao {
 
     @Query("SELECT * FROM MonthlySavingEntry WHERE group_id = :groupId ORDER BY entry_date DESC")
     suspend fun getGroupSavingsEntries(groupId: String): List<MonthlySavingEntry>
+
+
+
+    @Query("SELECT * FROM MonthlySavingEntry WHERE member_id = :memberId AND is_deleted = 0 ORDER BY entry_date ASC")
+    suspend fun getMemberSavingsEntries(memberId: String): List<MonthlySavingEntry>
+
+    @Query("""
+    SELECT SUM(amount) FROM MonthlySavingEntry
+    WHERE member_id = :memberId 
+    AND saving_id IN (SELECT saving_id FROM MonthlySaving WHERE is_deleted = 0)
+    AND is_deleted = 0
+""")
+    suspend fun getMemberSavingsTotal(memberId: String): Int?
+
+    @Query("""
+    SELECT SUM(amount) FROM MonthlySavingEntry
+    WHERE saving_id IN (SELECT saving_id FROM MonthlySaving WHERE cycle_id = :cycleId AND is_deleted = 0)
+    AND is_deleted = 0
+""")
+    suspend fun getTotalSavingsByCycle(cycleId: String): Int?
+
+
+
+
+
+
+    @Query("""
+    SELECT * FROM MonthlySavingEntry 
+    WHERE saving_id = :savingId AND is_deleted = 0 
+    ORDER BY entry_date DESC
+""")
+    fun getEntriesForSaving(savingId: String): Flow<List<MonthlySavingEntry>>
+
+    @Query("""
+    SELECT * FROM MonthlySavingEntry
+    WHERE member_id = :memberId 
+    AND saving_id IN (
+        SELECT saving_id FROM MonthlySaving 
+        WHERE cycle_id = :cycleId AND is_deleted = 0
+    )
+    AND is_deleted = 0
+    ORDER BY entry_date DESC
+""")
+    fun getMemberSavingsForCycle(cycleId: String, memberId: String): Flow<List<MonthlySavingEntry>>
 }

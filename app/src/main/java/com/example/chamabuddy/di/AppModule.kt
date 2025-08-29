@@ -209,16 +209,19 @@ object AppModule {
         savingEntryDao: MonthlySavingEntryDao,
         cycleDao: CycleDao,
         memberDao: MemberDao,
-        dispatcher: CoroutineDispatcher
+        dispatcher: CoroutineDispatcher,
+        firestore: FirebaseFirestore,          // Add this
+        connectivityManager: ConnectivityManager // Add this
     ): SavingsRepository = SavingsRepositoryImpl(
         db,
         savingDao,
         savingEntryDao,
         cycleDao,
         memberDao,
-        dispatcher
+        dispatcher,
+        firestore,          // Add this
+        connectivityManager // Add this
     )
-
     @Provides
     @Singleton
     fun provideBenefitRepository(benefitDao: BenefitDao): BenefitRepository =

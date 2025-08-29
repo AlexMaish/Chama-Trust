@@ -79,6 +79,7 @@ interface SavingsRepository {
     suspend fun getDeletedSavings(): List<MonthlySaving>
     suspend fun permanentDelete(savingId: String)
 
+    suspend fun getTotalSavingsForMonth(groupId: String, monthYear: String): Int
 
     suspend fun getDeletedEntries(): List<MonthlySavingEntry>
     suspend fun permanentDeleteEntry(entryId: String)
@@ -90,4 +91,12 @@ interface SavingsRepository {
 
 
     suspend fun getMemberName(memberId: String): String?
+
+
+    suspend fun deleteSavingsEntryImmediately(entryId: String)
+    suspend fun deleteSavingsForMonthImmediately(cycleId: String, monthYear: String, groupId: String)
+    suspend fun getMemberMonthlySavingsProgress(memberId: String): List<Pair<String, Int>>
+
+
+    suspend fun getAllUserSavingsEntries(userId: String): List<MonthlySavingEntry>
 }

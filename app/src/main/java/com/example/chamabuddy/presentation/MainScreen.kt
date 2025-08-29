@@ -53,6 +53,7 @@ import com.example.chamabuddy.presentation.screens.SavingsScreen // Add this imp
 import com.example.chamabuddy.presentation.navigation.SavingsDestination
 import com.example.chamabuddy.presentation.screens.BeneficiaryGroupScreen
 import com.example.chamabuddy.presentation.screens.BenefitScreen
+import com.example.chamabuddy.presentation.screens.ChangePasswordScreen
 import com.example.chamabuddy.presentation.screens.ContributionSummaryScreen
 import com.example.chamabuddy.presentation.screens.ExpenseScreen
 import com.example.chamabuddy.presentation.screens.GroupsHomeScreen
@@ -155,10 +156,11 @@ fun MainNavHost(
         navController = navController,
         startDestination = GroupsHomeDestination.route,
         modifier = Modifier.padding(innerPadding)
-    ){
+    ) {
         composable(route = GroupsHomeDestination.route) {
             GroupsHomeScreen(
-                navigateToGroupCycles = onGroupSelected
+                navigateToGroupCycles = onGroupSelected,
+                parentNavController = navController  // Add this line
             )
         }
 
@@ -191,22 +193,22 @@ fun MainNavHost(
         composable(
             route = HomeDestination.routeWithArgs,
             arguments = listOf(navArgument(HomeDestination.groupIdArg) { type = NavType.StringType }
-            ) ){ backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString(HomeDestination.groupIdArg) ?: ""
-                HomeScreen(
-                    navController = navController,
-                    groupId = groupId,
-                    navigateToCycleDetails = { cycleId ->
-                        navController.navigate("${CycleDetailDestination.route}/$groupId/$cycleId")
-                    },
-                    navigateToCreateCycle = {
-                        navController.navigate("${CreateCycleDestination.route}/$groupId")
-                    },
-                    navigateToGroupManagement = {
-                        navController.navigate(GroupsHomeDestination.route)
-                    }
-                )
-            }
+            )) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString(HomeDestination.groupIdArg) ?: ""
+            HomeScreen(
+                navController = navController,
+                groupId = groupId,
+                navigateToCycleDetails = { cycleId ->
+                    navController.navigate("${CycleDetailDestination.route}/$groupId/$cycleId")
+                },
+                navigateToCreateCycle = {
+                    navController.navigate("${CreateCycleDestination.route}/$groupId")
+                },
+                navigateToGroupManagement = {
+                    navController.navigate(GroupsHomeDestination.route)
+                }
+            )
+        }
 
 //        composable(route = GroupsHomeDestination.route) {
 //            GroupsHomeScreen(
@@ -221,14 +223,15 @@ fun MainNavHost(
             arguments = listOf(navArgument(CreateCycleDestination.groupIdArg) {
                 type = NavType.StringType
             }
-            )){ backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString(CreateCycleDestination.groupIdArg) ?: ""
-                CreateCycleScreen(
-                    navController = navController,
-                    navigateBack = { navController.popBackStack() },
-                    groupId = groupId
-                )
-            }
+            )) { backStackEntry ->
+            val groupId =
+                backStackEntry.arguments?.getString(CreateCycleDestination.groupIdArg) ?: ""
+            CreateCycleScreen(
+                navController = navController,
+                navigateBack = { navController.popBackStack() },
+                groupId = groupId
+            )
+        }
 
 
 
@@ -238,14 +241,15 @@ fun MainNavHost(
             arguments = listOf(navArgument(BeneficiaryGroupDestination.groupIdArg) {
                 type = NavType.StringType
             }
-            ) ){ backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString(BeneficiaryGroupDestination.groupIdArg) ?: ""
-                BeneficiaryGroupScreen(
-                    groupId = groupId,
-                    navigateBack = { navController.popBackStack() },
-                    navController = navController
-                )
-            }
+            )) { backStackEntry ->
+            val groupId =
+                backStackEntry.arguments?.getString(BeneficiaryGroupDestination.groupIdArg) ?: ""
+            BeneficiaryGroupScreen(
+                groupId = groupId,
+                navigateBack = { navController.popBackStack() },
+                navController = navController
+            )
+        }
 
 
         composable(
@@ -271,8 +275,10 @@ fun MainNavHost(
                 navArgument(CycleDetailDestination.cycleIdArg) { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString(CycleDetailDestination.groupIdArg) ?: ""
-            val cycleId = backStackEntry.arguments?.getString(CycleDetailDestination.cycleIdArg) ?: ""
+            val groupId =
+                backStackEntry.arguments?.getString(CycleDetailDestination.groupIdArg) ?: ""
+            val cycleId =
+                backStackEntry.arguments?.getString(CycleDetailDestination.cycleIdArg) ?: ""
 
             CycleDetailScreenForMeetings(
                 navController = navController,
@@ -299,25 +305,25 @@ fun MainNavHost(
                 type = NavType.StringType
             }
             )) { entry ->
-                val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
-                val memberViewModel: MemberViewModel = hiltViewModel()
-                val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
+            val meetingId = entry.arguments?.getString(ContributionDestination.meetingIdArg)!!
+            val memberViewModel: MemberViewModel = hiltViewModel()
+            val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
 
-                if (isAdmin) {
-                    ContributionScreen(
-                        meetingId = meetingId,
-                        navigateToBeneficiarySelection = {
-                            navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
-                        },
-                        navController = navController // Remove navigateBack
-                    )
-                } else {
-                    ContributionSummaryScreen(
-                        meetingId = meetingId,
-                        navigateBack = { navController.popBackStack() }
-                    )
-                }
+            if (isAdmin) {
+                ContributionScreen(
+                    meetingId = meetingId,
+                    navigateToBeneficiarySelection = {
+                        navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
+                    },
+                    navController = navController // Remove navigateBack
+                )
+            } else {
+                ContributionSummaryScreen(
+                    meetingId = meetingId,
+                    navigateBack = { navController.popBackStack() }
+                )
             }
+        }
 
         composable(BeneficiaryDetailDestination.routeWithArgs) { backStackEntry ->
             val beneficiaryId = backStackEntry.arguments?.getString("beneficiaryId") ?: ""
@@ -331,9 +337,12 @@ fun MainNavHost(
 
         composable(
             route = BeneficiarySelectionDestination.routeWithArgs,
-            arguments = listOf(navArgument(BeneficiarySelectionDestination.meetingIdArg) { type = NavType.StringType }
-            ) ){ entry ->
-            val meetingId = entry.arguments?.getString(BeneficiarySelectionDestination.meetingIdArg)!!
+            arguments = listOf(navArgument(BeneficiarySelectionDestination.meetingIdArg) {
+                type = NavType.StringType
+            }
+            )) { entry ->
+            val meetingId =
+                entry.arguments?.getString(BeneficiarySelectionDestination.meetingIdArg)!!
             BeneficiarySelectionScreen(
                 meetingId = meetingId,
                 navigateBack = { navController.popBackStack() },
@@ -435,7 +444,10 @@ fun MainNavHost(
             val isAdmin by memberViewModel.currentUserIsAdmin.collectAsState()
 
 
-            Log.d("ContributionFlow", "Meeting: $meetingId | User: $currentUserId | Admin: $isAdmin")
+            Log.d(
+                "ContributionFlow",
+                "Meeting: $meetingId | User: $currentUserId | Admin: $isAdmin"
+            )
 
             if (isAdmin) {
                 ContributionScreen(
@@ -454,35 +466,42 @@ fun MainNavHost(
         }
         composable(
             route = PenaltyDestination.routeWithArgs,
-            arguments = listOf(navArgument(PenaltyDestination.groupIdArg) { type = NavType.StringType }
-            ) ){ backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString(PenaltyDestination.groupIdArg) ?: ""
-                PenaltyScreen(groupId = groupId)
+            arguments = listOf(navArgument(PenaltyDestination.groupIdArg) {
+                type = NavType.StringType
             }
+            )) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString(PenaltyDestination.groupIdArg) ?: ""
+            PenaltyScreen(groupId = groupId)
+        }
 
 
         composable(
             route = ExpenseDestination.routeWithArgs,
-            arguments = listOf(navArgument(ExpenseDestination.groupIdArg) { type = NavType.StringType }
-            ) ){ backStackEntry ->
-                val groupId = backStackEntry.arguments?.getString(ExpenseDestination.groupIdArg) ?: ""
-                ExpenseScreen(groupId = groupId)
+            arguments = listOf(navArgument(ExpenseDestination.groupIdArg) {
+                type = NavType.StringType
             }
+            )) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString(ExpenseDestination.groupIdArg) ?: ""
+            ExpenseScreen(groupId = groupId)
+        }
 
 
         composable(
             route = BenefitDestination.routeWithArgs,
-            arguments = listOf(navArgument(BenefitDestination.groupIdArg) { type = NavType.StringType })
+            arguments = listOf(navArgument(BenefitDestination.groupIdArg) {
+                type = NavType.StringType
+            })
         ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString(BenefitDestination.groupIdArg) ?: return@composable
+            val groupId = backStackEntry.arguments?.getString(BenefitDestination.groupIdArg)
+                ?: return@composable
             BenefitScreen(groupId)
         }
 
 
-
         // Add these composables to your NavHost
         composable(WelfareDestination.routeWithArgs) { backStackEntry ->
-            val welfareId = backStackEntry.arguments?.getString(WelfareDestination.welfareIdArg) ?: ""
+            val welfareId =
+                backStackEntry.arguments?.getString(WelfareDestination.welfareIdArg) ?: ""
             WelfareDetailScreen(
                 welfareId = welfareId,
                 navController = navController,
@@ -497,24 +516,42 @@ fun MainNavHost(
             )
         }
 
+        // In your NavHost setup
         composable(
             route = WelfareContributionDestination.routeWithArgs,
-            arguments = listOf(navArgument(WelfareContributionDestination.meetingIdArg) {
-                type = NavType.StringType
-            }
-            )) { backStackEntry ->
-                val meetingId = backStackEntry.arguments?.getString(WelfareContributionDestination.meetingIdArg) ?: ""
-                WelfareContributionScreen(
-                    meetingId = meetingId,
-                    navigateToBeneficiarySelection = {
-                        navController.navigate("${WelfareBeneficiarySelectionDestination.route}/$meetingId")
-                    },
-                    navController = navController
-                )
-            }
+            arguments = listOf(
+                navArgument(WelfareContributionDestination.meetingIdArg) {
+                    type = NavType.StringType
+                },
+                navArgument(WelfareContributionDestination.welfareIdArg) {
+                    type = NavType.StringType
+                },
+                navArgument(WelfareContributionDestination.groupIdArg) { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val meetingId =
+                backStackEntry.arguments?.getString(WelfareContributionDestination.meetingIdArg)
+                    ?: ""
+            val welfareId =
+                backStackEntry.arguments?.getString(WelfareContributionDestination.welfareIdArg)
+                    ?: ""
+            val groupId =
+                backStackEntry.arguments?.getString(WelfareContributionDestination.groupIdArg) ?: ""
+
+            WelfareContributionScreen(
+                meetingId = meetingId,
+                welfareId = welfareId,
+                groupId = groupId,
+                navigateToBeneficiarySelection = { meetingId ->
+                    navController.navigate("${WelfareBeneficiarySelectionDestination.route}/$meetingId")
+                },
+                navController = navController
+            )
+        }
 
         composable(WelfareBeneficiarySelectionDestination.routeWithArgs) { entry ->
-            val meetingId = entry.arguments?.getString(WelfareBeneficiarySelectionDestination.meetingIdArg)!!
+            val meetingId =
+                entry.arguments?.getString(WelfareBeneficiarySelectionDestination.meetingIdArg)!!
             WelfareBeneficiarySelectionScreen(
                 meetingId = meetingId,
                 navigateBack = { navController.popBackStack() },
@@ -525,15 +562,18 @@ fun MainNavHost(
 
         composable(
             route = WelfareBeneficiarySelectionDestination.routeWithArgs,
-            arguments = listOf(navArgument(WelfareBeneficiarySelectionDestination.meetingIdArg) { type = NavType.StringType }
-            )){ entry ->
-                val meetingId = entry.arguments?.getString(WelfareBeneficiarySelectionDestination.meetingIdArg)!!
-                WelfareBeneficiarySelectionScreen(
-                    meetingId = meetingId,
-                    navigateBack = { navController.popBackStack() },
-                    navController = navController
-                )
+            arguments = listOf(navArgument(WelfareBeneficiarySelectionDestination.meetingIdArg) {
+                type = NavType.StringType
             }
+            )) { entry ->
+            val meetingId =
+                entry.arguments?.getString(WelfareBeneficiarySelectionDestination.meetingIdArg)!!
+            WelfareBeneficiarySelectionScreen(
+                meetingId = meetingId,
+                navigateBack = { navController.popBackStack() },
+                navController = navController
+            )
+        }
 
 
 
@@ -543,19 +583,24 @@ fun MainNavHost(
                 type = NavType.StringType
             })
         ) { backStackEntry ->
-            val groupId = backStackEntry.arguments?.getString(SavingsFilterDestination.groupIdArg) ?: ""
+            val groupId =
+                backStackEntry.arguments?.getString(SavingsFilterDestination.groupIdArg) ?: ""
             SavingsFilterScreen(
                 groupId = groupId,
                 onBack = { navController.popBackStack() }
             )
         }
 
+
+        composable(ChangePasswordDestination.route) {
+            ChangePasswordScreen(
+                onBack = { navController.popBackStack() }
+            )
+
+
+        }
+
+
     }
-
-
-
-
-
-
 
 }

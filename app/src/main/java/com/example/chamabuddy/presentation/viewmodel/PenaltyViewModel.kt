@@ -56,7 +56,11 @@ class PenaltyViewModel @Inject constructor(
             }
         }
     }
-
+    fun deletePenalty(penaltyId: String) {
+        viewModelScope.launch {
+            repository.markAsDeleted(penaltyId, System.currentTimeMillis())
+        }
+    }
     fun filterMembers(query: String) {
         _filteredMembers.value = if (query.isBlank()) {
             _members.value

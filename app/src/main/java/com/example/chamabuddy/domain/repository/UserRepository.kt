@@ -60,5 +60,7 @@ interface UserRepository {
     suspend fun markUserGroupAsDeleted(userId: String, groupId: String, timestamp: Long)
     suspend fun getDeletedUserGroups(): List<UserGroup>
     suspend fun permanentDeleteUserGroup(userId: String, groupId: String)
+    suspend fun ensureFirebaseAuthSignIn(identifier: String, password: String)
 
+    suspend fun changePassword(userId: String, oldPassword: String, newPassword: String): Result<Unit>
 }

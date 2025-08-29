@@ -75,7 +75,7 @@ class SyncHelper @Inject constructor(
 
         workManager.enqueueUniqueWork(
             "group_sync_${System.currentTimeMillis()}",
-            ExistingWorkPolicy.KEEP, // Changed from REPLACE to KEEP
+            ExistingWorkPolicy.REPLACE,
             request
         )
     }

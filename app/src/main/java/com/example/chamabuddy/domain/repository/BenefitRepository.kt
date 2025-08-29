@@ -19,5 +19,8 @@ interface BenefitRepository {
     suspend fun getDeletedBenefits(): List<BenefitEntity>
     suspend fun permanentDelete(benefitId: String)
 
+    suspend fun updateBenefit(benefit: BenefitEntity)
+
+    suspend fun findSimilarBenefit(groupId: String, name: String, amount: Double, date: Long): BenefitEntity?
 
 }

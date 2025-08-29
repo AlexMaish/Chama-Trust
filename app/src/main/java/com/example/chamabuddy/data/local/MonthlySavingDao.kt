@@ -51,19 +51,13 @@ interface MonthlySavingDao {
     suspend fun markAsSynced(savingId: String)
 
 
+    @Query("""
+    SELECT COALESCE(SUM(actual_amount), 0) 
+    FROM MonthlySaving 
+    WHERE group_id = :groupId AND month_year = :monthYear AND is_deleted = 0
+""")
+    suspend fun getTotalSavingsForMonth(groupId: String, monthYear: String): Int?
 
-
-    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId AND month_year = :monthYear AND is_deleted = 0")
-    suspend fun getSavingForMonth(cycleId: String, monthYear: String): MonthlySaving?
-
-    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId AND is_deleted = 0 ORDER BY month_year DESC")
-    fun getSavingsForCycle(cycleId: String): Flow<List<MonthlySaving>>
-
-    @Query("SELECT * FROM MonthlySaving WHERE is_synced = 0 AND is_deleted = 0")
-    suspend fun getUnsyncedSavings(): List<MonthlySaving>
-
-    @Query("SELECT * FROM MonthlySaving WHERE saving_id = :savingId AND is_deleted = 0 LIMIT 1")
-    suspend fun getSavingById(savingId: String): MonthlySaving?
 
     // Add this query to get all entries including deleted ones for sync
     @Query("SELECT * FROM MonthlySaving WHERE is_deleted = 1")
@@ -84,5 +78,20 @@ interface MonthlySavingDao {
     // 🔹 Permanently delete
     @Query("DELETE FROM MonthlySaving WHERE saving_id = :savingId")
     suspend fun permanentDelete(savingId: String)
+
+
+
+    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId AND month_year = :monthYear AND is_deleted = 0")
+    suspend fun getSavingForMonth(cycleId: String, monthYear: String): MonthlySaving?
+
+    @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId AND is_deleted = 0 ORDER BY month_year DESC")
+    fun getSavingsForCycle(cycleId: String): Flow<List<MonthlySaving>>
+
+    @Query("SELECT * FROM MonthlySaving WHERE is_synced = 0 AND is_deleted = 0")
+    suspend fun getUnsyncedSavings(): List<MonthlySaving>
+
+    @Query("SELECT * FROM MonthlySaving WHERE saving_id = :savingId AND is_deleted = 0 LIMIT 1")
+    suspend fun getSavingById(savingId: String): MonthlySaving?
+
 
 }

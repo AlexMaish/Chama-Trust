@@ -35,6 +35,8 @@ class AuthViewModel @Inject constructor(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     val authState: StateFlow<AuthState> = _authState
 
+
+
     init {
         viewModelScope.launch {
             val userId = userRepository.getCurrentUserId()
@@ -65,6 +67,41 @@ class AuthViewModel @Inject constructor(
         _currentMemberId.value = userRepository.getCurrentUserMemberId(groupId)
     }
 
+
+    // Add to AuthViewModel.kt
+    private val _changePasswordState = MutableStateFlow<Resource<Unit>?>(null)
+    val changePasswordState: StateFlow<Resource<Unit>?> = _changePasswordState
+
+    fun changePassword(oldPassword: String, newPassword: String) {
+        viewModelScope.launch {
+            _changePasswordState.value = Resource.Loading()
+            val currentUserId = userRepository.getCurrentUserId()
+            val currentUser = currentUserId?.let { userRepository.getUserById(it) }
+
+            if (currentUser == null) {
+                _changePasswordState.value = Resource.Error("User not found. Please log in again.")
+                return@launch
+            }
+
+            userRepository.changePassword(currentUserId, oldPassword, newPassword).fold(
+                onSuccess = {
+                    _changePasswordState.value = Resource.Success(Unit)
+                },
+                onFailure = { e ->
+                    val errorMessage = when {
+                        e.message?.contains("incorrect", ignoreCase = true) == true ->
+                            "Current password is incorrect"
+                        else -> e.message ?: "Password change failed"
+                    }
+                    _changePasswordState.value = Resource.Error(errorMessage)
+                }
+            )
+        }
+    }
+
+    fun clearChangePasswordState() {
+        _changePasswordState.value = null
+    }
     fun registerUser(username: String, password: String, phoneNumber: String) {
         viewModelScope.launch {
             _registrationState.value = Resource.Loading()
@@ -78,7 +115,6 @@ class AuthViewModel @Inject constructor(
             )
         }
     }
-
     fun loginUser(identifier: String, password: String) {
         viewModelScope.launch {
             _loginState.value = Resource.Loading()
@@ -89,10 +125,10 @@ class AuthViewModel @Inject constructor(
                     _loginState.value = Resource.Success(user)
                     _authState.value = AuthState.Authenticated(user.userId)
 
-                    SyncLogger.d("🔥 Triggering full sync after login")
+                    // Force sign-in to Firebase Auth
+                    userRepository.ensureFirebaseAuthSignIn(identifier, password)
+
                     syncHelper.triggerFullSync()
-
-
                 },
                 onFailure = { e ->
                     _loginState.value = Resource.Error(e.message ?: "Login failed")
