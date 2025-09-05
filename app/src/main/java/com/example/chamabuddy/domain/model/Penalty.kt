@@ -3,10 +3,11 @@ package com.example.chamabuddy.domain.model
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(tableName = "penalties")
 data class Penalty(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey
     val penaltyId: String = "",
     val groupId: String,
     val memberName: String,

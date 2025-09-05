@@ -199,6 +199,7 @@ class MemberViewModel @Inject constructor(
                 memberRepository.updateActiveStatus(memberId, false)
                 loadMembersForGroup(currentGroupId)
                 _snackbarMessage.value = "Member deactivated"
+
             } catch (e: Exception) {
                 _state.value = MemberState.Error("Deactivation failed: ${e.localizedMessage}")
             }

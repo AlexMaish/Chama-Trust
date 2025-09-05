@@ -319,7 +319,12 @@ fun HomeScreen(
                             showDeleteWelfareDialog = true
                         }
                     },
-                    onCreateWelfare = { showCreateWelfareDialog = true },
+                    onCreateWelfare = {
+                        if (currentUserIsAdmin || currentUserIsOwner) {
+                            showCreateWelfareDialog = true
+                        }
+                    },
+                    isAdminOrOwner = currentUserIsAdmin || currentUserIsOwner, // Add this parameter
                     onClose = { scope.launch { drawerState.close() } },
                     onNavToPenalty = {
                         navController.navigate("${PenaltyDestination.route}/$groupId")
@@ -610,57 +615,61 @@ fun HomeScreen(
     }
 
     if (showCreateWelfareDialog) {
-        AlertDialog(
-            onDismissRequest = { showCreateWelfareDialog = false },
-            title = { Text("Create New Welfare") },
-            text = {
-                Column {
-                    TextField(
-                        value = welfareName,
-                        onValueChange = { welfareName = it },
-                        label = { Text("Welfare Name") }
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    TextField(
-                        value = welfareAmount,
-                        onValueChange = {
-                            welfareAmount = it
-                            welfareAmountError = false
-                        },
-                        label = { Text("Default Amount") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = welfareAmountError,
-                        supportingText = {
-                            if (welfareAmountError) Text("Enter valid amount")
-                        }
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (welfareName.isNotBlank() && welfareAmount.isNotBlank()) {
-                            val amount = welfareAmount.toIntOrNull()
-                            if (amount != null) {
-                                welfareViewModel.createWelfare(
-                                    groupId,
-                                    welfareName,
-                                    currentUserId ?: "",
-                                    amount
-                                )
-                                showCreateWelfareDialog = false
-                                welfareName = ""
-                                welfareAmount = ""
-                            } else {
-                                welfareAmountError = true
+        if (currentUserIsAdmin || currentUserIsOwner) {
+            AlertDialog(
+                onDismissRequest = { showCreateWelfareDialog = false },
+                title = { Text("Create a Contribution Pocket") },
+                text = {
+                    Column {
+                        TextField(
+                            value = welfareName,
+                            onValueChange = { welfareName = it },
+                            label = { Text("Pocket Name") }
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        TextField(
+                            value = welfareAmount,
+                            onValueChange = {
+                                welfareAmount = it
+                                welfareAmountError = false
+                            },
+                            label = { Text("Default Amount") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            isError = welfareAmountError,
+                            supportingText = {
+                                if (welfareAmountError) Text("Enter valid amount")
+                            }
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (welfareName.isNotBlank() && welfareAmount.isNotBlank()) {
+                                val amount = welfareAmount.toIntOrNull()
+                                if (amount != null) {
+                                    welfareViewModel.createWelfare(
+                                        groupId,
+                                        welfareName,
+                                        currentUserId ?: "",
+                                        amount
+                                    )
+                                    showCreateWelfareDialog = false
+                                    welfareName = ""
+                                    welfareAmount = ""
+                                } else {
+                                    welfareAmountError = true
+                                }
                             }
                         }
+                    ) {
+                        Text("Create")
                     }
-                ) {
-                    Text("Create")
                 }
-            }
-        )
+            )
+        } else {
+            showCreateWelfareDialog = false
+        }
     }
 
     if (showDeleteWelfareDialog && welfareToDelete != null) {
@@ -669,7 +678,7 @@ fun HomeScreen(
                 showDeleteWelfareDialog = false
                 welfareToDelete = null
             },
-            title = { Text("Delete Welfare Group") },
+            title = { Text("Delete Pocket") },
             text = { Text("Are you sure you want to delete '${welfareToDelete?.name}'? This action cannot be undone.") },
             confirmButton = {
                 Button(
@@ -1142,6 +1151,7 @@ fun SideNavigationDrawerContent(
     onWelfareSelected: (Welfare) -> Unit,
     onWelfareLongClick: (Welfare) -> Unit,
     onCreateWelfare: () -> Unit,
+    isAdminOrOwner: Boolean,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1179,22 +1189,24 @@ fun SideNavigationDrawerContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Welfare Groups",
+                "Contribution Pockets",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White
             )
-            IconButton(
-                onClick = onCreateWelfare,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Create Welfare",
-                    tint = Color.White
-                )
+            // Only show the create button if user is admin/owner
+            if (isAdminOrOwner) {
+                IconButton(
+                    onClick = onCreateWelfare,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Create a pocket",
+                        tint = Color.White
+                    )
+                }
             }
         }
-
         if (welfares.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -1209,16 +1221,19 @@ fun SideNavigationDrawerContent(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        "You haven't joined any welfare groups yet",
+                        "There is no current Contribution Pocket",
                         color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onCreateWelfare,
-                        colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
-                    ) {
-                        Text("Create or Join a Welfare")
+                    // Only show create button if admin/owner
+                    if (isAdminOrOwner) {
+                        Button(
+                            onClick = onCreateWelfare,
+                            colors = ButtonDefaults.buttonColors(containerColor = VibrantOrange)
+                        ) {
+                            Text("Create a Contribution Pocket")
+                        }
                     }
                 }
             }
@@ -1300,7 +1315,7 @@ fun SideNavigationDrawerContent(
                 icon = Icons.Default.Phone
             )
             ContactItem(
-                text = "alexdemaish@gmail.com",
+                text = "chamatrustofficial@gmail.com",
                 icon = Icons.Default.Email
             )
 

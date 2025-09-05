@@ -86,7 +86,7 @@ fun CycleFire.toLocal() = Cycle(
 )
 
 fun ExpenseEntityFire.toLocal() = ExpenseEntity(
-    expenseId = id.toString(),
+    expenseId = id,
     groupId = groupId,
     title = title,
     description = description,
@@ -173,7 +173,7 @@ fun MonthlySavingFire.toLocal() = MonthlySaving(
 )
 
 fun PenaltyFire.toLocal() = Penalty(
-    penaltyId = id.toString(),
+    penaltyId = id,
     groupId = groupId,
     memberName = memberName,
     description = description,

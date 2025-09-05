@@ -34,7 +34,7 @@ import java.util.Date
         WelfareBeneficiary::class,
         MemberWelfareContribution::class
     ],
-    version = 340,
+    version = 341,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

@@ -34,6 +34,12 @@ class MemberRepositoryImpl @Inject constructor(
         memberDao.deleteMember(member)
     }
 
+
+    override suspend fun updateActiveStatus(memberId: String, isActive: Boolean) {
+        withContext(Dispatchers.IO) {
+            memberDao.updateActiveStatus(memberId, isActive)
+        }
+    }
     override suspend fun getMemberById(memberId: String): Member? = withContext(Dispatchers.IO) {
         memberDao.getMemberById(memberId)
     }
@@ -146,11 +152,7 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateActiveStatus(memberId: String, isActive: Boolean) {
-        withContext(Dispatchers.IO) {
-            memberDao.updateActiveStatus(memberId, isActive)
-        }
-    }
+
 
 
     override suspend fun getUnsyncedMembers(): List<Member> =

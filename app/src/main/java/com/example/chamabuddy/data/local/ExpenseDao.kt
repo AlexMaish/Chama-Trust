@@ -7,31 +7,27 @@ import androidx.room.Query
 import androidx.room.Update
 import com.example.chamabuddy.domain.model.ExpenseEntity
 import kotlinx.coroutines.flow.Flow
+
 @Dao
 interface ExpenseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(expense: ExpenseEntity)
 
-    @Query("SELECT * FROM expenses WHERE groupId = :groupId ORDER BY date DESC")
-    fun getExpenses(groupId: String): kotlinx.coroutines.flow.Flow<List<ExpenseEntity>>
+    // 🔹 Exclude deleted
+    @Query("SELECT * FROM expenses WHERE groupId = :groupId AND is_deleted = 0 ORDER BY date DESC")
+    fun getExpenses(groupId: String): Flow<List<ExpenseEntity>>
 
-//    @Query("SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE groupId = :groupId")
-//    fun getTotal(groupId: String): Flow<Double>
-
-    @Query("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE groupId = :groupId")
-    fun getTotal(groupId: String): kotlinx.coroutines.flow.Flow<Double>
+    @Query("SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE groupId = :groupId AND is_deleted = 0")
+    fun getTotal(groupId: String): Flow<Double>
 
     @Query("UPDATE expenses SET is_synced = 1 WHERE expenseId = :expenseId")
     suspend fun markAsSynced(expenseId: String)
 
-    @Query("SELECT * FROM expenses WHERE is_synced = 0")
+    @Query("SELECT * FROM expenses WHERE is_synced = 0 AND is_deleted = 0")
     suspend fun getUnsyncedExpenses(): List<ExpenseEntity>
 
-
-    @Query("SELECT * FROM expenses WHERE expenseId = :expenseId LIMIT 1")
+    @Query("SELECT * FROM expenses WHERE expenseId = :expenseId AND is_deleted = 0 LIMIT 1")
     suspend fun getExpenseById(expenseId: String): ExpenseEntity?
-
-
 
     // 🔹 Soft delete
     @Query("UPDATE expenses SET is_deleted = 1, deleted_at = :timestamp WHERE expenseId = :expenseId")
@@ -48,9 +44,6 @@ interface ExpenseDao {
     @Update
     suspend fun update(expense: ExpenseEntity)
 
-
-
     @Query("SELECT * FROM expenses WHERE groupId = :groupId AND title = :title AND amount = :amount AND date = :date AND is_deleted = 0")
     suspend fun findSimilarExpense(groupId: String, title: String, amount: Double, date: Long): ExpenseEntity?
-
 }

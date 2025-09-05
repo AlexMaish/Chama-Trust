@@ -3,10 +3,13 @@ package com.example.chamabuddy.domain.model
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Entity(tableName = "benefits")
 data class BenefitEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+
+
+    @PrimaryKey
     val benefitId: String = "",
     val groupId: String,
     val name: String,
