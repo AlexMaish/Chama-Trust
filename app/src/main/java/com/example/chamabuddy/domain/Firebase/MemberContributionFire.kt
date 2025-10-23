@@ -7,7 +7,7 @@ data class MemberContributionFire(
     val meetingId: String = "",
     val memberId: String = "",
     val amountContributed: Int = 0,
-    val contributionDate: Timestamp = Timestamp.now(), // Changed from String
+    val contributionDate: Timestamp = Timestamp.now(),
     val isLate: Boolean = false,
     val groupId: String = "",
     val lastUpdated: Timestamp = Timestamp.now(),

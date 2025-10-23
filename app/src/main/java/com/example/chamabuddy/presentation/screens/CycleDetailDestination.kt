@@ -44,7 +44,6 @@ fun CycleDetailScreenForMeetings(
     navigateBack: () -> Unit,
     viewModel: MeetingViewModel = hiltViewModel()
 ) {
-    // Trigger load when lifecycle starts or cycleId changes
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -223,7 +222,6 @@ private fun MeetingCard(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showConfirmationDialog by remember { mutableStateOf(false) }
 
-    // Handle delete flow
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },

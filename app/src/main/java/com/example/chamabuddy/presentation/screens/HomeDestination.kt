@@ -324,7 +324,7 @@ fun HomeScreen(
                             showCreateWelfareDialog = true
                         }
                     },
-                    isAdminOrOwner = currentUserIsAdmin || currentUserIsOwner, // Add this parameter
+                    isAdminOrOwner = currentUserIsAdmin || currentUserIsOwner,
                     onClose = { scope.launch { drawerState.close() } },
                     onNavToPenalty = {
                         navController.navigate("${PenaltyDestination.route}/$groupId")
@@ -1193,7 +1193,6 @@ fun SideNavigationDrawerContent(
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White
             )
-            // Only show the create button if user is admin/owner
             if (isAdminOrOwner) {
                 IconButton(
                     onClick = onCreateWelfare,
@@ -1226,7 +1225,6 @@ fun SideNavigationDrawerContent(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    // Only show create button if admin/owner
                     if (isAdminOrOwner) {
                         Button(
                             onClick = onCreateWelfare,

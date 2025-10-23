@@ -12,7 +12,7 @@ data class MemberWelfareContributionFire(
     val contributionDate: Long = 0,
     val isLate: Boolean = false,
     val groupId: String = "",
-    val lastUpdated: Timestamp = Timestamp.now(), // Add this
+    val lastUpdated: Timestamp = Timestamp.now(),
     val isSynced: Boolean = false ,
 
     val isDeleted: Boolean = false,

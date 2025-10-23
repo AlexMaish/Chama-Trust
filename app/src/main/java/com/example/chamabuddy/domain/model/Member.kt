@@ -35,7 +35,7 @@ data class Member(
     val joinDate: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "user_id")
-    val userId: String? = null, // Tracks associated user account
+    val userId: String? = null,
 
     @ColumnInfo(name = "group_id")
     val groupId: String,

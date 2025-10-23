@@ -97,12 +97,10 @@ import com.example.chamabuddy.presentation.viewmodel.MemberEvent
 import com.example.chamabuddy.presentation.viewmodel.MemberState
 import com.example.chamabuddy.presentation.viewmodel.MemberViewModel
 
-// Premium Color Palette
 val PremiumTeal = Color(0xFF00C9B1)
 val PremiumCoral = Color(0xFFFF6B6B)
 val DarkNavy = Color(0xFF0A1D3A)
 
-// Gradient for top app bar
 val AppBarGradient = Brush.verticalGradient(
     colors = listOf(PremiumNavy, DarkNavy),
     startY = 0f,
@@ -741,7 +739,6 @@ fun MemberActionsDialog(
 
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // Action Buttons
                 if (currentUserIsAdmin && !isCurrentUser) {
                     ActionButton(
                         text = if (member.isAdmin) "Demote to Member" else "Promote to Admin",

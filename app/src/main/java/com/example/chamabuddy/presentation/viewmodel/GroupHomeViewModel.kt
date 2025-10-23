@@ -28,10 +28,9 @@ class GroupHomeViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val syncHelper: SyncHelper,
     private val syncPreferences: SyncPreferences,
-    private val workManager: WorkManager // Added this dependency
+    private val workManager: WorkManager
 ) : ViewModel() {
 
-    // Add sync state tracking
     sealed class SyncState {
         object Idle : SyncState()
         object LoadingGroups : SyncState()
@@ -51,16 +50,15 @@ class GroupHomeViewModel @Inject constructor(
     init {
         loadUserGroups()
         triggerInitialSync()
-        setupSyncObserver() // observe global sync status and reload when sync finishes
+        setupSyncObserver()
     }
 
     private fun setupSyncObserver() {
         viewModelScope.launch {
-            // Observe sync status changes from the SyncWorker
+
             SyncWorker.syncStatus.collect { status ->
                 when (status) {
                     is SyncWorker.SyncStatus.Success -> {
-                        // Reload groups when sync completes
                         loadUserGroups()
                     }
                     else -> { /* ignore other states */ }
@@ -96,7 +94,7 @@ class GroupHomeViewModel @Inject constructor(
                         syncHelper.triggerFullSync()
                         hasPerformedInitialSync = true
 
-                        // Set a timeout to prevent infinite loading
+                        // Setting a timeout to prevent infinite loading
                         delay(10000) // 10 seconds timeout
                         if (_uiState.value.groups.isEmpty()) {
                             _uiState.value = _uiState.value.copy(
@@ -216,7 +214,6 @@ class GroupHomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 groupRepository.permanentDeleteGroups(groupId)
-                // Refresh the list after deletion
                 loadUserGroups()
                 _uiState.value = _uiState.value.copy(
                     snackbarMessage = "Group deleted successfully"

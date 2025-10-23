@@ -28,15 +28,12 @@ interface GroupMemberDao {
     @Query("SELECT * FROM group_members WHERE is_synced = 0")
     suspend fun getUnsyncedGroupMembers(): List<GroupMember>
 
-    // 🔹 Soft delete
     @Query("UPDATE group_members SET is_deleted = 1, deleted_at = :timestamp WHERE group_id = :groupId AND user_id = :userId")
     suspend fun markAsDeleted(groupId: String, userId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted members
     @Query("SELECT * FROM group_members WHERE is_deleted = 1")
     suspend fun getDeletedGroupMembers(): List<GroupMember>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM group_members WHERE group_id = :groupId AND user_id = :userId")
     suspend fun permanentDelete(groupId: String, userId: String)
 }

@@ -66,10 +66,8 @@ class MemberViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = MemberState.Loading
             try {
-                // Use soft delete instead of immediate deletion
                 memberRepository.markAsDeleted(member.memberId, System.currentTimeMillis())
 
-                // Update UI immediately by filtering out deleted member
                 val currentMembers = (_state.value as? MemberState.MembersLoaded)?.members
                     ?.filter { it.memberId != member.memberId } ?: emptyList()
 
@@ -89,7 +87,6 @@ class MemberViewModel @Inject constructor(
                 _currentUserIsAdmin.value = member?.isAdmin ?: false
                 _currentUserIsOwner.value = member?.isOwner ?: false
             } catch (e: Exception) {
-                // Reset on error
                 _currentUserIsAdmin.value = false
                 _currentUserIsOwner.value = false
             }
@@ -150,7 +147,6 @@ class MemberViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("MemberVM", "Error loading user role", e)
-                // Reset on error
                 _currentUserIsAdmin.value = false
                 _currentUserIsOwner.value = false
             }
@@ -171,7 +167,6 @@ class MemberViewModel @Inject constructor(
     private fun demoteToMember(memberId: String) {
         viewModelScope.launch {
             try {
-                // Check admin count
                 val adminCount = memberRepository.getAdminCount(currentGroupId)
                 if (adminCount <= 1) {
                     throw IllegalStateException("Cannot demote the last admin")
@@ -252,7 +247,6 @@ class MemberViewModel @Inject constructor(
                 groupRepository.addMemberToGroup(currentGroupId, member.phoneNumber)
                 loadMembersForGroup(currentGroupId)
             } catch (e: IllegalStateException) {
-                // Specific error for user not registered
                 _snackbarMessage.value = e.message
             } catch (e: Exception) {
                 _state.value = MemberState.Error("Failed to add member: ${e.localizedMessage}")
@@ -271,7 +265,7 @@ class MemberViewModel @Inject constructor(
             try {
                 memberRepository.updateMember(member)
                 _selectedMember.value = member
-                loadMembersForGroup(currentGroupId) // Reload members
+                loadMembersForGroup(currentGroupId)
             } catch (e: Exception) {
                 _state.value = MemberState.Error("Update failed: ${e.localizedMessage}")
             }
@@ -301,7 +295,7 @@ class MemberViewModel @Inject constructor(
             _state.value = MemberState.Loading
             try {
                 memberRepository.updateProfilePicture(memberId, imageUri)
-                getMemberDetails(memberId) // Refresh details
+                getMemberDetails(memberId)
             } catch (e: Exception) {
                 _state.value = MemberState.Error("Profile update failed: ${e.localizedMessage}")
             }
@@ -317,7 +311,7 @@ class MemberViewModel @Inject constructor(
             _state.value = MemberState.Loading
             try {
                 memberRepository.changePhoneNumber(memberId, newNumber)
-                getMemberDetails(memberId) // Refresh details
+                getMemberDetails(memberId)
             } catch (e: Exception) {
                 _state.value = MemberState.Error("Phone update failed: ${e.localizedMessage}")
             }

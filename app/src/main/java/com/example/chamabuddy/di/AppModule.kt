@@ -1,4 +1,3 @@
-// AppModule.kt (updated)
 package com.example.chamabuddy.di
 
 import android.content.Context
@@ -28,7 +27,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    // --- Database ---
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
@@ -210,8 +208,8 @@ object AppModule {
         cycleDao: CycleDao,
         memberDao: MemberDao,
         dispatcher: CoroutineDispatcher,
-        firestore: FirebaseFirestore,          // Add this
-        connectivityManager: ConnectivityManager // Add this
+        firestore: FirebaseFirestore,
+        connectivityManager: ConnectivityManager
     ): SavingsRepository = SavingsRepositoryImpl(
         db,
         savingDao,
@@ -219,8 +217,8 @@ object AppModule {
         cycleDao,
         memberDao,
         dispatcher,
-        firestore,          // Add this
-        connectivityManager // Add this
+        firestore,
+        connectivityManager
     )
     @Provides
     @Singleton

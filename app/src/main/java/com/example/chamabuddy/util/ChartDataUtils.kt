@@ -10,16 +10,14 @@ object ChartDataUtils {
     fun generateCumulativeSavingsData(entries: List<MonthlySavingEntry>): Map<String, List<Int>> {
         val data = mutableMapOf<String, MutableList<Int>>()
 
-        // Group entries by month and calculate cumulative sums
         val sortedEntries = entries.sortedBy { it.entryDate }
         val monthlySums = sortedEntries.groupBy { it.monthYear }
             .mapValues { (_, entries) -> entries.sumOf { it.amount } }
             .toSortedMap(compareBy {
                 val parts = it.split("/")
-                parts[1].toInt() * 100 + parts[0].toInt() // Year * 100 + Month
+                parts[1].toInt() * 100 + parts[0].toInt()
             })
 
-        // Calculate cumulative values
         var cumulative = 0
         val cumulativeData = mutableMapOf<String, Int>()
 
@@ -28,7 +26,6 @@ object ChartDataUtils {
             cumulativeData[month] = cumulative
         }
 
-        // Format for chart (last 12 months)
         val dateFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
         val calendar = Calendar.getInstance()
         val result = mutableListOf<Int>()
@@ -49,7 +46,6 @@ object ChartDataUtils {
     fun generateGroupWiseCumulativeData(entries: List<MonthlySavingEntry>): Map<String, List<Int>> {
         val data = mutableMapOf<String, MutableList<Int>>()
 
-        // Group entries by group and month
         val groupMonthData = entries.groupBy { it.groupId }
             .mapValues { (_, groupEntries) ->
                 groupEntries.groupBy { it.monthYear }
@@ -60,14 +56,12 @@ object ChartDataUtils {
                     })
             }
 
-        // Calculate cumulative values for each group
         val result = mutableMapOf<String, List<Int>>()
 
         groupMonthData.forEach { (groupId, monthlyData) ->
             var cumulative = 0
             val cumulativeValues = mutableListOf<Int>()
 
-            // Get last 12 months
             val dateFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
             val calendar = Calendar.getInstance()
 

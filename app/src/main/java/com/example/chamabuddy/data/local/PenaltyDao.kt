@@ -13,7 +13,6 @@ interface PenaltyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(penalty: Penalty)
 
-    // 🔹 Exclude deleted
     @Query("SELECT * FROM penalties WHERE groupId = :groupId AND is_deleted = 0")
     fun getPenaltiesForGroup(groupId: String): Flow<List<Penalty>>
 
@@ -32,15 +31,12 @@ interface PenaltyDao {
     @Query("SELECT * FROM penalties WHERE groupId = :groupId AND memberId = :memberId AND description = :description AND amount = :amount AND date = :date AND is_deleted = 0")
     suspend fun findSimilarPenalty(groupId: String, memberId: String, description: String, amount: Double, date: Long): Penalty?
 
-    // 🔹 Soft delete
     @Query("UPDATE penalties SET is_deleted = 1, deleted_at = :timestamp WHERE penaltyId = :penaltyId")
     suspend fun markAsDeleted(penaltyId: String, timestamp: Long)
 
-    // 🔹 Get soft-deleted penalties
     @Query("SELECT * FROM penalties WHERE is_deleted = 1")
     suspend fun getDeletedPenalties(): List<Penalty>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM penalties WHERE penaltyId = :penaltyId")
     suspend fun permanentDelete(penaltyId: String)
 

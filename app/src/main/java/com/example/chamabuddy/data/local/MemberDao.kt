@@ -86,11 +86,9 @@ interface MemberDao {
     @Query("SELECT * FROM member WHERE group_id = :groupId AND is_synced = 0 AND is_deleted = 0 ORDER BY name ASC")
     suspend fun getUnsyncedMembersForGroup(groupId: String): List<Member>
 
-    // 🔹 Soft delete
     @Query("UPDATE member SET is_deleted = 1, deleted_at = :timestamp WHERE member_id = :memberId")
     suspend fun markAsDeleted(memberId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted members
     @Query("SELECT * FROM member WHERE is_deleted = 1 ORDER BY name ASC")
     suspend fun getDeletedMembers(): List<Member>
 
@@ -98,11 +96,9 @@ interface MemberDao {
     @Query("UPDATE member SET is_active = :isActive, is_synced = 0 WHERE member_id = :memberId")
     suspend fun updateActiveStatus(memberId: String, isActive: Boolean)
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM member WHERE member_id = :memberId")
     suspend fun permanentDelete(memberId: String)
 
-    // Group-specific queries
     @Query("SELECT * FROM member WHERE group_id = :groupId AND is_deleted = 0 ORDER BY name ASC")
     suspend fun getMembersByGroup(groupId: String): List<Member>
 

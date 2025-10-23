@@ -78,15 +78,12 @@ interface CycleDao {
 
 
 
-    // 🔹 Soft delete
     @Query("UPDATE Cycle SET is_deleted = 1, deleted_at = :timestamp WHERE cycle_id = :cycleId")
     suspend fun markAsDeleted(cycleId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted records
     @Query("SELECT * FROM Cycle WHERE is_deleted = 1")
     suspend fun getDeletedCycles(): List<Cycle>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM Cycle WHERE cycle_id = :cycleId")
     suspend fun permanentDelete(cycleId: String)
 

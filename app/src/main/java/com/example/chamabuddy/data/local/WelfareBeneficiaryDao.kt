@@ -28,15 +28,12 @@ interface WelfareBeneficiaryDao {
     suspend fun getBeneficiaryById(beneficiaryId: String): WelfareBeneficiary?
 
 
-    // 🔹 Soft delete
     @Query("UPDATE welfare_beneficiaries SET isDeleted = 1, deletedAt = :timestamp WHERE beneficiaryId = :beneficiaryId")
     suspend fun markAsDeleted(beneficiaryId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted beneficiaries
     @Query("SELECT * FROM welfare_beneficiaries WHERE isDeleted = 1")
     suspend fun getDeletedBeneficiaries(): List<WelfareBeneficiary>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM welfare_beneficiaries WHERE beneficiaryId = :beneficiaryId")
     suspend fun permanentDelete(beneficiaryId: String)
 

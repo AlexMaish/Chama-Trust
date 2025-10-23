@@ -21,7 +21,7 @@ fun SplashScreen(
         CircularProgressIndicator()
 
         LaunchedEffect(Unit) {
-            delay(2000) // Simulate loading time
+            delay(2000)
             onLoadingComplete()
         }
     }

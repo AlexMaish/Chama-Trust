@@ -18,8 +18,6 @@ interface MonthlySavingDao {
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         suspend fun insert(saving: MonthlySaving)
 
-//        @Query("SELECT * FROM MonthlySaving WHERE cycle_id = :cycleId AND month_year = :monthYear")
-//        suspend fun getSavingForMonth(cycleId: String, monthYear: String): MonthlySaving?
 
         @Update
         suspend fun update(saving: MonthlySaving)
@@ -59,7 +57,6 @@ interface MonthlySavingDao {
     suspend fun getTotalSavingsForMonth(groupId: String, monthYear: String): Int?
 
 
-    // Add this query to get all entries including deleted ones for sync
     @Query("SELECT * FROM MonthlySaving WHERE is_deleted = 1")
     suspend fun getDeletedSavings(): List<MonthlySaving>
 

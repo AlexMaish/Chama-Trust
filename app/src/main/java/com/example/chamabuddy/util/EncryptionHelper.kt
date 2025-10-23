@@ -60,7 +60,7 @@ class EncryptionHelper(context: Context) {
     fun decrypt(encryptedInput: String): String? {
         return try {
             val parts = encryptedInput.split(IV_SEPARATOR)
-            if (parts.size != 2) return null // Graceful failure
+            if (parts.size != 2) return null
 
             val iv = Base64.decode(parts[0], Base64.DEFAULT)
             val encrypted = Base64.decode(parts[1], Base64.DEFAULT)
@@ -70,7 +70,7 @@ class EncryptionHelper(context: Context) {
             cipher.init(Cipher.DECRYPT_MODE, getOrCreateSecretKey(), spec)
             String(cipher.doFinal(encrypted), Charsets.UTF_8)
         } catch (e: Exception) {
-            null // Return null on any decryption failure
+            null
         }
     }
 }

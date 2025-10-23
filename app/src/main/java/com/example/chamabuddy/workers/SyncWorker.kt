@@ -48,11 +48,11 @@ class SyncWorker @AssistedInject constructor(
     }
 
     override suspend fun doWork(): Result {
-        SyncLogger.d("✅✅✅ SYNC WORKER STARTED EXECUTION ✅✅✅")
+        SyncLogger.d("SYNC WORKER STARTED EXECUTION ")
         syncStatus.value = SyncStatus.InProgress
 
         return try {
-            SyncLogger.d("⏳ Beginning sync process...")
+            SyncLogger.d(" Beginning sync process...")
             SyncLogger.d("User ID: ${preferences.getCurrentUserId()}")
             SyncLogger.d("Last sync timestamp: ${preferences.getLastSyncTimestamp()}")
 
@@ -60,13 +60,12 @@ class SyncWorker @AssistedInject constructor(
             val userId = preferences.getCurrentUserId()
                 ?: return Result.failure().also {
                     syncStatus.value = SyncStatus.Failed("User not logged in")
-                    SyncLogger.e("❌ Sync aborted — no logged in user.")
+                    SyncLogger.e(" Sync aborted — no logged in user.")
                 }
 
             var lastSync = preferences.getLastSyncTimestamp()
             val isInitialSync = lastSync == 0L
             if (isInitialSync) {
-                // Trigger full sync for all groups
                 val userGroups = preferences.getUserGroups()
                 syncHelper.triggerGroupSync(userGroups)
             }
@@ -81,27 +80,22 @@ class SyncWorker @AssistedInject constructor(
                 syncStatus.value = SyncStatus.InProgressWithProgress(index + 1, unsyncedUsers.size)
             }
 
-            // Build user query properly (apply whereGreaterThan only when needed)
             val userQuery = if (!isInitialSync) {
                 firestore.collection("users")
                     .whereGreaterThan("lastUpdated", Timestamp(Date(lastSync)))
             } else {
                 firestore.collection("users")
             }
-
-            // Replaced user sync: use insert-or-update with SQLiteConstraintException handling
             val firebaseUsers = userQuery.get().await()
             SyncLogger.d("Fetched ${firebaseUsers.size()} users from Firestore for update.")
             for (doc in firebaseUsers) {
                 val firebaseUser = doc.toObject(UserFire::class.java)
                 val localUser = userRepository.getUserById(firebaseUser.userId)
 
-                // Use insertOrUpdate approach instead of separate insert/update
                 if (localUser == null) {
                     try {
                         userRepository.insertUser(firebaseUser.toLocal())
                     } catch (e: SQLiteConstraintException) {
-                        // If user already exists (race condition), update instead
                         SyncLogger.d("User ${firebaseUser.userId} already exists, updating")
                         userRepository.updateUser(firebaseUser.toLocal())
                     }
@@ -120,20 +114,17 @@ class SyncWorker @AssistedInject constructor(
                 val userGroup = doc.toObject(UserGroupFire::class.java)
                 userGroupIds.add(userGroup.groupId)
 
-                // Check if group exists before inserting user-group relationship
                 val groupExists = groupRepository.getGroupById(userGroup.groupId) != null
 
                 if (!groupExists) {
                     SyncLogger.d("Group ${userGroup.groupId} missing for user-group relationship")
 
-                    // Fetch missing group directly from Firestore
                     val groupDoc = firestore.collection("groups")
                         .document(userGroup.groupId)
                         .get()
                         .await()
 
                     groupDoc.toObject(GroupFire::class.java)?.let { firebaseGroup ->
-                        // Insert group into local database
                         groupRepository.insertGroup(firebaseGroup.toLocal())
                         SyncLogger.d("Inserted missing group: ${firebaseGroup.groupId}")
                     } ?: run {
@@ -141,7 +132,6 @@ class SyncWorker @AssistedInject constructor(
                     }
                 }
 
-                // Now safe to insert/update user-group relationship
                 val localUserGroup = userRepository.getUserGroup(userId, userGroup.groupId)
                 if (localUserGroup == null) {
                     userRepository.insertUserGroup(userGroup.toLocal())
@@ -183,7 +173,6 @@ class SyncWorker @AssistedInject constructor(
                     for (doc in firebaseGroups) {
                         val firebaseGroup = doc.toObject(GroupFire::class.java)
                         val localGroup = groupRepository.getGroupById(firebaseGroup.groupId)
-                        // Always insert group if missing
                         if (localGroup == null) {
                             groupRepository.insertGroup(firebaseGroup.toLocal())
                         } else if (firebaseGroup.lastUpdated.toDate().time > localGroup.lastUpdated) {
@@ -193,7 +182,6 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
 
-            // NEW: Trigger any group-level sync helper logic (e.g., sync cycles/members for newly discovered groups)
             if (userGroupIds.isNotEmpty()) {
                 syncHelper.triggerGroupSync(userGroupIds)
                 SyncLogger.d("Triggered group sync for ${userGroupIds.size} groups.")

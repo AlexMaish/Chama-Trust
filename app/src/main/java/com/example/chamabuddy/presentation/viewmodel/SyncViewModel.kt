@@ -23,18 +23,14 @@ class SyncViewModel @Inject constructor(
     private val syncHelper: SyncHelper,
     private val syncPreferences: SyncPreferences
 ) : ViewModel() {
-// Track network status
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> = _isOnline
 
-    // Expose sync status from SyncWorker
     val syncStatus = SyncWorker.syncStatus
 
-    // Trigger snackbar when network is restored
     private val _showNetworkRestored = MutableStateFlow(false)
     val showNetworkRestored: StateFlow<Boolean> = _showNetworkRestored
 
-    // Network callback to monitor connectivity
     private val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             if (!_isOnline.value) {
@@ -52,11 +48,9 @@ class SyncViewModel @Inject constructor(
     init {
         observeNetworkState()
 
-        // Trigger sync when network becomes available
         viewModelScope.launch {
             _isOnline.collect { online ->
                 if (online) {
-                    // This could be triggerSync() or triggerFullSync()
                     syncHelper.triggerFullSync()
                 }
             }
@@ -77,15 +71,11 @@ class SyncViewModel @Inject constructor(
                 if (groupIds.isNotEmpty()) {
                     syncHelper.triggerGroupSync(groupIds)
                 } else {
-                    // Optionally log or handle empty group list case
                     println("No groups found for sync.")
                 }
             } catch (e: Exception) {
-                // Log the error for debugging
                 e.printStackTrace()
 
-                // Optional: Expose the error to the UI
-                // _syncState.value = SyncState.Error("Failed to sync groups: ${e.message}")
             }
         }
     }

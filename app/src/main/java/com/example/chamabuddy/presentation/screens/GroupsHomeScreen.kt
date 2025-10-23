@@ -64,13 +64,12 @@ import com.example.chamabuddy.presentation.viewmodel.HomeViewModel
 import com.example.chamabuddy.presentation.viewmodel.SavingsViewModel
 import com.example.chamabuddy.workers.SyncWorker
 
-// Add this enum class at the top of the file
+
 enum class GraphType {
     ALL_GROUPS_CUMULATIVE,
     USER_SAVINGS_PER_GROUP
 }
 
-// Premium color palette
 val PremiumPurple = Color(0xFF7B68EE)
 
 val ChartLineColors = listOf(
@@ -98,19 +97,15 @@ fun GroupsHomeScreen(
     val syncState by viewModel.syncState.collectAsState()
     val currentUser by authViewModel.currentUser.collectAsState()
 
-    // Set default to show "My Savings" graph first
     var graphType by remember { mutableStateOf(GraphType.USER_SAVINGS_PER_GROUP) }
 
-    // Add state for graph loading
     var isGraphLoading by remember { mutableStateOf(false) }
 
-    // Scroll state for detecting scroll direction
     val scrollState = rememberLazyListState()
     var isTopBarVisible by remember { mutableStateOf(true) }
     var previousScroll by remember { mutableStateOf(0) }
     val navController = parentNavController
 
-    // Handle scroll direction to show/hide top bar
     LaunchedEffect(scrollState.isScrollInProgress) {
         if (scrollState.isScrollInProgress) {
             val currentScroll = scrollState.firstVisibleItemScrollOffset
@@ -119,10 +114,8 @@ fun GroupsHomeScreen(
         }
     }
 
-    // Move SnackbarHostState declaration to top so it's available in effects
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Handle ViewModel sync errors
     LaunchedEffect(syncState) {
         if (syncState is GroupHomeViewModel.SyncState.Error) {
             val error = (syncState as GroupHomeViewModel.SyncState.Error).message
@@ -130,7 +123,6 @@ fun GroupsHomeScreen(
         }
     }
 
-    // Handle legacy snackbar messages
     LaunchedEffect(uiState.snackbarMessage) {
         uiState.snackbarMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg)
@@ -144,14 +136,11 @@ fun GroupsHomeScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // State for group deletion
     var groupToDelete by remember { mutableStateOf<Group?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Get member counts for all groups
     val groupMemberCounts = remember { uiState.groupMemberCounts.toMutableMap() }
 
-    // Load member counts for each group
     LaunchedEffect(uiState.groups) {
         uiState.groups.forEach { group ->
             if (!groupMemberCounts.containsKey(group.groupId)) {
@@ -160,7 +149,6 @@ fun GroupsHomeScreen(
         }
     }
 
-    // Collect group data to get member counts
     val groupData by homeViewModel.groupData.collectAsState()
     LaunchedEffect(groupData) {
         groupData?.let {
@@ -169,13 +157,10 @@ fun GroupsHomeScreen(
         }
     }
 
-    // Get real savings data for all groups
     val savingsData = remember { mutableStateMapOf<String, List<Int>>() }
 
-    // Key to force recomposition when graph type changes
     val graphTypeKey by remember { derivedStateOf { graphType } }
 
-    // Load savings data when graph type changes
     LaunchedEffect(graphTypeKey, uiState.groups, currentUser?.userId) {
         if (uiState.groups.isEmpty()) {
             savingsData.clear()
@@ -315,7 +300,6 @@ fun GroupsHomeScreen(
                         .fillMaxSize()
                         .nestedScroll(scrollBehavior.nestedScrollConnection)
                 ) {
-                    // Welcome message section
                     item {
                         Column(
                             modifier = Modifier
@@ -349,7 +333,6 @@ fun GroupsHomeScreen(
                         }
                     }
 
-                    // Graph type selector
                     item {
                         Row(
                             modifier = Modifier
@@ -376,7 +359,6 @@ fun GroupsHomeScreen(
                         }
                     }
 
-                    // Savings graph section
                     item {
                         Column(
                             modifier = Modifier
@@ -419,7 +401,6 @@ fun GroupsHomeScreen(
 
                                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                                // Legend for all groups chart
                                                 GroupSavingsLegend(
                                                     groups = uiState.groups,
                                                     modifier = Modifier.fillMaxWidth()
@@ -470,7 +451,6 @@ fun GroupsHomeScreen(
 
                                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                                // Legend for per-group savings
                                                 GroupSavingsLegend(
                                                     groups = uiState.groups,
                                                     modifier = Modifier.fillMaxWidth()
@@ -492,7 +472,6 @@ fun GroupsHomeScreen(
                         }
                     }
 
-                    // Your Groups header
                     item {
                         Text(
                             "Your Groups",
@@ -503,7 +482,6 @@ fun GroupsHomeScreen(
                         )
                     }
 
-                    // Groups list
                     when {
                         uiState.isLoading -> {
                             item {
@@ -546,7 +524,6 @@ fun GroupsHomeScreen(
                         }
                     }
 
-                    // Add some bottom padding
                     item {
                         Spacer(modifier = Modifier.height(80.dp))
                     }
@@ -555,7 +532,6 @@ fun GroupsHomeScreen(
         }
     }
 
-    // Create Group Dialog
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.hideCreateGroupDialog() },
@@ -605,7 +581,6 @@ fun GroupsHomeScreen(
         )
     }
 
-    // Delete Group Confirmation Dialog
     if (showDeleteDialog && groupToDelete != null) {
         AlertDialog(
             onDismissRequest = {
@@ -654,7 +629,6 @@ private suspend fun loadCumulativeSavingsAllGroups(
         val dateFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
         val monthlySavings = mutableListOf<Int>()
 
-        // Get savings for the past 12 months for this group
         for (i in 11 downTo 0) {
             calendar.time = Date()
             calendar.add(Calendar.MONTH, -i)
@@ -664,7 +638,6 @@ private suspend fun loadCumulativeSavingsAllGroups(
             monthlySavings.add(totalSavings)
         }
 
-        // Convert to cumulative totals
         val cumulativeSavings = mutableListOf<Int>()
         var runningTotal = 0
 
@@ -688,10 +661,8 @@ private suspend fun loadUserSavingsPerGroup(
     groups.forEach { group ->
         savingsViewModel.initializeGroupId(group.groupId)
 
-        // Get the member ID for this user in the current group
         val memberId = savingsViewModel.getMemberIdForUser(group.groupId, userId)
         if (memberId != null) {
-            // Get user's savings entries for this group using memberId
             val userSavings = savingsViewModel.getGroupSavingsEntries(group.groupId)
                 .filter { it.memberId == memberId }
 
@@ -730,7 +701,6 @@ fun SavingsLineChart(
 ) {
     when {
         isLoading -> {
-            // Show loading indicator
             Box(
                 modifier = modifier,
                 contentAlignment = Alignment.Center
@@ -739,11 +709,9 @@ fun SavingsLineChart(
             }
         }
         data.isEmpty() || data.values.all { it.all { value -> value == 0 } } -> {
-            // Show empty state
             EmptyGraphPlaceholder(modifier = modifier)
         }
         else -> {
-            // Render actual chart
             SavingsLineChartContent(
                 data = data,
                 modifier = modifier,
@@ -761,7 +729,6 @@ private fun SavingsLineChartContent(
 ) {
     val groups = remember(data) { data.keys.toList() }
 
-    // Calculate max value for scaling
     val maxValue = remember(data) {
         val allValues = data.values.flatten()
         if (allValues.isEmpty()) 100 else max(1, allValues.maxOrNull() ?: 1)
@@ -774,7 +741,6 @@ private fun SavingsLineChartContent(
         val canvasHeight = size.height - padding.toPx() * 2
         val paddingPx = padding.toPx()
 
-        // Grid lines + Y-axis labels
         val horizontalLines = 5
         for (i in 0..horizontalLines) {
             val y = paddingPx + (canvasHeight / horizontalLines) * i
@@ -797,7 +763,6 @@ private fun SavingsLineChartContent(
             )
         }
 
-        // Draw savings lines
         groups.forEachIndexed { groupIndex, groupName ->
             val cumulativeSavings = data[groupName] ?: return@forEachIndexed
             if (cumulativeSavings.isEmpty()) return@forEachIndexed
@@ -825,7 +790,6 @@ private fun SavingsLineChartContent(
             )
         }
 
-        // Draw x-axis labels
         val monthWidth = canvasWidth / (months.size - 1).coerceAtLeast(1)
         months.forEachIndexed { index, month ->
             val x = paddingPx + (monthWidth * index)
@@ -1002,31 +966,29 @@ fun GroupsHomeDrawerContent(
                 onClose()
             }
         )
-        // Drawer items
         DrawerItem(
             icon = Icons.Default.Settings,
             text = "Settings",
-            onClick = { /* Handle settings */ }
+            onClick = { /* settings */ }
         )
         DrawerItem(
             icon = Icons.Default.Help,
             text = "Help & Support",
-            onClick = { /* Handle help */ }
+            onClick = { /* help */ }
         )
         DrawerItem(
             icon = Icons.Default.Info,
             text = "About",
-            onClick = { /* Handle about */ }
+            onClick = { /*  about */ }
         )
         DrawerItem(
             icon = Icons.Default.ExitToApp,
             text = "Logout",
-            onClick = { /* Handle logout */ }
+            onClick = { /*  logout */ }
         )
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // App version
         Text(
             "Chama Buddy v1.0.0",
             color = Color.White.copy(alpha = 0.6f),
@@ -1138,7 +1100,6 @@ fun PremiumGroupCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Group profile with different image for premium groups
             if (isPremium) {
                 Box(
                     modifier = Modifier
@@ -1191,14 +1152,12 @@ fun PremiumGroupCard(
                     color = if (isPremium) PremiumPurple else PremiumNavy
                 )
 
-                // Admin name with faded text
                 Text(
                     text = "Admin: ${group.adminName ?: "Unknown"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = PremiumNavy.copy(alpha = 0.6f)
                 )
 
-                // Total members
                 Text(
                     text = "$memberCount members",
                     style = MaterialTheme.typography.bodySmall,

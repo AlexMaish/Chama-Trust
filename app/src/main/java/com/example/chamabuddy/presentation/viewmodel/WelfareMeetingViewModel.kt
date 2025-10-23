@@ -27,7 +27,6 @@ class WelfareMeetingViewModel @Inject constructor(
     private val _beneficiaryState = MutableStateFlow(WelfareBeneficiarySelectionState())
     val beneficiaryState: StateFlow<WelfareBeneficiarySelectionState> = _beneficiaryState.asStateFlow()
 
-    // Persist contributions as amounts (Map<memberId, amount>) when navigating away
     private val _savedContributionState = mutableStateOf<Map<String, Int>?>(null)
 
     fun saveContributionState(contributions: Map<String, Int>) {
@@ -50,17 +49,14 @@ class WelfareMeetingViewModel @Inject constructor(
             val welfareAmount = meeting.welfareAmount
             val activeMembers = memberRepository.getActiveMembersByGroup(groupId)
 
-            // Existing contributions should provide the actual contributed amounts
             val existingContributions = welfareRepository.getContributionsForMeeting(meetingId)
                 .associate { it.memberId to it.amountContributed }
 
-            // Initialize with default amount for members without existing contributions
             val contributions = activeMembers.associate { member ->
                 member.memberId to (existingContributions[member.memberId] ?: 0)
             }
             val totalCollected = contributions.values.sum()
 
-            // Get contributor summaries (only those with > 0 contribution)
             val contributorSummaries = contributions
                 .filter { it.value > 0 }
                 .keys
@@ -87,11 +83,7 @@ class WelfareMeetingViewModel @Inject constructor(
     }
 
 
-    /**
-     * Toggle contribution on/off for a member.
-     * - If unchecking (contributed = false) -> set amount to 0
-     * - If checking (contributed = true) -> keep last non-zero amount or use default welfareAmount
-     */
+
     suspend fun updateContributionStatus(memberId: String, contributed: Boolean) {
         val currentContributions = _contributionState.value.contributions.toMutableMap()
         if (!contributed) {
@@ -112,9 +104,7 @@ class WelfareMeetingViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Update a member's contributed amount and recalculate totals.
-     */
+
     suspend fun updateContributionAmount(memberId: String, amount: Int) {
         val currentContributions = _contributionState.value.contributions.toMutableMap()
         currentContributions[memberId] = amount
@@ -126,9 +116,7 @@ class WelfareMeetingViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Persist contributions (amounts) to repository.
-     */
+
     suspend fun recordContributions(meetingId: String, contributions: Map<String, Int>) {
         try {
             welfareRepository.recordContributions(meetingId, contributions)

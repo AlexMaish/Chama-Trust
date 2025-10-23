@@ -20,13 +20,9 @@ interface UserGroupDao {
     @Query("SELECT group_id FROM user_groups WHERE user_id = :userId")
     suspend fun getGroupIdsForUser(userId: String): List<String>
 
-    // Add this function to fix the reference
     @Query("SELECT group_id FROM user_groups WHERE user_id = :userId")
     suspend fun getUserGroups(userId: String): List<String>
 
-//    @Transaction
-//    @Query("SELECT * FROM `groups` WHERE group_id IN (SELECT group_id FROM user_groups WHERE user_id = :userId)")
-//    suspend fun getUserGroupsWithDetails(userId: String): List<Group>
 
     @Query("SELECT * FROM `groups` WHERE group_id IN " +
             "(SELECT group_id FROM user_groups WHERE user_id = " +
@@ -54,15 +50,12 @@ interface UserGroupDao {
 
 
 
-    // 🔹 Soft delete
     @Query("UPDATE user_groups SET is_deleted = 1, deleted_at = :timestamp WHERE user_id = :userId AND group_id = :groupId")
     suspend fun markAsDeleted(userId: String, groupId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted user groups
     @Query("SELECT * FROM user_groups WHERE is_deleted = 1")
     suspend fun getDeletedUserGroups(): List<UserGroup>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM user_groups WHERE user_id = :userId AND group_id = :groupId")
     suspend fun permanentDelete(userId: String, groupId: String)
 

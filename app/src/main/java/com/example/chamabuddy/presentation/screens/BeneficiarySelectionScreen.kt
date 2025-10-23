@@ -45,14 +45,12 @@ fun BeneficiarySelectionScreen(
     val coroutineScope = rememberCoroutineScope()
 
 
-    // Initialize with existing beneficiaries
     LaunchedEffect(beneficiaryState.existingBeneficiaries) {
         if (beneficiaryState.existingBeneficiaries.isNotEmpty()) {
             selectedBeneficiaries = beneficiaryState.existingBeneficiaries
         }
     }
 
-    // Load eligible beneficiaries
     LaunchedEffect(meetingId) {
         viewModel.handleEvent(MeetingEvent.LoadEligibleBeneficiaries(meetingId))
     }
@@ -155,7 +153,6 @@ fun BeneficiarySelectionScreen(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Show existing beneficiaries first
                             if (beneficiaryState.existingBeneficiaries.isNotEmpty()) {
                                 item {
                                     Text(
@@ -175,7 +172,6 @@ fun BeneficiarySelectionScreen(
                                 }
                             }
 
-                            // Show other eligible members
                             if (beneficiaryState.eligibleMembers.isNotEmpty()) {
                                 item {
                                     Text(

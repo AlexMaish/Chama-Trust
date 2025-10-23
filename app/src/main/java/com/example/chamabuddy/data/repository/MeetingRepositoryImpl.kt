@@ -83,10 +83,8 @@ class MeetingRepositoryImpl @Inject constructor(
     override suspend fun deleteMeeting(meetingId: String) {
         withContext(dispatcher) {
             try {
-                // First delete related contributions and beneficiaries
                 contributionDao.deleteContributionsForMeeting(meetingId)
                 beneficiaryDao.deleteBeneficiariesForMeeting(meetingId)
-                // Then delete the meeting
                 meetingDao.deleteMeeting(meetingId)
             } catch (e: Exception) {
                 throw Exception("Failed to delete meeting: ${e.message}")
@@ -129,7 +127,6 @@ class MeetingRepositoryImpl @Inject constructor(
         hasContributions: Boolean,
         hasBeneficiaries: Boolean
     ) {
-        // Implementation can be added later
     }
 
     override suspend fun recordContributions(
@@ -177,17 +174,14 @@ class MeetingRepositoryImpl @Inject constructor(
             val cycle = cycleDao.getCycleById(meeting.cycleId)
                 ?: throw IllegalStateException("Cycle not found")
 
-            // Enforce max beneficiaries
             if (beneficiaryIds.size > cycle.beneficiariesPerMeeting) {
                 throw IllegalArgumentException(
                     "Cannot select more than ${cycle.beneficiariesPerMeeting} beneficiaries"
                 )
             }
 
-            // Delete existing beneficiaries
             beneficiaryDao.deleteBeneficiariesForMeeting(meetingId)
 
-            // Insert new beneficiaries
             beneficiaryIds.forEachIndexed { index, beneficiaryId ->
                 beneficiaryDao.insertBeneficiary(
                     Beneficiary(
@@ -203,11 +197,9 @@ class MeetingRepositoryImpl @Inject constructor(
                 )
             }
 
-            // Update meeting status (if needed)
-            // This function might be empty as we're computing status dynamically
             updateMeetingStatus(
                 meetingId,
-                hasContributions = true, // Assuming contributions are recorded first
+                hasContributions = true,
                 hasBeneficiaries = beneficiaryIds.isNotEmpty()
             )
 
@@ -233,7 +225,6 @@ class MeetingRepositoryImpl @Inject constructor(
         val cycle = cycleDao.getCycleById(meeting.cycleId)
             ?: throw IllegalStateException("Cycle not found")
 
-        // Get active group members
         val activeMembers = memberDao.getActiveMembersByGroup(meeting.groupId)
 
         val beneficiaries = beneficiaryDao.getBeneficiariesForMeeting(meetingId)

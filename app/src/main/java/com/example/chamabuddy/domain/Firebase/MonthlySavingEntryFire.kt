@@ -7,7 +7,7 @@ data class MonthlySavingEntryFire(
     val savingId: String = "",
     val memberId: String = "",
     val amount: Int = 0,
-    val entryDate: Timestamp = Timestamp.now(), // Changed from String
+    val entryDate: Timestamp = Timestamp.now(),
     val recordedBy: String? = null,
     val groupId: String = "",
     val isPlaceholder: Boolean = false,

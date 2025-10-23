@@ -35,7 +35,6 @@ class SavingsRepositoryImpl @Inject constructor(
     private val connectivityManager: ConnectivityManager
 ) : SavingsRepository {
 
-    // SavingsRepositoryImpl.kt
     override suspend fun recordMonthlySavings(
         cycleId: String,
         monthYear: String,
@@ -45,7 +44,6 @@ class SavingsRepositoryImpl @Inject constructor(
         groupId: String
     ) = withContext(dispatcher) {
         try {
-            // 1. Check if cycle belongs to the group
             val cycle = cycleDao.getCycleById(cycleId)
                 ?: throw IllegalStateException("Cycle not found")
 
@@ -53,14 +51,12 @@ class SavingsRepositoryImpl @Inject constructor(
                 throw IllegalStateException("Cycle does not belong to this group")
             }
 
-            // 2. Validate member and recorder
             val recorder = memberDao.getMemberById(recordedBy)
                 ?: throw IllegalStateException("Recorder (ID: $recordedBy) is not a valid group member")
 
             val member = memberDao.getMemberById(memberId)
                 ?: throw IllegalStateException("Member (ID: $memberId) does not exist")
 
-            // 3. Get or create MonthlySaving record
             var saving = savingDao.getSavingForMonth(cycleId, monthYear)
             if (saving == null) {
                 saving = MonthlySaving(
@@ -74,7 +70,6 @@ class SavingsRepositoryImpl @Inject constructor(
                 savingDao.insert(saving)
             }
 
-            // 🔹 NEW VALIDATION: Prevent over-saving for the member
             val currentTotal = savingEntryDao.getCurrentTotalForMemberMonth(
                 cycleId, monthYear, memberId
             )
@@ -86,7 +81,6 @@ class SavingsRepositoryImpl @Inject constructor(
                 )
             }
 
-            // 4. Create and insert new saving entry
             val monthFormat = SimpleDateFormat("MM/yyyy", Locale.getDefault())
             val targetDate = monthFormat.parse(monthYear)
             val calendar = Calendar.getInstance().apply {
@@ -108,12 +102,10 @@ class SavingsRepositoryImpl @Inject constructor(
                 )
             )
 
-            // 5. Update total saved
             val total = savingEntryDao.getEntriesForSaving(saving.savingId)
                 .first().sumOf { it.amount }
             savingDao.update(saving.copy(actualAmount = total))
 
-            // 6. Optionally auto-create next month if target met
             if (total >= saving.targetAmount) {
                 val nextMonth = calculateNextMonth(monthYear)
                 createMissingMonthlyEntries(cycleId, nextMonth, saving.targetAmount, groupId)
@@ -252,7 +244,6 @@ class SavingsRepositoryImpl @Inject constructor(
         monthlyTarget: Int,
         groupId: String
     ) = withContext(dispatcher) {
-        // Extend end date by 2 months
         val calendar = Calendar.getInstance().apply {
             time = Date(endDate)
             add(Calendar.MONTH, 2)
@@ -384,10 +375,8 @@ class SavingsRepositoryImpl @Inject constructor(
         withContext(dispatcher) {
             val saving = savingDao.getSavingForMonth(cycleId, monthYear)
             saving?.let {
-                // Mark the MonthlySaving as deleted
                 savingDao.markAsDeleted(it.savingId, System.currentTimeMillis())
 
-                // Mark all entries for this saving as deleted
                 val entries = savingEntryDao.getEntriesForSaving(it.savingId).first()
                 entries.forEach { entry ->
                     savingEntryDao.markAsDeleted(entry.entryId, System.currentTimeMillis())
@@ -415,17 +404,12 @@ class SavingsRepositoryImpl @Inject constructor(
     }
 
 
-
-    // Replace these functions in your SavingsRepositoryImpl.kt
-
     override suspend fun deleteSavingsEntryImmediately(entryId: String) {
         withContext(dispatcher) {
             val entry = savingEntryDao.getEntryById(entryId)
             entry?.let {
-                // Mark as deleted locally
                 savingEntryDao.markAsDeleted(entryId, System.currentTimeMillis())
 
-                // Delete from Firebase immediately if online
                 if (isOnline()) {
                     try {
                         firestore.collection("groups/${it.groupId}/monthly_saving_entries")
@@ -434,7 +418,6 @@ class SavingsRepositoryImpl @Inject constructor(
                             .await()
                         savingEntryDao.permanentDelete(entryId)
                     } catch (e: Exception) {
-                        // If Firebase deletion fails, keep it marked for sync
                         SyncLogger.e("Immediate entry deletion failed: ${e.message}")
                     }
                 }
@@ -446,19 +429,15 @@ class SavingsRepositoryImpl @Inject constructor(
         withContext(dispatcher) {
             val saving = savingDao.getSavingForMonth(cycleId, monthYear)
             saving?.let {
-                // Mark as deleted locally
                 savingDao.markAsDeleted(it.savingId, System.currentTimeMillis())
 
-                // Mark all entries as deleted
                 val entries = savingEntryDao.getEntriesForSaving(it.savingId).first()
                 entries.forEach { entry ->
                     savingEntryDao.markAsDeleted(entry.entryId, System.currentTimeMillis())
                 }
 
-                // Delete from Firebase immediately if online
                 if (isOnline()) {
                     try {
-                        // Delete all entries first
                         entries.forEach { entry ->
                             firestore.collection("groups/$groupId/monthly_saving_entries")
                                 .document(entry.entryId)
@@ -467,7 +446,6 @@ class SavingsRepositoryImpl @Inject constructor(
                             savingEntryDao.permanentDelete(entry.entryId)
                         }
 
-                        // Delete the monthly saving
                         firestore.collection("groups/$groupId/monthly_savings")
                             .document(it.savingId)
                             .delete()
@@ -496,7 +474,6 @@ class SavingsRepositoryImpl @Inject constructor(
 
     override suspend fun getMemberMonthlySavingsProgress(memberId: String): List<Pair<String, Int>> {
         return withContext(dispatcher) {
-            // Add debug logging
             println("DEBUG: Getting savings entries for member: $memberId")
 
             val entries = savingEntryDao.getMemberSavingsEntries(memberId)
@@ -504,7 +481,6 @@ class SavingsRepositoryImpl @Inject constructor(
             entries.forEach { entry ->
                 println("DEBUG: Entry: ${entry.entryId}, Amount: ${entry.amount}, Month: ${entry.monthYear}")
             }
-            // Group by month and calculate cumulative sums
             val monthlySums = entries.groupBy { it.monthYear }
                 .map { (monthYear, entries) ->
                     val sum = entries.sumOf { it.amount }
@@ -516,7 +492,6 @@ class SavingsRepositoryImpl @Inject constructor(
                     format.parse(monthYear)?.time ?: 0
                 }
 
-            // Calculate cumulative savings
             val cumulativeSavings = mutableListOf<Pair<String, Int>>()
             var total = 0
 

@@ -42,7 +42,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun WelfareContributionScreen(
-    meetingId: String, // This can be "new" for new meetings or an actual ID for existing ones
+    meetingId: String,
     welfareId: String,
     groupId: String,
     navigateToBeneficiarySelection: (String) -> Unit,
@@ -59,7 +59,6 @@ fun WelfareContributionScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
     val recordedByName = currentUser?.username ?: "Unknown"
 
-    // Dialog state for setting custom amount - only for admin
     var showAmountDialog by remember { mutableStateOf(false) }
     var selectedMember by remember { mutableStateOf<Member?>(null) }
     var customAmount by remember { mutableStateOf("") }
@@ -111,7 +110,6 @@ fun WelfareContributionScreen(
     LaunchedEffect(meetingId, welfareId, groupId) {
         if (!hasInitialized) {
             if (isNewMeeting) {
-                // Get welfare amount from repository
                 val welfareAmount = welfareViewModel.getWelfareAmount(welfareId)
                 viewModel.loadMembersForNewMeeting(groupId, welfareAmount)
             } else {
@@ -124,11 +122,9 @@ fun WelfareContributionScreen(
     LaunchedEffect(meetingId, welfareId, groupId) {
         if (!hasInitialized) {
             if (isNewMeeting) {
-                // Get the welfare amount from the welfare group
                 val welfareAmount = welfareViewModel.getWelfareAmount(welfareId)
                 viewModel.loadMembersForNewMeeting(groupId, welfareAmount)
             } else {
-                // Load existing meeting
                 viewModel.loadMembersForContribution(meetingId)
             }
             hasInitialized = true
@@ -232,7 +228,6 @@ fun WelfareContributionScreen(
                                             isCreatingMeeting = false
                                         }
                                     } else {
-                                        // For existing meetings
                                         try {
                                             viewModel.recordContributions(currentMeetingId, state.contributions)
                                             snackbarHostState.showSnackbar("Contributions saved successfully")
@@ -399,7 +394,7 @@ fun WelfareContributionScreen(
                                 customAmountError = false
                                 showAmountDialog = true
                             },
-                            isAdmin = isAdmin // Pass admin status to item
+                            isAdmin = isAdmin
                         )
                     }
                 }
@@ -504,7 +499,7 @@ fun WelfareContributionItem(
             .height(60.dp)
             .border(1.dp, borderColor, MaterialTheme.shapes.medium)
             .combinedClickable(
-                enabled = isAdmin && member.isActive, // Only clickable for admin
+                enabled = isAdmin && member.isActive,
                 onClick = {
                     if (member.isActive) {
                         onContributionChange(!hasContributed)

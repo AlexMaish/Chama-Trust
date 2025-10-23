@@ -95,17 +95,14 @@ class HomeViewModel @Inject constructor(
 
     fun loadGroupData(groupId: String) {
         viewModelScope.launch {
-            // Change from getGroupsByIds to getGroupById
             val group = groupRepository.getGroupById(groupId) ?: return@launch
             val members = memberRepository.getMembersByGroup(groupId)
 
-            // Create GroupWithMembers instead of GroupData
             _groupData.value = GroupWithMembers(
                 group = group,
                 members = members
             )
 
-            // Also load total savings for the group
             _totalGroupSavings.value = savingsRepository.getTotalGroupSavings(groupId)
         }
     }
@@ -124,9 +121,8 @@ class HomeViewModel @Inject constructor(
             _state.value = CycleState.Loading
             try {
                 println("Loading cycles for group: $groupId")
-                var cycles = cycleRepository.getCyclesByGroupId(groupId) // This now filters deleted cycles
+                var cycles = cycleRepository.getCyclesByGroupId(groupId)
 
-                // Update each cycle with its total savings
                 cycles = cycles.map { cycle ->
                     val total = savingsRepository.getTotalSavingsByCycle(cycle.cycleId)
                     cycle.copy(totalSavings = total)
@@ -171,7 +167,6 @@ class HomeViewModel @Inject constructor(
             try {
                 _totalSavings.value = savingsRepository.getTotalSavings()
             } catch (e: Exception) {
-                // Handle error
             }
         }
     }
@@ -229,12 +224,10 @@ class HomeViewModel @Inject constructor(
             try {
                 val now = System.currentTimeMillis()
 
-                // 1. End current cycle with timestamp
                 val currentActiveCycle = cycleRepository.getActiveCycleForGroup(event.groupId)
                 currentActiveCycle?.let { activeCycle ->
                     cycleRepository.endCurrentCycle(activeCycle.cycleId, now)
 
-                    // 2. Create incomplete savings months for the ended cycle
                     savingsRepository.createIncompleteMonths(
                         cycleId = activeCycle.cycleId,
                         startDate = activeCycle.startDate,
@@ -244,7 +237,6 @@ class HomeViewModel @Inject constructor(
                     )
                 }
 
-                // 3. Start the new cycle
                 val result = cycleRepository.startNewCycle(
                     weeklyAmount = event.weeklyAmount,
                     monthlyAmount = event.monthlyAmount,
@@ -255,7 +247,6 @@ class HomeViewModel @Inject constructor(
                 )
 
                 if (result.isSuccess) {
-                    // 4. Refresh data after new cycle creation
                     loadCyclesForGroup(event.groupId)
                     loadGroupData(event.groupId)
                 } else {
@@ -271,10 +262,8 @@ class HomeViewModel @Inject constructor(
     fun deleteCycle(cycleId: String) {
         viewModelScope.launch {
             try {
-                // Use soft delete instead of hard delete
                 cycleRepository.markAsDeleted(cycleId, System.currentTimeMillis())
 
-                // Refresh cycles after deletion - they will be filtered out automatically
                 _currentGroupId.value?.let { loadCyclesForGroup(it) }
                 setSnackbarMessage("Cycle marked for deletion")
                 showSnackbar()
@@ -290,14 +279,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = CycleState.Loading
             try {
-                // Get the current active cycle before ending it
                 val endedCycle = cycleRepository.getActiveCycle()
 
-                // End the current cycle if exists
                 endedCycle?.let { cycle ->
                     val endResult = cycleRepository.endCurrentCycle(cycle.cycleId)
                     if (endResult.isSuccess) {
-                        // Create incomplete months for the ended cycle
                         savingsRepository.createIncompleteMonths(
                             cycle.cycleId,
                             cycle.startDate,
@@ -313,7 +299,6 @@ class HomeViewModel @Inject constructor(
                     }
                 }
 
-                // Start new cycle with adjusted parameters
                 val newCycleResult = cycleRepository.startNewCycle(
                     event.weeklyAmount,
                     event.monthlyAmount,

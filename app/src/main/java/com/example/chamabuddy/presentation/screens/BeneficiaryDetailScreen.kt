@@ -106,17 +106,14 @@ fun BeneficiaryDetailScreen(
                 val meeting = currentState.meeting
                 val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
 
-                // Initialize amount
                 LaunchedEffect(beneficiary) {
                     adjustedAmount = beneficiary.amountReceived.toString()
                 }
 
-                // Fetch beneficiary count
                 val beneficiaryCount by produceState(initialValue = 1) {
                     value = viewModel.getBeneficiaryCountForMeeting(beneficiary.meetingId)
                 }
 
-                // Derive active members list
                 val members = remember(meeting) {
                     when {
                         meeting == null -> emptyList<Any>()
@@ -135,7 +132,6 @@ fun BeneficiaryDetailScreen(
                     }
                 }
 
-                // Calculate how many members to show initially
                 val initialMembersToShow = 3
                 val showSeeMoreButton = members.size > initialMembersToShow
 
@@ -144,7 +140,6 @@ fun BeneficiaryDetailScreen(
                         .padding(16.dp)
                         .padding(paddingValues)
                 ) {
-                    // Beneficiary details
                     Text(
                         text = "Payment Order: ${beneficiary.paymentOrder}",
                         style = MaterialTheme.typography.bodyLarge
@@ -157,14 +152,12 @@ fun BeneficiaryDetailScreen(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // ACTIVE MEMBERS SECTION
                     Text(
                         text = "Active Members",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    // Show limited number of members initially
                     if (members.isEmpty()) {
                         Text(
                             text = "No active members",
@@ -172,7 +165,6 @@ fun BeneficiaryDetailScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        // Display initial members
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.Start,
@@ -183,7 +175,6 @@ fun BeneficiaryDetailScreen(
                                 MemberChip(name = displayName, modifier = Modifier.padding(end = 8.dp))
                             }
 
-                            // Show "See More" button if there are more members
                             if (showSeeMoreButton) {
                                 Spacer(modifier = Modifier.weight(1f))
                                 TextButton(onClick = { showAllMembersDialog = true }) {
@@ -195,7 +186,6 @@ fun BeneficiaryDetailScreen(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // Editable amount field
                     OutlinedTextField(
                         value = adjustedAmount,
                         onValueChange = { adjustedAmount = it },
@@ -206,9 +196,7 @@ fun BeneficiaryDetailScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Default amount info
                     meeting?.let { nonNullMeeting ->
-                        // Only calculate if we have valid values
                         if (nonNullMeeting.totalCollected > 0 && beneficiaryCount > 0) {
                             val defaultAmount = nonNullMeeting.totalCollected / max(1, beneficiaryCount)
                             Text(
@@ -222,7 +210,6 @@ fun BeneficiaryDetailScreen(
 
                     Spacer(Modifier.height(24.dp))
 
-                    // Save button
                     Button(
                         onClick = {
                             try {
@@ -232,7 +219,6 @@ fun BeneficiaryDetailScreen(
                                     MeetingEvent.UpdateBeneficiaryAmount(beneficiaryId, newAmount)
                                 )
                             } catch (e: NumberFormatException) {
-                                // Handle invalid input
                             }
                         },
                         enabled = !isEditing,
@@ -249,7 +235,6 @@ fun BeneficiaryDetailScreen(
                     }
                 }
 
-                // ALL MEMBERS DIALOG
                 if (showAllMembersDialog) {
                     AlertDialog(
                         onDismissRequest = { showAllMembersDialog = false },
@@ -285,7 +270,6 @@ fun BeneficiaryDetailScreen(
             }
 
             else -> {
-                // Handle other states or idle state
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -300,12 +284,10 @@ fun BeneficiaryDetailScreen(
     }
 }
 
-// Helper function to extract display name from member object
 private fun getMemberDisplayName(member: Any?): String {
     return when (member) {
         is String -> member
         else -> {
-            // Try to get name using reflection
             try {
                 val nameProp = member?.let { m ->
                     m::class.members.firstOrNull {

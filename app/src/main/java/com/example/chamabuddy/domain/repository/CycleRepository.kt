@@ -11,7 +11,7 @@ interface CycleRepository {
         totalMembers: Int,
         startDate: Long,
         groupId: String,
-        beneficiariesPerMeeting: Int // Add this parameter
+        beneficiariesPerMeeting: Int
     ): Result<Cycle>
     suspend fun endCurrentCycle(cycleId: String, endDate: Long = System.currentTimeMillis()): Result<Unit>
     fun getCurrentCycle(): Flow<Cycle?>

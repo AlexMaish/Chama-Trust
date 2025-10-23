@@ -40,16 +40,15 @@ class SavingsFilterViewModel @Inject constructor(
      * Load all savings entries for the group, map to SavingsEntry (including member name),
      * then populate flows grouped by day, by month and by mapped month (monthYear).
      */
+
     fun loadGroupSavings(groupId: String) {
         viewModelScope.launch {
             _state.value = SavingsFilterState.Loading
             try {
                 val entries = savingsRepository.getGroupSavingsEntries(groupId)
 
-                // Map DB entries to UI entries and resolve member names (falls back to memberId)
                 val savingsEntries = entries.map { entry ->
                     val memberName = try {
-                        // Repository-supplied lookup; fall back to memberId if unavailable
                         savingsRepository.getMemberName(entry.memberId) ?: entry.memberId
                     } catch (t: Throwable) {
                         entry.memberId
@@ -60,11 +59,10 @@ class SavingsFilterViewModel @Inject constructor(
                         memberName = memberName,
                         amount = entry.amount,
                         entryDate = entry.entryDate,
-                        monthYear = entry.monthYear // ensure monthYear is passed through
+                        monthYear = entry.monthYear
                     )
                 }
 
-                // Group by date (normalized to start of day in millis)
                 val byDate = savingsEntries.groupBy {
                     val calendar = Calendar.getInstance().apply { timeInMillis = it.entryDate }
                     calendar.set(Calendar.HOUR_OF_DAY, 0)
@@ -74,13 +72,11 @@ class SavingsFilterViewModel @Inject constructor(
                     calendar.timeInMillis
                 }
 
-                // Group by month string "MonthName YEAR" (derived from entryDate)
                 val byMonth = savingsEntries.groupBy {
                     val calendar = Calendar.getInstance().apply { timeInMillis = it.entryDate }
                     "${calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())} ${calendar.get(Calendar.YEAR)}"
                 }
 
-                // Group by mapped month coming from the monthYear field (expected format "MM/YYYY" or similar)
                 val byMappedMonth = savingsEntries.groupBy { entry ->
                     try {
                         val parts = entry.monthYear.split("/")
@@ -115,7 +111,6 @@ class SavingsFilterViewModel @Inject constructor(
     }
 }
 
-/* --- helper types --- */
 
 sealed class SavingsFilterState {
     object Loading : SavingsFilterState()

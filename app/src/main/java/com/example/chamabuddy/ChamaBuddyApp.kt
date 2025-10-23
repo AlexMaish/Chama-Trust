@@ -33,10 +33,8 @@ class ChamaBuddyApp : ComponentActivity() {
                     var showSplash by remember { mutableStateOf(true) }
                     var isAuthenticated by remember { mutableStateOf(false) }
 
-                    // ✅ ViewModel scoped to activity
                     val syncViewModel: SyncViewModel = hiltViewModel()
 
-                    // ✅ Trigger one-time sync on first launch if online
                     val isOnline by syncViewModel.isOnline.collectAsState()
                     LaunchedEffect(isOnline) {
                         if (isOnline) {

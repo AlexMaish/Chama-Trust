@@ -13,7 +13,6 @@ interface ExpenseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(expense: ExpenseEntity)
 
-    // 🔹 Exclude deleted
     @Query("SELECT * FROM expenses WHERE groupId = :groupId AND is_deleted = 0 ORDER BY date DESC")
     fun getExpenses(groupId: String): Flow<List<ExpenseEntity>>
 
@@ -29,15 +28,12 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE expenseId = :expenseId AND is_deleted = 0 LIMIT 1")
     suspend fun getExpenseById(expenseId: String): ExpenseEntity?
 
-    // 🔹 Soft delete
     @Query("UPDATE expenses SET is_deleted = 1, deleted_at = :timestamp WHERE expenseId = :expenseId")
     suspend fun markAsDeleted(expenseId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted records
     @Query("SELECT * FROM expenses WHERE is_deleted = 1")
     suspend fun getDeletedExpenses(): List<ExpenseEntity>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM expenses WHERE expenseId = :expenseId")
     suspend fun permanentDelete(expenseId: String)
 

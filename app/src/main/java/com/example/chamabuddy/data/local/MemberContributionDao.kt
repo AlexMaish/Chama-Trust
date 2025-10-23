@@ -16,7 +16,6 @@ interface MemberContributionDao {
     @Query("SELECT * FROM MemberContribution WHERE meeting_id = :meetingId")
     suspend fun getContributorsForMeeting(meetingId: String): List<MemberContribution>
 
-    // Keep this if you need to get Members with their contributions
     @Query("""
         SELECT m.* FROM Member m
         JOIN MemberContribution mc ON m.member_id = mc.member_id
@@ -39,7 +38,6 @@ interface MemberContributionDao {
     )
     suspend fun getTotalContributedForMeeting(meetingId: String): Int
 
-    //added
     @Query("SELECT * FROM MemberContribution WHERE meeting_id = :meetingId")
     fun getAllContributionsForMeeting(meetingId: String): Flow<List<MemberContribution>>
 
@@ -53,7 +51,6 @@ interface MemberContributionDao {
     @Query("DELETE FROM MemberContribution WHERE contribution_id = :contributionId")
     suspend fun deleteContribution(contributionId: String)
 
-    // Add this if missing
     @Query("SELECT * FROM MemberContribution WHERE meeting_id = :meetingId")
     fun getContributorsForMeetingSync(meetingId: String): List<MemberContribution>
 
@@ -79,11 +76,9 @@ interface MemberContributionDao {
     @Query("UPDATE MemberContribution SET is_deleted = 1, deleted_at = :timestamp WHERE contribution_id = :contributionId")
     suspend fun markAsDeleted(contributionId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted contributions
     @Query("SELECT * FROM MemberContribution WHERE is_deleted = 1")
     suspend fun getDeletedContributions(): List<MemberContribution>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM MemberContribution WHERE contribution_id = :contributionId")
     suspend fun permanentDelete(contributionId: String)
 }

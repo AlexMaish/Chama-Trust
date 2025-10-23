@@ -67,7 +67,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Premium Color Palette
 val DeepNavy = Color(0xFF0A1D3A)
 val GoldAccent = Color(0xFFFFD700)
 val SoftCream = Color(0xFFF8F5F0)
@@ -142,7 +141,6 @@ fun SavingsFilterScreen(
                         .fillMaxSize()
                         .padding(padding)
                 ) {
-                    // Filter selector with premium styling
                     FilterTypeToggle(
                         currentFilter = filterType,
                         onFilterChange = { viewModel.setFilterType(it) },
@@ -151,7 +149,6 @@ fun SavingsFilterScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Content based on filter type
                     when (filterType) {
                         FilterType.DATE -> DateFilteredList(savingsByDate)
                         FilterType.MONTH -> MonthFilteredList(savingsByMonth)

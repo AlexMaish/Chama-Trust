@@ -1,7 +1,5 @@
-// Navigation.kt
 package com.example.chamabuddy.presentation.navigation
 
-import com.example.chamabuddy.presentation.navigation.MemberProfileDestination.memberIdArg
 
 interface NavigationDestination {
     val route: String
@@ -10,7 +8,7 @@ interface NavigationDestination {
 
 object HomeDestination : NavigationDestination {
     override val route = "home"
-    override val title = "ChamaBuddy" // Changed from "Home" to "ChamaBuddy"
+    override val title = "ChamaBuddy"
     const val groupIdArg = "groupId"
     val routeWithArgs = "$route/{$groupIdArg}"
 }
@@ -21,7 +19,7 @@ object MembersDestination : NavigationDestination {
     override val route = "members"
     override val title = "Members"
     const val groupIdArg = "groupId"
-    val routeWithArgs = "$route/{$groupIdArg}"  // Correct format
+    val routeWithArgs = "$route/{$groupIdArg}"
 }
 object CycleDetailDestination : NavigationDestination {
     override val route = "cycle_detail"
@@ -75,7 +73,7 @@ object SavingsDestination : NavigationDestination {
     override val route = "savings"
     override val title = "Savings"
     const val groupIdArg = "groupId"
-    val routeWithArgs = "$route/{$groupIdArg}"  // Add this
+    val routeWithArgs = "$route/{$groupIdArg}"
 }
 
 

@@ -26,7 +26,6 @@ class BenefitViewModel @Inject constructor(
     val showDialog: StateFlow<Boolean> = _showDialog.asStateFlow()
 
     fun loadData(groupId: String) {
-        // collect each flow in its own coroutine so neither blocks the other
         viewModelScope.launch {
             repository.getBenefits(groupId).collect { _benefits.value = it }
         }

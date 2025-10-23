@@ -16,7 +16,6 @@ interface UserDao {
     @Update
     suspend fun updateUser(user: User)
 
-    // Add this new method for upsert operation
     @Transaction
     suspend fun upsertUser(user: User) {
         if (getUserById(user.userId) != null) {
@@ -45,15 +44,12 @@ interface UserDao {
     suspend fun getUnsyncedUsers(): List<User>
 
 
-    // 🔹 Soft delete
     @Query("UPDATE users SET is_deleted = 1, deleted_at = :timestamp WHERE user_id = :userId")
     suspend fun markAsDeleted(userId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted users
     @Query("SELECT * FROM users WHERE is_deleted = 1")
     suspend fun getDeletedUsers(): List<User>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM users WHERE user_id = :userId")
     suspend fun permanentDelete(userId: String)
 

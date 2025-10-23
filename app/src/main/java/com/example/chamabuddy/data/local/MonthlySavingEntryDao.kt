@@ -25,11 +25,6 @@ interface MonthlySavingEntryDao {
 
     @Query("SELECT SUM(amount) FROM MonthlySavingEntry")
     suspend fun getTotalSavings(): Int?
-//    @Insert
-//    suspend fun insertSavingEntry(entry: MonthlySavingEntry)
-//
-//    @Query("SELECT * FROM MonthlySavingEntry WHERE saving_id = :savingId")
-//    fun getEntriesForSaving(savingId: String): Flow<List<MonthlySavingEntry>>
 
     @Query("""
         SELECT * 
@@ -101,7 +96,6 @@ interface MonthlySavingEntryDao {
     suspend fun getUnsyncedEntries(): List<MonthlySavingEntry>
 
 
-    // ✅ NEW METHODS
     @Query("SELECT * FROM MonthlySavingEntry WHERE entry_id = :entryId LIMIT 1")
     suspend fun getEntryById(entryId: String): MonthlySavingEntry?
 
@@ -109,15 +103,12 @@ interface MonthlySavingEntryDao {
     suspend fun updateEntry(entry: MonthlySavingEntry)
 
 
-    // 🔹 Soft delete
     @Query("UPDATE MonthlySavingEntry SET is_deleted = 1, deleted_at = :timestamp WHERE entry_id = :entryId")
     suspend fun markAsDeleted(entryId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted entries
     @Query("SELECT * FROM MonthlySavingEntry WHERE is_deleted = 1")
     suspend fun getDeletedEntries(): List<MonthlySavingEntry>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM MonthlySavingEntry WHERE entry_id = :entryId")
     suspend fun permanentDelete(entryId: String)
 

@@ -70,7 +70,6 @@ fun ContributionScreen(
         activeMembersCount * state.weeklyAmount
     }
 
-    // Define navigation function inside composable scope
     fun navigateToCycleDetail(groupId: String, cycleId: String) {
         navController.navigate("${CycleDetailDestination.route}/$groupId/$cycleId") {
             popUpTo(ContributionDestination.route) { inclusive = true }
@@ -336,12 +335,11 @@ fun ContributionItem(
 
     val borderColor = if (hasContributed) Color(0xFF3BBA9C) else Color.Transparent
 
-    // Fixed border implementation using Modifier.border
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp)
-            .border( // Use Modifier.border instead of Card border parameter
+            .border(
                 width = 1.dp,
                 color = borderColor,
                 shape = MaterialTheme.shapes.medium

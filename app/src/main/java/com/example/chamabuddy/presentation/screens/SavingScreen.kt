@@ -23,11 +23,7 @@ import com.example.chamabuddy.domain.model.Member
 import com.example.chamabuddy.presentation.viewmodel.SavingsState
 import com.example.chamabuddy.presentation.viewmodel.SavingsViewModel
 
-// Premium color scheme
-//val PremiumNavy = Color(0xFF0A1D3A)
-//val SoftOffWhite = Color(0xFFF8F9FA)
-//val VibrantOrange = Color(0xFFFF6B35)
-//val CardSurface = Color(0xFFFFFFFF)
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +54,6 @@ fun SavingsScreen(
 
     LaunchedEffect(groupId) {
         if (viewModel.activeCycle.value == null) {
-            // Show error or disable UI
         } else {
             viewModel.initializeGroupId(groupId)
         }
@@ -138,7 +133,6 @@ fun SavingsScreen(
     }
 }
 
-// Data class to hold member with their savings
 data class MemberWithSavings(val member: Member, val totalSavings: Int)
 
 @Composable
@@ -155,7 +149,6 @@ private fun SavingsContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Total savings header
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -181,7 +174,6 @@ private fun SavingsContent(
             }
         }
 
-        // Members list
         items(memberSavingsList) { item ->
             MemberSavingsCard(
                 member = item.member,

@@ -13,7 +13,6 @@ interface BenefitDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(benefit: BenefitEntity)
 
-    // 🔹 Exclude deleted
     @Query("SELECT * FROM benefits WHERE groupId = :groupId AND is_deleted = 0 ORDER BY date DESC")
     fun getBenefits(groupId: String): Flow<List<BenefitEntity>>
 

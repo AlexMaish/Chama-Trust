@@ -8,7 +8,7 @@ data class GroupWithMembers(
     @Embedded val group: Group,
     @Relation(
         parentColumn = "group_id",
-        entityColumn = "group_id" // Direct relation without junction
+        entityColumn = "group_id"
     )
     val members: List<Member>
 )

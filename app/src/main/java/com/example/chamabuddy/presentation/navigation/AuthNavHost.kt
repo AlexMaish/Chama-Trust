@@ -1,4 +1,3 @@
-// AuthNavHost.kt
 package com.example.chamabuddy.presentation.navigation
 
 import androidx.compose.runtime.Composable

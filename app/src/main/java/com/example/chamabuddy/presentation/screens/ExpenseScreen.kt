@@ -163,7 +163,6 @@ fun PremiumExpenseItem(expense: ExpenseEntity, onDelete: () -> Unit) {
         SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(expense.date))
     }
 
-    // Delete Confirmation Dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },

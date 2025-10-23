@@ -54,7 +54,6 @@ fun WelfareDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Sort meetings by date (most recent first)
     val sortedMeetings = remember(meetings) {
         meetings.sortedByDescending { it.meetingDate }
     }
@@ -109,7 +108,6 @@ fun WelfareDetailScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
-            // Only show FAB for admin
             if (isAdmin) {
                 FloatingActionButton(
                     onClick = {
@@ -221,7 +219,6 @@ private fun WelfareMeetingCard(
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {
-                    // Only allow long press for admins
                     if (isAdmin) showDeleteDialog = true
                 }
             ),
@@ -232,7 +229,6 @@ private fun WelfareMeetingCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Beneficiary summary at the top
             meeting.beneficiaryNames?.takeIf { it.isNotEmpty() }?.let { names ->
                 val beneficiaryText = when {
                     names.size <= 3 -> "Beneficiaries: ${names.joinToString(", ")}"
@@ -247,7 +243,6 @@ private fun WelfareMeetingCard(
                 )
             }
 
-            // Meeting date
             Text(
                 text = "Meeting on ${dateFormat.format(Date(meeting.meetingDate))}",
                 fontWeight = FontWeight.Bold
@@ -255,7 +250,6 @@ private fun WelfareMeetingCard(
 
             Spacer(Modifier.height(8.dp))
 
-            // Contributor summary
             meeting.contributorSummaries?.takeIf { it.isNotEmpty() }?.let { summaries ->
                 val contributorText = when {
                     summaries.size <= 3 -> "Contributors: ${summaries.joinToString(", ")}"
@@ -268,13 +262,11 @@ private fun WelfareMeetingCard(
                 )
             }
 
-            // Total collected
             Text(
                 text = "Total collected: KES ${meeting.totalCollected}",
                 fontSize = 14.sp
             )
 
-            // Recorded by
             meeting.recordedBy?.let { recordedBy ->
                 Text(
                     text = "Recorded by: $recordedBy",
@@ -285,7 +277,6 @@ private fun WelfareMeetingCard(
         }
     }
 
-    // Only show delete dialog for admins
     if (showDeleteDialog && isAdmin) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },

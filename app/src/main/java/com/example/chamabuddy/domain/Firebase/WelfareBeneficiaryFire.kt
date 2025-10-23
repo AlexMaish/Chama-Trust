@@ -11,7 +11,7 @@ data class WelfareBeneficiaryFire(
     val amountReceived: Int = 0,
     val dateAwarded: Long = 0,
     val groupId: String = "",
-    val lastUpdated: Timestamp = Timestamp.now(), // Add this
+    val lastUpdated: Timestamp = Timestamp.now(),
     val isSynced: Boolean = false ,
 
     val isDeleted: Boolean = false,

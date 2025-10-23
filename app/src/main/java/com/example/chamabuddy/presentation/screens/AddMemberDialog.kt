@@ -24,7 +24,7 @@ import java.util.UUID
 
 @Composable
 fun AddMemberDialog(
-    groupId: String,  // Add groupId parameter
+    groupId: String,
     onDismiss: () -> Unit,
     onAddMember: (Member) -> Unit
 ) {
@@ -90,7 +90,7 @@ fun AddMemberDialog(
                         nickname = nickname.takeIf { it.isNotBlank() },
                         phoneNumber = phone.trim(),
                         isAdmin = isAdmin,
-                        groupId = groupId  // Use the passed groupId
+                        groupId = groupId
                     )
                     onAddMember(newMember)
                 },

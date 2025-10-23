@@ -27,7 +27,6 @@ fun ChangePasswordScreen(
     var confirmPassword by remember { mutableStateOf("") }
     val changePasswordState by viewModel.changePasswordState.collectAsState()
 
-    // Clear state when screen is first shown
     LaunchedEffect(Unit) {
         viewModel.clearChangePasswordState()
     }

@@ -22,7 +22,7 @@ class WelfareRepositoryImpl @Inject constructor(
     private val welfareMeetingDao: WelfareMeetingDao,
     private val welfareContributionDao: WelfareContributionDao,
     private val welfareBeneficiaryDao: WelfareBeneficiaryDao,
-    private val memberRepository: MemberRepository // Added to fetch member names
+    private val memberRepository: MemberRepository
 ) : WelfareRepository {
 
     override suspend fun createWelfare(groupId: String, name: String, userId: String, amount: Int) {
@@ -94,13 +94,11 @@ class WelfareRepositoryImpl @Inject constructor(
             }
         }
 
-        // Get member names for contributors
         val contributorNames = contributions
             .filter { it.value > 0 }
             .keys
             .mapNotNull { memberRepository.getMemberById(it)?.name }
 
-        // Update meeting with contributors info
         val updatedMeeting = meeting.copy(
             totalCollected = totalCollected,
             contributorSummaries = contributorNames
@@ -130,12 +128,10 @@ class WelfareRepositoryImpl @Inject constructor(
             welfareBeneficiaryDao.insertBeneficiary(beneficiary)
         }
 
-        // Get member names for beneficiaries
         val beneficiaryNames = beneficiaryIds.mapNotNull {
             memberRepository.getMemberById(it)?.name
         }
 
-        // Update meeting with beneficiary names
         val updatedMeeting = meeting.copy(
             beneficiaryNames = beneficiaryNames
         )
@@ -175,22 +171,18 @@ class WelfareRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getUnsyncedContributions(): List<MemberWelfareContribution> {
-        // You'll need to add this method to your DAO
         return welfareContributionDao.getUnsyncedContributions()
     }
 
     override suspend fun markContributionAsSynced(contributionId: String) {
-        // You'll need to add this method to your DAO
         welfareContributionDao.markAsSynced(contributionId)
     }
 
     override suspend fun getUnsyncedBeneficiaries(): List<WelfareBeneficiary> {
-        // You'll need to add this method to your DAO
         return welfareBeneficiaryDao.getUnsyncedBeneficiaries()
     }
 
     override suspend fun markBeneficiaryAsSynced(beneficiaryId: String) {
-        // You'll need to add this method to your DAO
         welfareBeneficiaryDao.markAsSynced(beneficiaryId)
     }
 
@@ -211,12 +203,10 @@ class WelfareRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getContributionById(contributionId: String): MemberWelfareContribution? {
-        // You'll need to add this method to your DAO
         return welfareContributionDao.getContributionById(contributionId)
     }
 
     override suspend fun getBeneficiaryById(beneficiaryId: String): WelfareBeneficiary? {
-        // You'll need to add this method to your DAO
         return welfareBeneficiaryDao.getBeneficiaryById(beneficiaryId)
     }
 

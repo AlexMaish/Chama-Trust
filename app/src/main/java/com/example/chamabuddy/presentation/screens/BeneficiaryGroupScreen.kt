@@ -29,7 +29,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Custom colors
 
 val PremiumGold = Color(0xFFD4AF37)
 val SoftGray = Color(0xFFE0E0E0)
@@ -142,7 +141,6 @@ fun ExpandableCycleBeneficiaries(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Header with gradient
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -158,7 +156,6 @@ fun ExpandableCycleBeneficiaries(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(Modifier.weight(1f)) {
-                    // Add cycle number in desc order (already sorted)
                     Text(
                         text = "Cycle #${cycle.cycle.cycleNumber}",
                         fontWeight = FontWeight.Bold,
@@ -166,14 +163,12 @@ fun ExpandableCycleBeneficiaries(
                         fontSize = 16.sp
                     )
 
-                    // Formatted dates with "Active" for null endDate
                     Text(
                         text = formatCycleDates(cycle.cycle.startDate, cycle.cycle.endDate),
                         color = PremiumNavy,
                         fontSize = 14.sp
                     )
 
-                    // Cycle ID in faded color
                     Text(
                         text = "ID: ${cycle.cycle.cycleId}",
                         color = Color.Gray.copy(alpha = 0.7f),
@@ -205,7 +200,6 @@ fun ExpandableCycleBeneficiaries(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    // Active members section
                     SectionHeader("Active Members (${activeMembers.size})")
                     Spacer(modifier = Modifier.height(8.dp))
                     activeMembers.forEach { member ->
@@ -215,7 +209,6 @@ fun ExpandableCycleBeneficiaries(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Beneficiaries section
                     if (cycle.beneficiaries.isNotEmpty()) {
                         SectionHeader("Beneficiaries (${cycle.beneficiaries.size})")
                         Spacer(modifier = Modifier.height(8.dp))
@@ -227,7 +220,6 @@ fun ExpandableCycleBeneficiaries(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Remaining members section
                     if (remainingMembers.isNotEmpty()) {
                         SectionHeader("Remaining to Benefit (${remainingMembers.size})")
                         Spacer(modifier = Modifier.height(8.dp))

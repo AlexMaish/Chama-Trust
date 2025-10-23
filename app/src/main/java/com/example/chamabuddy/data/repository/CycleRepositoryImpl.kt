@@ -37,17 +37,15 @@ class CycleRepositoryImpl @Inject constructor(
         beneficiariesPerMeeting: Int
     ): Result<Cycle> = withContext(dispatcher) {
         try {
-            // 1. End current active cycle (if exists)
             cycleDao.getActiveCycleByGroupId(groupId)?.let { activeCycle ->
                 endCurrentCycle(activeCycle.cycleId, System.currentTimeMillis())
             }
 
-            // 2. Create new active cycle (endDate = null)
             val newCycle = Cycle(
                 cycleId = UUID.randomUUID().toString(),
                 isActive = true,
                 startDate = startDate,
-                endDate = null, // New cycles have no end date
+                endDate = null,
                 weeklyAmount = weeklyAmount,
                 monthlySavingsAmount = monthlyAmount,
                 totalMembers = totalMembers,
@@ -71,7 +69,7 @@ override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Uni
     val cycle = getCycleById(cycleId) ?: return Result.failure(IllegalStateException("Cycle not found"))
     val updatedCycle = cycle.copy(
         isActive = false,
-        endDate = endDate // Set end date when completing
+        endDate = endDate
     )
     cycleDao.updateCycle(updatedCycle)
     return Result.success(Unit)
@@ -156,7 +154,7 @@ override suspend fun endCurrentCycle(cycleId: String, endDate: Long): Result<Uni
                     if (member != null) {
                         BeneficiaryWithMember(beneficiary, member)
                     } else {
-                        null // Skip if member not found
+                        null
                     }
                 }
                 CycleWithBeneficiaries(cycle, beneficiariesWithMembers)

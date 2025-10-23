@@ -92,41 +92,41 @@ fun MainScreen() {
 
 
 
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MeetingDetailScreen(meetingId: String, navigateBack: () -> Unit) {
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Meeting Details") },
-                navigationIcon = {
-                    IconButton(onClick = navigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { /* Create new contribution */ },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Contribution")
-            }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Meeting ID: $meetingId")
-        }
-    }
-}
-
+//
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun MeetingDetailScreen(meetingId: String, navigateBack: () -> Unit) {
+//    Scaffold(
+//        topBar = {
+//            CenterAlignedTopAppBar(
+//                title = { Text("Meeting Details") },
+//                navigationIcon = {
+//                    IconButton(onClick = navigateBack) {
+//                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+//                    }
+//                }
+//            )
+//        },
+//        floatingActionButton = {
+//            FloatingActionButton(
+//                onClick = { /* Create new contribution */ },
+//                containerColor = MaterialTheme.colorScheme.primary
+//            ) {
+//                Icon(Icons.Default.Add, contentDescription = "Add Contribution")
+//            }
+//        }
+//    ) { innerPadding ->
+//        Box(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(innerPadding),
+//            contentAlignment = Alignment.Center
+//        ) {
+//            Text("Meeting ID: $meetingId")
+//        }
+//    }
+//}
+//
 
 
 
@@ -160,7 +160,7 @@ fun MainNavHost(
         composable(route = GroupsHomeDestination.route) {
             GroupsHomeScreen(
                 navigateToGroupCycles = onGroupSelected,
-                parentNavController = navController  // Add this line
+                parentNavController = navController
             )
         }
 
@@ -210,13 +210,6 @@ fun MainNavHost(
             )
         }
 
-//        composable(route = GroupsHomeDestination.route) {
-//            GroupsHomeScreen(
-//                navigateToGroupCycles = { groupId ->
-//                    navController.navigate("${MainTabsDestination.route}/$groupId")
-//                }
-//            )
-//        }
 
         composable(
             route = CreateCycleDestination.routeWithArgs,
@@ -251,22 +244,22 @@ fun MainNavHost(
             )
         }
 
-
-        composable(
-            route = MeetingDetailDestination.routeWithArgs,
-            arguments = listOf(
-                navArgument(MeetingDetailDestination.meetingIdArg) {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-            val meetingId =
-                backStackEntry.arguments?.getString(MeetingDetailDestination.meetingIdArg) ?: ""
-            MeetingDetailScreen(
-                meetingId = meetingId,
-                navigateBack = { navController.popBackStack() }
-            )
-        }
+//
+//        composable(
+//            route = MeetingDetailDestination.routeWithArgs,
+//            arguments = listOf(
+//                navArgument(MeetingDetailDestination.meetingIdArg) {
+//                    type = NavType.StringType
+//                }
+//            )
+//        ) { backStackEntry ->
+//            val meetingId =
+//                backStackEntry.arguments?.getString(MeetingDetailDestination.meetingIdArg) ?: ""
+//            MeetingDetailScreen(
+//                meetingId = meetingId,
+//                navigateBack = { navController.popBackStack() }
+//            )
+//        }
 
         composable(
             route = CycleDetailDestination.routeWithArgs,
@@ -315,7 +308,7 @@ fun MainNavHost(
                     navigateToBeneficiarySelection = {
                         navController.navigate("${BeneficiarySelectionDestination.route}/$meetingId")
                     },
-                    navController = navController // Remove navigateBack
+                    navController = navController
                 )
             } else {
                 ContributionSummaryScreen(
@@ -361,9 +354,8 @@ fun MainNavHost(
             val authViewModel: AuthViewModel = hiltViewModel()
             val memberViewModel: MemberViewModel = hiltViewModel()
 
-            // Fixed: Collect the User object first
             val currentUser by authViewModel.currentUser.collectAsState()
-            val currentUserId = currentUser?.userId ?: "" // Then access userId
+            val currentUserId = currentUser?.userId ?: ""
 
             LaunchedEffect(groupId, currentUserId) {
                 if (currentUserId.isNotEmpty()) {
@@ -434,7 +426,6 @@ fun MainNavHost(
             val currentUser by authViewModel.currentUser.collectAsState()
             val currentUserId = currentUser?.userId ?: ""
 
-            // Load user role for this meeting
             LaunchedEffect(meetingId, currentUserId) {
                 if (currentUserId.isNotEmpty()) {
                     memberViewModel.loadCurrentUserRoleForMeeting(meetingId, currentUserId)
@@ -498,7 +489,6 @@ fun MainNavHost(
         }
 
 
-        // Add these composables to your NavHost
         composable(WelfareDestination.routeWithArgs) { backStackEntry ->
             val welfareId =
                 backStackEntry.arguments?.getString(WelfareDestination.welfareIdArg) ?: ""
@@ -516,7 +506,6 @@ fun MainNavHost(
             )
         }
 
-        // In your NavHost setup
         composable(
             route = WelfareContributionDestination.routeWithArgs,
             arguments = listOf(

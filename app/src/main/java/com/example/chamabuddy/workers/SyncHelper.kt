@@ -37,11 +37,10 @@ class SyncHelper @Inject constructor(
 
         workManager.enqueueUniqueWork(
             "full_sync_work",
-            ExistingWorkPolicy.KEEP, // Changed from REPLACE to KEEP
+            ExistingWorkPolicy.KEEP,
             request
         )
 
-        // Reset sync flag when work completes
         workManager.getWorkInfoByIdLiveData(request.id)
             .observeForever { workInfo ->
                 if (workInfo?.state?.isFinished == true) {
@@ -52,7 +51,6 @@ class SyncHelper @Inject constructor(
         SyncLogger.d("📝 Work enqueued with ID: ${request.id}")
     }
 
-    // Add similar coordination to triggerGroupSync
     fun triggerGroupSync(groupIds: Set<String>) {
         if (groupIds.isEmpty() || !isNetworkAvailable()) {
             if (groupIds.isEmpty()) SyncLogger.d("No groups to sync - skipping")

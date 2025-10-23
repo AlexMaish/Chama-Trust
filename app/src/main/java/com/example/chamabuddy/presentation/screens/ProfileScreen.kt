@@ -50,7 +50,6 @@ fun ProfileScreen(
     homeViewModel: HomeViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
 ) {
-    // Get current user for 'recorded by' functionality
     val currentUser by authViewModel.currentUser.collectAsState()
     val currentUserPhone = currentUser?.phoneNumber
     val members by savingsViewModel.members.collectAsState()
@@ -63,7 +62,7 @@ fun ProfileScreen(
         }
     }
 
-    val currentMember = members[memberId]  // More efficient than find()
+    val currentMember = members[memberId]
     val isAdmin = currentMember?.isAdmin ?: false
 
 
@@ -82,7 +81,7 @@ fun ProfileScreen(
 
     LaunchedEffect(groupId) {
         savingsViewModel.initializeGroupId(groupId)
-        homeViewModel.handleEvent(CycleEvent.GetActiveCycle) // Force refresh
+        homeViewModel.handleEvent(CycleEvent.GetActiveCycle)
     }
 
     var showAddSavingsDialog by remember { mutableStateOf(false) }
@@ -90,11 +89,10 @@ fun ProfileScreen(
     var amount by remember { mutableStateOf("") }
     var determinedMonth by remember { mutableStateOf("") }
 
-    // State for deletion
     var showDeleteEntryDialog by remember { mutableStateOf(false) }
     var showDeleteMonthDialog by remember { mutableStateOf(false) }
     var entryToDelete by remember { mutableStateOf<MonthlySavingEntry?>(null) }
-    var monthToDelete by remember { mutableStateOf<Pair<String, String>?>(null) } // (cycleId, monthYear)
+    var monthToDelete by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -107,9 +105,7 @@ fun ProfileScreen(
         allMemberCycles.flatMap { it.savingsEntries }.sumOf { it.amount }
     }
 
-    // Admin check - FIXED: Use proper initialization
 
-    // State for expanded/collapsed cycles
     val expandedCycles = remember { mutableStateMapOf<String, Boolean>() }
 
 
@@ -148,7 +144,6 @@ fun ProfileScreen(
         }
     }
 
-    // Handle deletion states
     when (savingsState) {
         is SavingsState.EntryDeleted -> {
             LaunchedEffect(Unit) {
@@ -166,7 +161,6 @@ fun ProfileScreen(
         else -> {}
     }
 
-    // Function to determine the target month
     fun determineSavingsMonth(): String {
         if (allMemberCycles.isEmpty() || activeCycle == null) {
             return SimpleDateFormat("MM/yyyy", Locale.getDefault()).format(Date())
@@ -495,11 +489,9 @@ fun ProfileScreen(
                         }
                         ?.sumOf { it.amount } ?: 0
                 },
-                // ProfileScreen.kt
                 onSave = { cycleId ->
                     scope.launch {
                         try {
-                            // 🔹 Validation: Ensure cycle exists and belongs to group
                             val cycle = allCycles.find { it.cycleId == cycleId }
                                 ?: throw Exception("Selected cycle not found")
 
@@ -517,9 +509,8 @@ fun ProfileScreen(
                             val amountValue = amount.toIntOrNull() ?: 0
                             val displayMonth = convertToDisplayFormat(targetMonth)
 
-                            // 🔹 Local validation: check remaining amount
                             val currentTotalForMonth = allMemberCycles.find { it.cycle.cycleId == cycleId }?.savingsEntries
-                                ?.filter { it.monthYear == targetMonth }  // Filter by monthYear instead of date
+                                ?.filter { it.monthYear == targetMonth }
                                 ?.sumOf { it.amount } ?: 0
 
                             val remaining = cycle.monthlySavingsAmount - currentTotalForMonth
@@ -528,7 +519,6 @@ fun ProfileScreen(
                                 return@launch
                             }
 
-                            // 🔹 Repository call (may throw validation errors like oversaving)
                             savingsViewModel.handleEvent(
                                 SavingsEvent.RecordSavings(
                                     cycleId = cycleId,
@@ -543,7 +533,6 @@ fun ProfileScreen(
                             showAddSavingsDialog = false
                             snackbarHostState.showSnackbar("Savings recorded")
                         } catch (e: Exception) {
-                            // 🔹 Handle validation errors from repository (like oversaving)
                             val errorMessage = when {
                                 e.message?.contains("Cannot save more than monthly target") == true ->
                                     e.message!!
@@ -567,7 +556,6 @@ fun ProfileScreen(
                          savingsViewModel.handleEvent(
                              SavingsEvent.DeleteEntry(it.entryId, memberId)
                          )
-                         // Immediately remove from UI
                          savingsViewModel.updateUiAfterEntryDeletion(it.entryId)
                      }
                      showDeleteEntryDialog = false
@@ -883,7 +871,6 @@ fun MonthlySavingsCard(
                                     Date()
                                 }
                                 Text(
-                                    // Format actual entry date
                                     text = try {
                                         entryDateFormat.format(Date(entry.entryDate.toLong()))
                                     } catch (e: Exception) {
@@ -908,7 +895,7 @@ fun MonthlySavingsCard(
             if (!isComplete) {
                 Button(
                     onClick = onClick,
-                    enabled = !isFuture && remaining > 0, // Disable when no remaining
+                    enabled = !isFuture && remaining > 0,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (remaining > 0) VibrantOrange else Color.Gray
                     ),

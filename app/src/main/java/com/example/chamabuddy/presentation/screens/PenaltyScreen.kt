@@ -172,7 +172,6 @@ fun PremiumPenaltyItem(penalty: Penalty, onDelete: () -> Unit) {
         SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(penalty.date))
     }
 
-    // Delete Confirmation Dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -317,7 +316,6 @@ fun PremiumAddPenaltyDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Member selection
                 Box {
                     OutlinedTextField(
                         value = memberQuery,
@@ -340,7 +338,6 @@ fun PremiumAddPenaltyDialog(
                         }
                     )
 
-                    // Member dropdown
                     if (showMemberDropdown && filteredMembers.isNotEmpty()) {
                         DropdownMenu(
                             expanded = showMemberDropdown,

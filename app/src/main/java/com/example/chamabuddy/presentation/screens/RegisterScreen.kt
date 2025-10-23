@@ -51,7 +51,6 @@ fun RegisterScreen(
             .fillMaxSize()
             .background(SoftOffWhite)
     ) {
-        // Background curve
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,7 +110,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Username Field
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
@@ -132,7 +130,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Phone Field
                 OutlinedTextField(
                     value = phone,
                     onValueChange = { phone = it },
@@ -154,7 +151,6 @@ fun RegisterScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Password Field
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },

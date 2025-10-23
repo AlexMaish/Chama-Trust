@@ -70,7 +70,6 @@ class MemberRepositoryImpl @Inject constructor(
 
     override suspend fun addMember(member: Member) {
         withContext(Dispatchers.IO) {
-            // Check for duplicate phone number in the same group
             val existingMember = memberDao.getMemberByPhoneInGroup(
                 member.groupId,
                 member.phoneNumber.normalizePhone()
@@ -80,7 +79,6 @@ class MemberRepositoryImpl @Inject constructor(
                 throw IllegalStateException("Member with this number already exists")
             }
 
-            // Validate if phone number belongs to a registered user
             val user = userDao.getUserByPhone(member.phoneNumber)
 
             if (user == null) {
@@ -169,19 +167,15 @@ class MemberRepositoryImpl @Inject constructor(
 
     override suspend fun syncMember(remoteMember: Member) {
         withContext(Dispatchers.IO) {
-            // Get existing member from database
             val existingMember = memberDao.getMemberById(remoteMember.memberId)
 
-            // Preserve admin status from local database
             val isAdmin = existingMember?.isAdmin ?: remoteMember.isAdmin
 
-            // Create updated member preserving admin status
             val updatedMember = remoteMember.copy(
                 isAdmin = isAdmin,
                 isSynced = true
             )
 
-            // Update with preserved admin status
             memberDao.insertMember(updatedMember)
         }
     }

@@ -37,11 +37,9 @@ interface UserRepository {
 
     suspend fun markUserGroupSynced(userGroup: UserGroup)
 
-    // keep insert/update for backward compatibility if you still use them
     suspend fun insertUser(user: User)
     suspend fun updateUser(user: User)
 
-    // New API: upsert + sync helper using upsert
     suspend fun upsertUser(user: User)
     suspend fun syncUser(user: User)
 

@@ -49,7 +49,6 @@ fun LoginScreen(
             .fillMaxSize()
             .background(SoftOffWhite)
     ) {
-        // Background curve
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -112,7 +111,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = identifier,
                     onValueChange = { identifier = it },
-                    label = { Text("Username or Phone") },
+                    label = { Text("Phone Number") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },

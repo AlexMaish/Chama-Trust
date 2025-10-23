@@ -33,15 +33,12 @@ interface WelfareMeetingDao {
     @Query("DELETE FROM welfare_meetings WHERE meetingId = :meetingId")
     suspend fun deleteMeeting(meetingId: String)
 
-    // 🔹 Soft delete
     @Query("UPDATE welfare_meetings SET isDeleted = 1, deletedAt = :timestamp WHERE meetingId = :meetingId")
     suspend fun markAsDeleted(meetingId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted meetings
     @Query("SELECT * FROM welfare_meetings WHERE isDeleted = 1")
     suspend fun getDeletedMeetings(): List<WelfareMeeting>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM welfare_meetings WHERE meetingId = :meetingId")
     suspend fun permanentDelete(meetingId: String)
 }

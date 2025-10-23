@@ -68,7 +68,6 @@ class AuthViewModel @Inject constructor(
     }
 
 
-    // Add to AuthViewModel.kt
     private val _changePasswordState = MutableStateFlow<Resource<Unit>?>(null)
     val changePasswordState: StateFlow<Resource<Unit>?> = _changePasswordState
 
@@ -125,7 +124,6 @@ class AuthViewModel @Inject constructor(
                     _loginState.value = Resource.Success(user)
                     _authState.value = AuthState.Authenticated(user.userId)
 
-                    // Force sign-in to Firebase Auth
                     userRepository.ensureFirebaseAuthSignIn(identifier, password)
 
                     syncHelper.triggerFullSync()

@@ -38,12 +38,10 @@ fun CreateCycleScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Ensure groupId is set in ViewModel
     LaunchedEffect(groupId) {
         viewModel.setGroupId(groupId)
     }
 
-    // Handle creation success
     LaunchedEffect(creationSuccess) {
         if (creationSuccess) {
             navController.previousBackStackEntry?.savedStateHandle?.set("cycle_created", true)
@@ -99,7 +97,6 @@ fun CreateCycleScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Weekly contribution amount
             OutlinedTextField(
                 value = uiState.weeklyAmount.toString(),
                 onValueChange = { viewModel.updateWeeklyAmount(it) },
@@ -112,7 +109,6 @@ fun CreateCycleScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Monthly savings amount
             OutlinedTextField(
                 value = uiState.monthlySavingsAmount.toString(),
                 onValueChange = { viewModel.updateMonthlySavingsAmount(it) },
@@ -125,7 +121,6 @@ fun CreateCycleScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Beneficiaries per meeting
             OutlinedTextField(
                 value = uiState.beneficiariesPerMeeting.toString(),
                 onValueChange = { viewModel.updateBeneficiariesPerMeeting(it) },
@@ -138,7 +133,6 @@ fun CreateCycleScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Start date selector
             DatePickerCard(
                 selectedDate = uiState.startDate,
                 onDateSelected = { viewModel.updateStartDate(it) }

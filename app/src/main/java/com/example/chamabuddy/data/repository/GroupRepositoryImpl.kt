@@ -39,7 +39,6 @@ class GroupRepositoryImpl @Inject constructor(
         )
         groupDao.insertGroup(group)
 
-        // Create GroupMember entry for admin
         val groupMember = GroupMember(
             groupId = group.groupId,
             userId = adminId,
@@ -48,7 +47,6 @@ class GroupRepositoryImpl @Inject constructor(
         )
         groupMemberDao.insert(groupMember)
 
-        // Create regular member entry for admin
         val adminMember = Member(
             memberId = UUID.randomUUID().toString(),
             name = user.username,
@@ -60,7 +58,6 @@ class GroupRepositoryImpl @Inject constructor(
         )
         memberDao.insertMember(adminMember)
 
-        // Add user-group association
         userGroupDao.insertUserGroup(
             UserGroup(
                 userId = adminId,
@@ -79,7 +76,6 @@ class GroupRepositoryImpl @Inject constructor(
         val user = userRepository.getUserByPhone(normalizedPhone)
             ?: throw Exception("User with phone $normalizedPhone not found")
 
-        // Add user-group association FIRST
         userGroupDao.insertUserGroup(
             UserGroup(
                 userId = user.userId,
@@ -89,7 +85,6 @@ class GroupRepositoryImpl @Inject constructor(
             )
         )
 
-        // Then create GroupMember entry
         val groupMember = GroupMember(
             groupId = groupId,
             userId = user.userId,
@@ -98,7 +93,6 @@ class GroupRepositoryImpl @Inject constructor(
         )
         groupMemberDao.insert(groupMember)
 
-        // Create regular member entry
         val member = Member(
             memberId = UUID.randomUUID().toString(),
             name = user.username,
@@ -125,17 +119,11 @@ class GroupRepositoryImpl @Inject constructor(
     override suspend fun getAllGroups(): List<Group> {
         return groupDao.getAllGroups()
     }
-//
-//    override suspend fun getUserGroups(userId: String): List<Group> {
-//        val groupIds = userGroupDao.getGroupIdsForUser(userId)
-//        return groupDao.getGroupsByIds(groupIds)
-//    }
+
 override suspend fun getUserGroups(userId: String): List<Group> {
     return withContext(Dispatchers.IO) {
-        // Get group IDs first
         val groupIds = userGroupDao.getGroupIdsForUser(userId)
 
-        // Then fetch groups by IDs
         if (groupIds.isNotEmpty()) {
             groupDao.getGroupsByIds(groupIds)
         } else {
@@ -187,7 +175,7 @@ override suspend fun getUserGroups(userId: String): List<Group> {
     }
 
     override suspend fun updateGroup(group: Group) = withContext(Dispatchers.IO) {
-        groupDao.insertGroup(group) // Room's OnConflictStrategy.REPLACE handles updates
+        groupDao.insertGroup(group)
     }
 
 

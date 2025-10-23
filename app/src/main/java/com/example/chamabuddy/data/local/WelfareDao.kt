@@ -29,15 +29,12 @@ interface WelfareDao {
     @androidx.room.Update
     suspend fun updateWelfare(welfare: Welfare)
 
-    // 🔹 Soft delete
     @Query("UPDATE welfares SET isDeleted = 1, deletedAt = :timestamp WHERE welfareId = :welfareId")
     suspend fun markAsDeleted(welfareId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted welfares
     @Query("SELECT * FROM welfares WHERE isDeleted = 1")
     suspend fun getDeletedWelfares(): List<Welfare>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM welfares WHERE welfareId = :welfareId")
     suspend fun permanentDelete(welfareId: String)
 }

@@ -57,15 +57,12 @@ interface WeeklyMeetingDao {
     suspend fun getUnsyncedMeetings(): List<WeeklyMeeting>
 
 
-    // 🔹 Soft delete
     @Query("UPDATE WeeklyMeeting SET is_deleted = 1, deleted_at = :timestamp WHERE meeting_id = :meetingId")
     suspend fun markAsDeleted(meetingId: String, timestamp: Long)
 
-    // 🔹 Get all soft-deleted meetings
     @Query("SELECT * FROM WeeklyMeeting WHERE is_deleted = 1")
     suspend fun getDeletedMeetings(): List<WeeklyMeeting>
 
-    // 🔹 Permanently delete
     @Query("DELETE FROM WeeklyMeeting WHERE meeting_id = :meetingId")
     suspend fun permanentDelete(meetingId: String)
 

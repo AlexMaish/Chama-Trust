@@ -51,7 +51,6 @@ class UserRepositoryImpl @Inject constructor(
         dataStore.edit { preferences ->
             preferences[CURRENT_USER_ID] = encryptionHelper.encrypt(userId)
         }
-        // Also set in SyncPreferences
         syncPreferences.setCurrentUserId(userId)
     }
 
@@ -60,7 +59,6 @@ class UserRepositoryImpl @Inject constructor(
         return encrypted?.let {
             encryptionHelper.decrypt(it)
         } ?: run {
-            // Clear corrupted data
             dataStore.edit { it.remove(CURRENT_USER_ID) }
             null
         }
@@ -135,27 +133,22 @@ class UserRepositoryImpl @Inject constructor(
     ): Result<Unit> = withContext(dispatcher) {
         try {
             val user = getUserById(userId) ?: throw Exception("User not found locally")
-            val email = "${user.phoneNumber}@chamabuddy.com" // Construct email from stored phone
+            val email = "${user.phoneNumber}@chamabuddy.com"
 
-            // Ensure Firebase Auth is signed in with the current user
             if (firebaseAuth.currentUser?.uid != userId) {
                 firebaseAuth.signInWithEmailAndPassword(email, oldPassword).await()
             }
 
             val firebaseUser = firebaseAuth.currentUser ?: throw Exception("Not authenticated in Firebase")
 
-            // Re-authenticate using the provided old password
             val credential = EmailAuthProvider.getCredential(email, oldPassword)
             firebaseUser.reauthenticate(credential).await()
 
-            // Update password
             firebaseUser.updatePassword(newPassword).await()
 
-            // Update local database
             val updatedUser = user.copy(password = newPassword, isSynced = false)
             userDao.insertUser(updatedUser)
 
-            // Update Firestore
             firestore.collection("users").document(userId)
                 .update(
                     "password", newPassword,

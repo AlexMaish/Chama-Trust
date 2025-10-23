@@ -20,7 +20,7 @@ class ChamaBuddy : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         setupLogging()
-        FirebaseApp.initializeApp(this)  // <-- Correct method
+        FirebaseApp.initializeApp(this)
 
         SyncLogger.d("Application onCreate finished")
     }

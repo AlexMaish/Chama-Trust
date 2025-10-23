@@ -169,7 +169,7 @@ class SavingsViewModel @Inject constructor(
                 _activeCycle.value = cycle
                 cycle?.cycleId?.let { initializeCycleId(it) }
             } catch (e: Exception) {
-                _activeCycle.value = null // Explicitly set null on error
+                _activeCycle.value = null
             }
         }
     }
@@ -245,7 +245,6 @@ class SavingsViewModel @Inject constructor(
                 }
                 _memberTotals.value = totals
             } catch (e: Exception) {
-                // Handle error
             }
         }
     }
@@ -310,12 +309,10 @@ class SavingsViewModel @Inject constructor(
         }
     }
 
-    // SavingsViewModel.kt
     private fun recordSavings(event: SavingsEvent.RecordSavings) {
         viewModelScope.launch {
             _state.value = SavingsState.Loading
             try {
-                // 🔹 Validation: Ensure cycle exists and belongs to group
                 val cycle = cycleRepository.getCycleById(event.cycleId)
                 if (cycle == null || cycle.groupId != event.groupId) {
                     throw IllegalStateException("Invalid cycle or cycle does not belong to the group")
@@ -334,12 +331,10 @@ class SavingsViewModel @Inject constructor(
                     getAllMemberCycles(event.memberId)
                     _state.value = SavingsState.SavingsRecorded(true)
                 } else {
-                    // 🔹 Capture specific error messages (e.g., oversaving validation)
                     val errorMsg = result.exceptionOrNull()?.message ?: "Failed to record savings"
                     _state.value = SavingsState.Error(errorMsg)
                 }
             } catch (e: Exception) {
-                // 🔹 Catch validation errors thrown above
                 _state.value = SavingsState.Error(e.message ?: "Failed to record savings")
             }
         }
@@ -440,7 +435,6 @@ class SavingsViewModel @Inject constructor(
                     event.groupId
                 )
             } catch (e: Exception) {
-                // Handle error
             }
         }
     }

@@ -16,7 +16,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateCycleViewModel @Inject constructor(
     private val cycleRepository: CycleRepository,
-    private val groupRepository: GroupRepository // Add this
+    private val groupRepository: GroupRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateCycleState())
@@ -62,7 +62,6 @@ class CreateCycleViewModel @Inject constructor(
                 println("Creating cycle for group: $groupId")
                 val currentState = uiState.value
 
-                // Validate inputs
                 if (currentState.weeklyAmount <= 0 || currentState.monthlySavingsAmount <= 0) {
                     _errorMessage.value = "Amounts must be greater than zero"
                     return@launch
@@ -76,7 +75,6 @@ class CreateCycleViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Create cycle and verify ID
                 val result = cycleRepository.startNewCycle(
                     weeklyAmount = currentState.weeklyAmount,
                     monthlyAmount = currentState.monthlySavingsAmount,
