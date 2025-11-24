@@ -192,6 +192,26 @@ Savings totals per cycle
 
 ![Screenshot_20251124-114432](https://github.com/user-attachments/assets/d543f30d-d7a4-49ed-a0fc-1ef8f24405e7)
 
+
+👤 MEMBERS MANAGEMENT SCREEN
+
+This screen displays all members of the group together with their roles and status.
+
+What you can do on this screen:
+
+View all group members with their names, roles, and profile info
+
+Promote a member to Admin
+
+Demote an Admin back to a normal member
+
+Deactivate a member (if inactive or removed from the group)
+
+Reactivate a previously deactivated member
+
+![IMG-20251124-WA0011](https://github.com/user-attachments/assets/3f04a54b-40d6-4686-8b58-4840c61989c5)
+
+
 ✨ KEY FEATURES
 ✔ Merry-Go-Round Automation
 
